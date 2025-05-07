@@ -4,3 +4,23 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+thiserror = "2.0.12"
+anyhow = "1.0.98"
+borsh = "1.5.7"
+borsh-derive = "1.5.7"
+
+sha2 = { version = "0.10.8", optional = true }
+sha2-sp1 = { tag = "patch-sha2-0.10.8-sp1-4.0.0", git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", optional = true }
+
+sha3 = { version = "0.10.8", optional = true }
+sha3-sp1 = { tag = "patch-sha3-0.10.8-sp1-4.0.0", git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha3", optional = true }
+
+crypto-bigint = { version = "0.5.5", optional = true }
+crypto-bigint-sp1 = { tag = "patch-0.5.5-sp1-4.0.0", git = "https://github.com/sp1-patches/RustCrypto-bigint", package = "crypto-bigint", optional = true }
+
+p256 = { version = "0.13.2", optional = true }
+p256-sp1 = { tag = "patch-p256-13.2-sp1-4.1.0", git = "https://github.com/sp1-patches/elliptic-curves", package = "p256", optional = true }
+
+[features]
+default = ["sha2", "sha3", "crypto-bigint", "p256"]
+sp1 = ["sha2-sp1", "sha3-sp1", "crypto-bigint-sp1", "p256-sp1"]
