@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::ops::Bound::{Excluded, Included};
+use std::ops::RangeBounds;
 
 use crate::types::InterLiquidSdkError;
 
@@ -19,7 +19,11 @@ impl RelatedStates {
 
 impl StateManager for RelatedStates {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
-        Ok(self.map.get(key).cloned())
+        if let Some(value) = self.map.get(key) {
+            Ok(Some(value.clone()))
+        } else {
+            Err(InterLiquidSdkError::UnrelatedState)
+        }
     }
 
     fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError> {
@@ -34,11 +38,16 @@ impl StateManager for RelatedStates {
         Ok(())
     }
 
-    fn iter(
-        &mut self,
-        prefix: &[u8],
-    ) -> Result<impl Iterator<Item = (Vec<u8>, Vec<u8>)>, InterLiquidSdkError> {
+    fn iter<'a>(
+        &'a mut self,
+        range: impl RangeBounds<Vec<u8>>,
+    ) -> impl Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a {
+        let iter = self.map.range(range);
+
+        iter.map(|result| {
+            let (key, value) = result;
+
+            Ok((key.clone(), value.clone()))
+        })
     }
 }
-
-fn increment_prefix(prefix: &[u8]) -> Vec<u8> {}

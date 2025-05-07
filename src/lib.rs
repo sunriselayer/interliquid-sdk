@@ -1,3 +1,4 @@
+pub mod module;
 pub mod state;
 pub mod tx;
 pub mod types;

@@ -1,5 +1,3 @@
-use crate::{state::StateManager, types::InterLiquidSdkError};
+use crate::types::NamedSerializableType;
 
-pub trait Message<S: StateManager> {
-    fn apply(&self, state: &mut S) -> Result<(), InterLiquidSdkError>;
-}
+pub trait Msg: NamedSerializableType {}

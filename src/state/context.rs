@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    ops::RangeBounds,
+};
 
 use crate::{state::StateManager, types::InterLiquidSdkError};
 
@@ -19,7 +22,7 @@ impl<S: StateManager> StateContext<S> {
         }
     }
 
-    pub fn access_keys(&self) -> &BTreeSet<Vec<u8>> {
+    pub fn accessed_keys(&self) -> &BTreeSet<Vec<u8>> {
         &self.get
     }
 
@@ -60,11 +63,19 @@ impl<S: StateManager> StateManager for StateContext<S> {
         Ok(())
     }
 
-    fn iter(
-        &mut self,
-        prefix: &[u8],
-    ) -> Result<impl Iterator<Item = (Vec<u8>, Vec<u8>)>, InterLiquidSdkError> {
-        // TODO: override
-        self.state.iter(prefix)
+    fn iter<'a>(
+        &'a mut self,
+        range: impl RangeBounds<Vec<u8>>,
+    ) -> impl Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a {
+        self.state.iter(range).map(|result| {
+            let (key, value) = result?;
+
+            if self.set.contains_key(&key) {
+                let value = self.set.get(&key).unwrap().clone();
+
+                return Ok((key, value));
+            }
+            Ok((key, value))
+        })
     }
 }
