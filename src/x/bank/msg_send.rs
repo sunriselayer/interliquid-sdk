@@ -3,7 +3,7 @@ use borsh_derive::{BorshDeserialize, BorshSerialize};
 use crate::{
     core::Context,
     tx::Msg,
-    types::{InterLiquidSdkError, NamedSerializableType, Token, Tokens},
+    types::{InterLiquidSdkError, NamedSerializableType, Tokens},
 };
 
 use super::{BankKeeper, BankKeeperI};

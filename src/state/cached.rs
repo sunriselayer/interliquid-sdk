@@ -42,7 +42,9 @@ impl<S: StateManager> StateManager for CachedState<S> {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
         self.get.insert(key.to_vec());
 
-        if let Some(value) = self.set.get(key) {
+        if self.del.contains(key) {
+            Ok(None)
+        } else if let Some(value) = self.set.get(key) {
             Ok(Some(value.clone()))
         } else {
             self.state.get(key)
@@ -50,6 +52,7 @@ impl<S: StateManager> StateManager for CachedState<S> {
     }
 
     fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError> {
+        self.del.remove(key);
         self.set.insert(key.to_vec(), value.to_vec());
 
         Ok(())
@@ -66,16 +69,23 @@ impl<S: StateManager> StateManager for CachedState<S> {
         &'a mut self,
         range: RangeBounds<Vec<u8>>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
-        Box::new(self.state.iter(range).map(|result| {
-            let (key, value) = result?;
+        Box::new(self.state.iter(range).filter_map(|result| {
+            let (key, value) = match result {
+                Ok((key, value)) => (key, value),
+                Err(e) => return Some(Err(e)),
+            };
+
+            if self.del.contains(&key) {
+                return None;
+            }
 
             if self.set.contains_key(&key) {
                 let value = self.set.get(&key).unwrap().clone();
 
-                return Ok((key, value));
+                return Some(Ok((key, value)));
             }
 
-            Ok((key, value))
+            Some(Ok((key, value)))
         }))
     }
 }

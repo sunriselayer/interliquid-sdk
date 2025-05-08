@@ -4,7 +4,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::{
     key::{join_keys, KeyDeclaration},
-    Map,
+    Map, PrefixBound,
 };
 use crate::{
     state::{RangeBounds, StateManager},
@@ -27,7 +27,7 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
     pub fn get<'a>(
         &self,
         state: &mut dyn StateManager,
-        key: &K::KeyReference<'a>,
+        key: K::KeyReference<'a>,
     ) -> Result<Option<V>, InterLiquidSdkError> {
         self.map.get(state, key)
     }
@@ -35,7 +35,7 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
     pub fn set<'a>(
         &self,
         state: &mut dyn StateManager,
-        key: &K::KeyReference<'a>,
+        key: K::KeyReference<'a>,
         value: &V,
     ) -> Result<(), InterLiquidSdkError> {
         let old_value = self.map.get(state, key)?;
@@ -64,7 +64,7 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
     pub fn del<'a>(
         &self,
         state: &mut dyn StateManager,
-        key: &K::KeyReference<'a>,
+        key: K::KeyReference<'a>,
     ) -> Result<(), InterLiquidSdkError> {
         let old_value = self.map.get(state, key)?;
 
@@ -79,11 +79,11 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
         Ok(())
     }
 
-    pub fn iter<'a>(
+    pub fn iter<'a, B: PrefixBound>(
         &'a self,
         state: &'a mut dyn StateManager,
-        range: RangeBounds<Vec<u8>>,
-    ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, V), InterLiquidSdkError>> + 'a> {
+        range: RangeBounds<B>,
+    ) -> Box<dyn Iterator<Item = Result<(B::KeyToExtract, V), InterLiquidSdkError>> + 'a> {
         self.map.iter(state, range)
     }
 }

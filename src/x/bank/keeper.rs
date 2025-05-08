@@ -3,7 +3,7 @@ use super::keys::{BALANCES, BANK};
 use crate::{
     core::Context,
     types::{InterLiquidSdkError, Tokens, TokensI, U256},
-    utils::IndexedMap,
+    utils::{IndexedMap, PrefixBoundTupleOne},
 };
 
 pub trait BankKeeperI {
@@ -47,7 +47,7 @@ impl BankKeeper {
         denom: &str,
         amount: &U256,
     ) -> Result<(), InterLiquidSdkError> {
-        let balance = self.balances.get(ctx.state_manager(), &(address, denom))?;
+        let balance = self.balances.get(ctx.state_manager(), (address, denom))?;
 
         let new_balance = match balance {
             Some(balance) => balance.checked_add(amount)?,
@@ -55,7 +55,7 @@ impl BankKeeper {
         };
 
         self.balances
-            .set(ctx.state_manager(), &(address, denom), &new_balance)?;
+            .set(ctx.state_manager(), (address, denom), &new_balance)?;
 
         Ok(())
     }
@@ -67,7 +67,7 @@ impl BankKeeper {
         denom: &str,
         amount: &U256,
     ) -> Result<(), InterLiquidSdkError> {
-        let balance = self.balances.get(ctx.state_manager(), &(address, denom))?;
+        let balance = self.balances.get(ctx.state_manager(), (address, denom))?;
 
         let new_balance = match balance {
             Some(balance) => balance.checked_sub(amount)?,
@@ -77,7 +77,7 @@ impl BankKeeper {
         };
 
         self.balances
-            .set(ctx.state_manager(), &(address, denom), &new_balance)?;
+            .set(ctx.state_manager(), (address, denom), &new_balance)?;
 
         Ok(())
     }
@@ -90,7 +90,7 @@ impl BankKeeperI for BankKeeper {
         address: &str,
         denom: &str,
     ) -> Result<Option<U256>, InterLiquidSdkError> {
-        let balance = self.balances.get(ctx.state_manager(), &(address, denom))?;
+        let balance = self.balances.get(ctx.state_manager(), (address, denom))?;
 
         Ok(balance)
     }
@@ -100,10 +100,16 @@ impl BankKeeperI for BankKeeper {
         ctx: &mut dyn Context,
         address: &str,
     ) -> Result<Tokens, InterLiquidSdkError> {
-        let range = address..=address;
-        let balances = self.balances.iter(ctx.state_manager(), range.into());
+        let mut tokens = Tokens::new();
 
-        Ok(())
+        let bound = PrefixBoundTupleOne::<String, String>::new(address);
+        let range = bound.clone()..=bound;
+        for result in self.balances.iter(ctx.state_manager(), (&range).into()) {
+            let ((_address, denom), amount) = result?;
+            tokens.insert(denom, amount);
+        }
+
+        Ok(tokens)
     }
 
     fn send(

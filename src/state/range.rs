@@ -6,6 +6,14 @@ pub struct RangeBounds<'a, T: ?Sized> {
     end_bound: Bound<&'a T>,
 }
 
+impl<'a, T> RangeBounds<'a, T> {
+    pub fn new(start_bound: Bound<&'a T>, end_bound: Bound<&'a T>) -> Self {
+        Self {
+            start_bound,
+            end_bound,
+        }
+    }
+}
 impl<'a, T> std::ops::RangeBounds<T> for RangeBounds<'a, T> {
     fn start_bound(&self) -> Bound<&T> {
         self.start_bound

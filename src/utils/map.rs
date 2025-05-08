@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use super::key::{join_keys, KeyDeclaration};
+use super::{
+    key::{join_keys, KeyDeclaration},
+    PrefixBound,
+};
 use crate::{
     state::{RangeBounds, StateManager},
     types::InterLiquidSdkError,
@@ -24,7 +27,7 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> Map<K, V> {
     pub fn get<'a>(
         &self,
         state: &mut dyn StateManager,
-        key: &K::KeyReference<'a>,
+        key: K::KeyReference<'a>,
     ) -> Result<Option<V>, InterLiquidSdkError> {
         let entire_key = join_keys([self.prefix.as_slice(), &K::to_key_bytes(key)]);
         let value = state.get(&entire_key)?;
@@ -38,7 +41,7 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> Map<K, V> {
     pub fn set<'a>(
         &self,
         state: &mut dyn StateManager,
-        key: &K::KeyReference<'a>,
+        key: K::KeyReference<'a>,
         value: &V,
     ) -> Result<(), InterLiquidSdkError> {
         let entire_key = join_keys([self.prefix.as_slice(), &K::to_key_bytes(key)]);
@@ -51,25 +54,26 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> Map<K, V> {
     pub fn del<'a>(
         &self,
         state: &mut dyn StateManager,
-        key: &K::KeyReference<'a>,
+        key: K::KeyReference<'a>,
     ) -> Result<(), InterLiquidSdkError> {
         let entire_key = join_keys([self.prefix.as_slice(), &K::to_key_bytes(key)]);
 
         state.del(&entire_key)
     }
 
-    pub fn iter<'a>(
+    pub fn iter<'a, B: PrefixBound>(
         &'a self,
         state: &'a mut dyn StateManager,
-        range: RangeBounds<Vec<u8>>,
-    ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, V), InterLiquidSdkError>> + 'a> {
-        let iter = state.iter(range);
+        range: RangeBounds<B>,
+    ) -> Box<dyn Iterator<Item = Result<(B::KeyToExtract, V), InterLiquidSdkError>> + 'a> {
+        let iter = state.iter((&range).into());
 
         Box::new(iter.map(|result| {
-            let (k, v) = result?;
+            let (mut k, v) = result?;
+            let key = B::extract(&mut k[self.prefix.len()..]);
             let value = V::deserialize(&mut &v[..])?;
 
-            Ok((k, value))
+            Ok((key, value))
         }))
     }
 }
