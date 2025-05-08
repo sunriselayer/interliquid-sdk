@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::RangeBounds};
+use std::{collections::BTreeMap, marker::PhantomData};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -10,7 +10,7 @@ use crate::{state::StateManager, types::InterLiquidSdkError};
 
 pub struct IndexedMap<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> {
     map: Map<K, V>,
-    indexers: BTreeMap<String, Indexer<V>>,
+    indexers: BTreeMap<String, Box<dyn IndexerI<K, V>>>,
 }
 
 impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
@@ -41,17 +41,21 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
 
         if let Some(old_value) = old_value {
             for indexer in self.indexers.values() {
-                let old_indexing_key = indexer.key_mapping(&old_value);
-                let new_indexing_key = indexer.key_mapping(value);
+                let old_indexing_key = indexer.key_bytes_mapping(&old_value)?;
+                let new_indexing_key = indexer.key_bytes_mapping(value)?;
 
                 if old_indexing_key != new_indexing_key {
-                    indexer.del(state, &old_indexing_key)?;
-                    indexer.set(state, &new_indexing_key, &K::to_key_bytes(key))?;
+                    indexer._del(state, &old_indexing_key)?;
+                    indexer._set(state, &new_indexing_key, &K::to_key_bytes(key))?;
                 }
             }
         } else {
             for indexer in self.indexers.values() {
-                indexer.set(state, &indexer.key_mapping(value), &K::to_key_bytes(key))?;
+                indexer._set(
+                    state,
+                    &indexer.key_bytes_mapping(&value)?,
+                    &K::to_key_bytes(key),
+                )?;
             }
         }
 
@@ -67,7 +71,7 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
 
         if let Some(old_value) = old_value {
             for indexer in self.indexers.values() {
-                indexer.del(state, &indexer.key_mapping(&old_value))?;
+                indexer._del(state, &indexer.key_bytes_mapping(&old_value)?)?;
             }
 
             self.map.del(state, key)?;
@@ -79,44 +83,97 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
     pub fn iter<'a, B: PrefixBound>(
         &'a self,
         state: &'a mut dyn StateManager,
-        range: impl RangeBounds<B>,
+        range: impl IntoObjectSafeRangeBounds<B>,
     ) -> Box<dyn Iterator<Item = Result<(B::KeyToExtract, V), InterLiquidSdkError>> + 'a> {
         self.map.iter(state, range)
     }
 }
 
-pub struct Indexer<V: BorshSerialize + BorshDeserialize> {
-    prefix: Vec<u8>,
-    key_mapping: Box<dyn Fn(&V) -> Vec<u8>>,
-}
-
-impl<V: BorshSerialize + BorshDeserialize> Indexer<V> {
-    pub fn new(prefix: Vec<u8>, key_mapping: impl Fn(&V) -> Vec<u8> + 'static) -> Self {
-        Self {
-            prefix,
-            key_mapping: Box::new(key_mapping),
-        }
-    }
-
-    fn key_mapping(&self, value: &V) -> Vec<u8> {
-        (self.key_mapping)(value)
-    }
-
-    pub fn get(
+trait IndexerI<PK: KeyDeclaration, V: BorshSerialize + BorshDeserialize> {
+    fn _get(
         &self,
         state: &mut dyn StateManager,
         indexing_key: &[u8],
-    ) -> Result<Option<V>, InterLiquidSdkError> {
+    ) -> Result<Option<PK>, InterLiquidSdkError>;
+    fn _set(
+        &self,
+        state: &mut dyn StateManager,
+        indexing_key: &[u8],
+        primary_key: &[u8],
+    ) -> Result<(), InterLiquidSdkError>;
+    fn _del(
+        &self,
+        state: &mut dyn StateManager,
+        indexing_key: &[u8],
+    ) -> Result<(), InterLiquidSdkError>;
+
+    fn key_bytes_mapping(&self, value: &V) -> Result<Vec<u8>, InterLiquidSdkError>;
+}
+
+pub struct Indexer<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: BorshSerialize + BorshDeserialize>
+{
+    prefix: Vec<u8>,
+    key_mapping: Box<dyn Fn(&V) -> IK::KeyReference<'a>>,
+    phantom: PhantomData<PK>,
+}
+
+impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: BorshSerialize + BorshDeserialize>
+    Indexer<'a, IK, PK, V>
+{
+    pub fn new(
+        prefix: Vec<u8>,
+        key_mapping: impl Fn(&V) -> IK::KeyReference<'a> + 'static,
+    ) -> Self {
+        Self {
+            prefix,
+            key_mapping: Box::new(key_mapping),
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn get<'b>(
+        &self,
+        state: &mut dyn StateManager,
+        indexing_key: IK::KeyReference<'b>,
+    ) -> Result<Option<PK>, InterLiquidSdkError> {
+        self._get(state, &IK::to_key_bytes(indexing_key))
+    }
+
+    pub fn iter<'b, B: PrefixBound>(
+        &'b self,
+        state: &'b mut dyn StateManager,
+        range: impl IntoObjectSafeRangeBounds<B>,
+    ) -> Box<dyn Iterator<Item = Result<(IK, PK), InterLiquidSdkError>> + 'b> {
+        let iter = state.iter(range.into_object_safe_range_bounds());
+
+        Box::new(iter.map(|result| {
+            let (ik, pk) = result?;
+            let ik = IK::deserialize(&mut &ik[..])?;
+            let pk = PK::deserialize(&mut &pk[..])?;
+
+            Ok((ik, pk))
+        }))
+    }
+}
+
+impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: BorshSerialize + BorshDeserialize>
+    IndexerI<PK, V> for Indexer<'a, IK, PK, V>
+{
+    fn _get(
+        &self,
+        state: &mut dyn StateManager,
+        indexing_key: &[u8],
+    ) -> Result<Option<PK>, InterLiquidSdkError> {
         let entire_key = join_keys([&self.prefix, indexing_key]);
         let primary_key = state.get(&entire_key)?;
 
         match primary_key {
-            Some(value) => Ok(Some(V::deserialize(&mut &value[..])?)),
+            Some(value) => Ok(Some(PK::deserialize(&mut &value[..])?)),
             None => Ok(None),
         }
     }
 
-    fn set(
+    fn _set(
         &self,
         state: &mut dyn StateManager,
         indexing_key: &[u8],
@@ -129,7 +186,7 @@ impl<V: BorshSerialize + BorshDeserialize> Indexer<V> {
         state.set(&entire_key, &buf)
     }
 
-    fn del(
+    fn _del(
         &self,
         state: &mut dyn StateManager,
         indexing_key: &[u8],
@@ -139,18 +196,10 @@ impl<V: BorshSerialize + BorshDeserialize> Indexer<V> {
         state.del(&entire_key)
     }
 
-    pub fn iter<'a>(
-        &'a self,
-        state: &'a mut dyn StateManager,
-        range: impl IntoObjectSafeRangeBounds<Vec<u8>>,
-    ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
-        let iter = state.iter(range.into_object_safe_range_bounds());
+    fn key_bytes_mapping(&self, value: &V) -> Result<Vec<u8>, InterLiquidSdkError> {
+        let mut buf = Vec::new();
+        (self.key_mapping)(value).serialize(&mut buf)?;
 
-        Box::new(iter.map(|result| {
-            let (mut indexing_key, primary_key) = result?;
-            let indexing_key = indexing_key.split_off(self.prefix.len());
-
-            Ok((indexing_key, primary_key))
-        }))
+        Ok(buf)
     }
 }
