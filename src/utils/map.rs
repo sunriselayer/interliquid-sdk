@@ -1,16 +1,19 @@
-use std::{marker::PhantomData, ops::RangeBounds};
+use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use super::key::{join_keys, KeySerializable};
-use crate::{state::StateManager, types::InterLiquidSdkError};
+use super::key::{join_keys, KeyDeclaration};
+use crate::{
+    state::{RangeBounds, StateManager},
+    types::InterLiquidSdkError,
+};
 
-pub struct Map<K: KeySerializable, V: BorshSerialize + BorshDeserialize> {
+pub struct Map<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> {
     prefix: Vec<u8>,
     phantom: PhantomData<(K, V)>,
 }
 
-impl<K: KeySerializable, V: BorshSerialize + BorshDeserialize> Map<K, V> {
+impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> Map<K, V> {
     pub fn new<'a, P: IntoIterator<Item = &'a [u8]>>(prefix: P) -> Self {
         Self {
             prefix: join_keys(prefix),
@@ -18,12 +21,12 @@ impl<K: KeySerializable, V: BorshSerialize + BorshDeserialize> Map<K, V> {
         }
     }
 
-    pub fn get<S: StateManager>(
+    pub fn get<'a>(
         &self,
-        state: &mut S,
-        key: &K,
+        state: &mut dyn StateManager,
+        key: &K::KeyReference<'a>,
     ) -> Result<Option<V>, InterLiquidSdkError> {
-        let entire_key = join_keys([self.prefix.as_slice(), &key.to_key_bytes()]);
+        let entire_key = join_keys([self.prefix.as_slice(), &K::to_key_bytes(key)]);
         let value = state.get(&entire_key)?;
 
         match value {
@@ -32,37 +35,41 @@ impl<K: KeySerializable, V: BorshSerialize + BorshDeserialize> Map<K, V> {
         }
     }
 
-    pub fn set<S: StateManager>(
+    pub fn set<'a>(
         &self,
-        state: &mut S,
-        key: &K,
+        state: &mut dyn StateManager,
+        key: &K::KeyReference<'a>,
         value: &V,
     ) -> Result<(), InterLiquidSdkError> {
-        let entire_key = join_keys([self.prefix.as_slice(), &key.to_key_bytes()]);
+        let entire_key = join_keys([self.prefix.as_slice(), &K::to_key_bytes(key)]);
         let mut buf = Vec::new();
         value.serialize(&mut buf)?;
 
         state.set(&entire_key, &buf)
     }
 
-    pub fn del<S: StateManager>(&self, state: &mut S, key: &K) -> Result<(), InterLiquidSdkError> {
-        let entire_key = join_keys([self.prefix.as_slice(), &key.to_key_bytes()]);
+    pub fn del<'a>(
+        &self,
+        state: &mut dyn StateManager,
+        key: &K::KeyReference<'a>,
+    ) -> Result<(), InterLiquidSdkError> {
+        let entire_key = join_keys([self.prefix.as_slice(), &K::to_key_bytes(key)]);
 
         state.del(&entire_key)
     }
 
-    pub fn iter<'a, S: StateManager>(
+    pub fn iter<'a>(
         &'a self,
-        state: &'a mut S,
-        range: impl RangeBounds<Vec<u8>>,
-    ) -> impl Iterator<Item = Result<(Vec<u8>, V), InterLiquidSdkError>> + 'a {
+        state: &'a mut dyn StateManager,
+        range: RangeBounds<Vec<u8>>,
+    ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, V), InterLiquidSdkError>> + 'a> {
         let iter = state.iter(range);
 
-        iter.map(|result| {
+        Box::new(iter.map(|result| {
             let (k, v) = result?;
             let value = V::deserialize(&mut &v[..])?;
 
             Ok((k, value))
-        })
+        }))
     }
 }

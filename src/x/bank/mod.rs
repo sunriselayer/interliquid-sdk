@@ -1,7 +1,7 @@
 mod keeper;
 mod keys;
+mod module;
 mod msg_send;
-mod msgs;
 
 pub use keeper::*;
-pub use msgs::*;
+pub use module::*;

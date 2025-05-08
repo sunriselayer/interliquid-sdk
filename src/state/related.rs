@@ -1,15 +1,14 @@
 use std::collections::BTreeMap;
-use std::ops::RangeBounds;
 
 use crate::types::InterLiquidSdkError;
 
-use super::manager::StateManager;
+use super::{manager::StateManager, range::RangeBounds};
 
-pub struct RelatedStates {
+pub struct RelatedState {
     pub map: BTreeMap<Vec<u8>, Vec<u8>>,
 }
 
-impl RelatedStates {
+impl RelatedState {
     pub fn new() -> Self {
         Self {
             map: BTreeMap::new(),
@@ -17,7 +16,7 @@ impl RelatedStates {
     }
 }
 
-impl StateManager for RelatedStates {
+impl StateManager for RelatedState {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
         if let Some(value) = self.map.get(key) {
             Ok(Some(value.clone()))
@@ -40,14 +39,14 @@ impl StateManager for RelatedStates {
 
     fn iter<'a>(
         &'a mut self,
-        range: impl RangeBounds<Vec<u8>>,
-    ) -> impl Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a {
+        range: RangeBounds<Vec<u8>>,
+    ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
         let iter = self.map.range(range);
 
-        iter.map(|result| {
+        Box::new(iter.map(|result| {
             let (key, value) = result;
 
             Ok((key.clone(), value.clone()))
-        })
+        }))
     }
 }

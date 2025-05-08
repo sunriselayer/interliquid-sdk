@@ -1,18 +1,17 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    ops::RangeBounds,
-};
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{state::StateManager, types::InterLiquidSdkError};
 
-pub struct StateContext<S: StateManager> {
+use super::range::RangeBounds;
+
+pub struct CachedState<S: StateManager> {
     pub state: S,
     pub get: BTreeSet<Vec<u8>>,
     pub set: BTreeMap<Vec<u8>, Vec<u8>>,
     pub del: BTreeSet<Vec<u8>>,
 }
 
-impl<S: StateManager> StateContext<S> {
+impl<S: StateManager> CachedState<S> {
     pub fn new(state: S) -> Self {
         Self {
             state,
@@ -39,7 +38,7 @@ impl<S: StateManager> StateContext<S> {
     }
 }
 
-impl<S: StateManager> StateManager for StateContext<S> {
+impl<S: StateManager> StateManager for CachedState<S> {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
         self.get.insert(key.to_vec());
 
@@ -65,9 +64,9 @@ impl<S: StateManager> StateManager for StateContext<S> {
 
     fn iter<'a>(
         &'a mut self,
-        range: impl RangeBounds<Vec<u8>>,
-    ) -> impl Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a {
-        self.state.iter(range).map(|result| {
+        range: RangeBounds<Vec<u8>>,
+    ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
+        Box::new(self.state.iter(range).map(|result| {
             let (key, value) = result?;
 
             if self.set.contains_key(&key) {
@@ -75,7 +74,8 @@ impl<S: StateManager> StateManager for StateContext<S> {
 
                 return Ok((key, value));
             }
+
             Ok((key, value))
-        })
+        }))
     }
 }

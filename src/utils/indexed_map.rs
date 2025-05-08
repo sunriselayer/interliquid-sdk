@@ -1,19 +1,22 @@
-use std::{collections::BTreeMap, ops::RangeBounds};
+use std::collections::BTreeMap;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::{
-    key::{join_keys, KeySerializable},
+    key::{join_keys, KeyDeclaration},
     Map,
 };
-use crate::{state::StateManager, types::InterLiquidSdkError};
+use crate::{
+    state::{RangeBounds, StateManager},
+    types::InterLiquidSdkError,
+};
 
-pub struct IndexedMap<K: KeySerializable, V: BorshSerialize + BorshDeserialize> {
+pub struct IndexedMap<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> {
     map: Map<K, V>,
     indexers: BTreeMap<String, Indexer<V>>,
 }
 
-impl<K: KeySerializable, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
+impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
     pub fn new<'a, P: IntoIterator<Item = &'a [u8]>>(prefix: P) -> Self {
         Self {
             map: Map::new(prefix),
@@ -21,18 +24,18 @@ impl<K: KeySerializable, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> 
         }
     }
 
-    pub fn get<S: StateManager>(
+    pub fn get<'a>(
         &self,
-        state: &mut S,
-        key: &K,
+        state: &mut dyn StateManager,
+        key: &K::KeyReference<'a>,
     ) -> Result<Option<V>, InterLiquidSdkError> {
         self.map.get(state, key)
     }
 
-    pub fn set<S: StateManager>(
+    pub fn set<'a>(
         &self,
-        state: &mut S,
-        key: &K,
+        state: &mut dyn StateManager,
+        key: &K::KeyReference<'a>,
         value: &V,
     ) -> Result<(), InterLiquidSdkError> {
         let old_value = self.map.get(state, key)?;
@@ -46,19 +49,23 @@ impl<K: KeySerializable, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> 
 
                 if old_indexing_key != new_indexing_key {
                     indexer.del(state, &old_indexing_key)?;
-                    indexer.set(state, &new_indexing_key, &key.to_key_bytes())?;
+                    indexer.set(state, &new_indexing_key, &K::to_key_bytes(key))?;
                 }
             }
         } else {
             for indexer in self.indexers.values() {
-                indexer.set(state, &indexer.key_mapping(value), &key.to_key_bytes())?;
+                indexer.set(state, &indexer.key_mapping(value), &K::to_key_bytes(key))?;
             }
         }
 
         Ok(())
     }
 
-    pub fn del<S: StateManager>(&self, state: &mut S, key: &K) -> Result<(), InterLiquidSdkError> {
+    pub fn del<'a>(
+        &self,
+        state: &mut dyn StateManager,
+        key: &K::KeyReference<'a>,
+    ) -> Result<(), InterLiquidSdkError> {
         let old_value = self.map.get(state, key)?;
 
         if let Some(old_value) = old_value {
@@ -72,11 +79,11 @@ impl<K: KeySerializable, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> 
         Ok(())
     }
 
-    pub fn iter<'a, S: StateManager>(
+    pub fn iter<'a>(
         &'a self,
-        state: &'a mut S,
-        range: impl RangeBounds<Vec<u8>>,
-    ) -> impl Iterator<Item = Result<(Vec<u8>, V), InterLiquidSdkError>> + 'a {
+        state: &'a mut dyn StateManager,
+        range: RangeBounds<Vec<u8>>,
+    ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, V), InterLiquidSdkError>> + 'a> {
         self.map.iter(state, range)
     }
 }
@@ -98,9 +105,9 @@ impl<V: BorshSerialize + BorshDeserialize> Indexer<V> {
         (self.key_mapping)(value)
     }
 
-    pub fn get<S: StateManager>(
+    pub fn get(
         &self,
-        state: &mut S,
+        state: &mut dyn StateManager,
         indexing_key: &[u8],
     ) -> Result<Option<V>, InterLiquidSdkError> {
         let entire_key = join_keys([&self.prefix, indexing_key]);
@@ -112,9 +119,9 @@ impl<V: BorshSerialize + BorshDeserialize> Indexer<V> {
         }
     }
 
-    fn set<S: StateManager>(
+    fn set(
         &self,
-        state: &mut S,
+        state: &mut dyn StateManager,
         indexing_key: &[u8],
         primary_key: &[u8],
     ) -> Result<(), InterLiquidSdkError> {
@@ -125,9 +132,9 @@ impl<V: BorshSerialize + BorshDeserialize> Indexer<V> {
         state.set(&entire_key, &buf)
     }
 
-    fn del<S: StateManager>(
+    fn del(
         &self,
-        state: &mut S,
+        state: &mut dyn StateManager,
         indexing_key: &[u8],
     ) -> Result<(), InterLiquidSdkError> {
         let entire_key = join_keys([&self.prefix, indexing_key]);
@@ -135,17 +142,17 @@ impl<V: BorshSerialize + BorshDeserialize> Indexer<V> {
         state.del(&entire_key)
     }
 
-    pub fn iter<'a, S: StateManager>(
+    pub fn iter<'a>(
         &'a self,
-        state: &'a mut S,
-        range: impl RangeBounds<Vec<u8>>,
-    ) -> impl Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a {
+        state: &'a mut dyn StateManager,
+        range: RangeBounds<Vec<u8>>,
+    ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
         let iter = state.iter(range);
 
-        iter.map(|result| {
+        Box::new(iter.map(|result| {
             let (indexing_key, primary_key) = result?;
 
             Ok((indexing_key, primary_key))
-        })
+        }))
     }
 }

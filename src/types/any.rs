@@ -1,31 +1,35 @@
+use std::any::Any;
+
 use borsh::{BorshDeserialize, BorshSerialize};
+use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::types::InterLiquidSdkError;
 
-pub struct Any {
+#[derive(BorshSerialize, BorshDeserialize)]
+pub struct SerializableAny {
     pub type_: String,
     pub value: Vec<u8>,
 }
 
-impl Any {
+impl SerializableAny {
     pub fn new(type_: String, value: Vec<u8>) -> Self {
         Self { type_, value }
     }
 }
 
-pub trait NamedSerializableType: BorshSerialize + BorshDeserialize {
-    fn type_name() -> String;
+pub trait NamedSerializableType: Any + BorshSerialize + BorshDeserialize {
+    fn type_name() -> &'static str;
 
-    fn to_any(&self) -> Result<Any, InterLiquidSdkError> {
+    fn to_any(&self) -> Result<SerializableAny, InterLiquidSdkError> {
         let mut buf = vec![];
         self.serialize(&mut buf)?;
 
-        let any = Any::new(Self::type_name(), buf);
+        let any = SerializableAny::new(Self::type_name().to_owned(), buf);
 
         Ok(any)
     }
 
-    fn from_any(any: Any) -> Result<Self, InterLiquidSdkError> {
+    fn from_any(any: SerializableAny) -> Result<Self, InterLiquidSdkError> {
         let value = Self::deserialize(&mut &any.value[..])?;
 
         Ok(value)
