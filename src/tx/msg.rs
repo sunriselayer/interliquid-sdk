@@ -1,3 +1,5 @@
-use crate::types::NamedSerializableType;
+use crate::types::{Address, NamedSerializableType};
 
-pub trait Msg: NamedSerializableType {}
+pub trait Msg: NamedSerializableType {
+    fn signer_address(&self) -> Address;
+}

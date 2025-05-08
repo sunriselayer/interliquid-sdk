@@ -5,7 +5,7 @@ use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::types::InterLiquidSdkError;
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct SerializableAny {
     pub type_: String,
     pub value: Vec<u8>,
@@ -20,7 +20,7 @@ impl SerializableAny {
 pub trait NamedSerializableType: Any + BorshSerialize + BorshDeserialize {
     fn type_name() -> &'static str;
 
-    fn to_any(&self) -> Result<SerializableAny, InterLiquidSdkError> {
+    fn pack_any(&self) -> Result<SerializableAny, InterLiquidSdkError> {
         let mut buf = vec![];
         self.serialize(&mut buf)?;
 
@@ -29,7 +29,7 @@ pub trait NamedSerializableType: Any + BorshSerialize + BorshDeserialize {
         Ok(any)
     }
 
-    fn from_any(any: SerializableAny) -> Result<Self, InterLiquidSdkError> {
+    fn unpack_any(any: &SerializableAny) -> Result<Self, InterLiquidSdkError> {
         let value = Self::deserialize(&mut &any.value[..])?;
 
         Ok(value)

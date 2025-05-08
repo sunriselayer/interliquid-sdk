@@ -51,6 +51,14 @@ impl KeyDeclaration for u64 {
     }
 }
 
+impl<const N: usize> KeyDeclaration for [u8; N] {
+    type KeyReference<'a> = &'a [u8; N];
+
+    fn to_key_bytes<'a>(key: Self::KeyReference<'a>) -> Vec<u8> {
+        key.to_vec()
+    }
+}
+
 impl KeyDeclaration for String {
     type KeyReference<'a> = &'a str;
 

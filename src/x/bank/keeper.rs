@@ -2,7 +2,7 @@ use super::keys::{BALANCES, BANK};
 
 use crate::{
     core::Context,
-    types::{InterLiquidSdkError, Tokens, TokensI, U256},
+    types::{Address, InterLiquidSdkError, Tokens, TokensI, U256},
     utils::{IndexedMap, PrefixBound, PrefixBoundTupleOne},
 };
 
@@ -10,27 +10,27 @@ pub trait BankKeeperI {
     fn get_balance(
         &self,
         ctx: &mut dyn Context,
-        address: &str,
+        address: &Address,
         denom: &str,
     ) -> Result<Option<U256>, InterLiquidSdkError>;
 
     fn get_all_balances(
         &self,
         ctx: &mut dyn Context,
-        address: &str,
+        address: &Address,
     ) -> Result<Tokens, InterLiquidSdkError>;
 
     fn send(
         &self,
         ctx: &mut dyn Context,
-        from: &str,
-        to: &str,
+        from: &Address,
+        to: &Address,
         tokens: &Tokens,
     ) -> Result<(), InterLiquidSdkError>;
 }
 
 pub struct BankKeeper {
-    balances: IndexedMap<(String, String), U256>,
+    balances: IndexedMap<(Address, String), U256>,
 }
 
 impl BankKeeper {
@@ -43,7 +43,7 @@ impl BankKeeper {
     fn add_balance(
         &self,
         ctx: &mut dyn Context,
-        address: &str,
+        address: &Address,
         denom: &str,
         amount: &U256,
     ) -> Result<(), InterLiquidSdkError> {
@@ -63,7 +63,7 @@ impl BankKeeper {
     fn sub_balance(
         &self,
         ctx: &mut dyn Context,
-        address: &str,
+        address: &Address,
         denom: &str,
         amount: &U256,
     ) -> Result<(), InterLiquidSdkError> {
@@ -87,7 +87,7 @@ impl BankKeeperI for BankKeeper {
     fn get_balance(
         &self,
         ctx: &mut dyn Context,
-        address: &str,
+        address: &Address,
         denom: &str,
     ) -> Result<Option<U256>, InterLiquidSdkError> {
         let balance = self.balances.get(ctx.state_manager(), (address, denom))?;
@@ -98,11 +98,11 @@ impl BankKeeperI for BankKeeper {
     fn get_all_balances(
         &self,
         ctx: &mut dyn Context,
-        address: &str,
+        address: &Address,
     ) -> Result<Tokens, InterLiquidSdkError> {
         let mut tokens = Tokens::new();
 
-        let bound = PrefixBoundTupleOne::<String, String>::new(address);
+        let bound = PrefixBoundTupleOne::<Address, String>::new(address);
         for result in self.balances.iter(ctx.state_manager(), bound.exact()) {
             let ((_address, denom), amount) = result?;
             tokens.insert(denom, amount);
@@ -114,8 +114,8 @@ impl BankKeeperI for BankKeeper {
     fn send(
         &self,
         ctx: &mut dyn Context,
-        from: &str,
-        to: &str,
+        from: &Address,
+        to: &Address,
         tokens: &Tokens,
     ) -> Result<(), InterLiquidSdkError> {
         tokens.validate()?;

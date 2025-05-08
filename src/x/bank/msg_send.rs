@@ -3,15 +3,15 @@ use borsh_derive::{BorshDeserialize, BorshSerialize};
 use crate::{
     core::Context,
     tx::Msg,
-    types::{InterLiquidSdkError, NamedSerializableType, Tokens},
+    types::{Address, InterLiquidSdkError, NamedSerializableType, Tokens},
 };
 
 use super::{BankKeeper, BankKeeperI};
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct MsgSend {
-    pub from_address: String,
-    pub to_address: String,
+    pub from_address: Address,
+    pub to_address: Address,
     pub tokens: Tokens,
 }
 
@@ -21,7 +21,11 @@ impl NamedSerializableType for MsgSend {
     }
 }
 
-impl Msg for MsgSend {}
+impl Msg for MsgSend {
+    fn signer_address(&self) -> Address {
+        self.from_address
+    }
+}
 
 impl BankKeeper {
     pub fn msg_send(

@@ -1,6 +1,11 @@
-use crate::{state::StateManager, types::InterLiquidSdkError};
+use crate::{core::Context, types::InterLiquidSdkError};
 
-pub trait TxHandler<S: StateManager> {
-    fn ante(&self, state: &mut S) -> Result<(), InterLiquidSdkError>;
-    fn post(&self, state: &mut S) -> Result<(), InterLiquidSdkError>;
+use super::Tx;
+
+pub trait TxAnteHandler {
+    fn handle(&self, ctx: &mut dyn Context, tx: &Tx) -> Result<(), InterLiquidSdkError>;
+}
+
+pub trait TxPostHandler {
+    fn handle(&self, ctx: &mut dyn Context, tx: &Tx) -> Result<(), InterLiquidSdkError>;
 }
