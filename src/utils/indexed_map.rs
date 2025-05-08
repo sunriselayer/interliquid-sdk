@@ -1,15 +1,12 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::RangeBounds};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::{
     key::{join_keys, KeyDeclaration},
-    Map, PrefixBound,
+    IntoObjectSafeRangeBounds, Map, PrefixBound,
 };
-use crate::{
-    state::{RangeBounds, StateManager},
-    types::InterLiquidSdkError,
-};
+use crate::{state::StateManager, types::InterLiquidSdkError};
 
 pub struct IndexedMap<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> {
     map: Map<K, V>,
@@ -82,7 +79,7 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
     pub fn iter<'a, B: PrefixBound>(
         &'a self,
         state: &'a mut dyn StateManager,
-        range: RangeBounds<B>,
+        range: impl RangeBounds<B>,
     ) -> Box<dyn Iterator<Item = Result<(B::KeyToExtract, V), InterLiquidSdkError>> + 'a> {
         self.map.iter(state, range)
     }
@@ -145,12 +142,13 @@ impl<V: BorshSerialize + BorshDeserialize> Indexer<V> {
     pub fn iter<'a>(
         &'a self,
         state: &'a mut dyn StateManager,
-        range: RangeBounds<Vec<u8>>,
+        range: impl IntoObjectSafeRangeBounds<Vec<u8>>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
-        let iter = state.iter(range);
+        let iter = state.iter(range.into_object_safe_range_bounds());
 
         Box::new(iter.map(|result| {
-            let (indexing_key, primary_key) = result?;
+            let (mut indexing_key, primary_key) = result?;
+            let indexing_key = indexing_key.split_off(self.prefix.len());
 
             Ok((indexing_key, primary_key))
         }))

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{state::StateManager, types::InterLiquidSdkError};
 
-use super::range::RangeBounds;
+use super::range::ObjectSafeRangeBounds;
 
 pub struct CachedState<S: StateManager> {
     pub state: S,
@@ -67,7 +67,7 @@ impl<S: StateManager> StateManager for CachedState<S> {
 
     fn iter<'a>(
         &'a mut self,
-        range: RangeBounds<Vec<u8>>,
+        range: ObjectSafeRangeBounds<Vec<u8>>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
         Box::new(self.state.iter(range).filter_map(|result| {
             let (key, value) = match result {

@@ -7,8 +7,8 @@ pub fn join_keys<'a, P: IntoIterator<Item = &'a [u8]>>(parts: P) -> Vec<u8> {
     })
 }
 
-pub trait KeyDeclaration: BorshDeserialize {
-    type KeyReference<'a>: BorshSerialize + Clone + Copy;
+pub trait KeyDeclaration: BorshDeserialize + Clone {
+    type KeyReference<'a>: BorshSerialize + Clone + Copy + 'a;
 
     fn to_key_bytes<'a>(key: Self::KeyReference<'a>) -> Vec<u8>;
 }

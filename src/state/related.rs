@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::types::InterLiquidSdkError;
 
-use super::{manager::StateManager, range::RangeBounds};
+use super::{manager::StateManager, range::ObjectSafeRangeBounds};
 
 pub struct RelatedState {
     pub map: BTreeMap<Vec<u8>, Vec<u8>>,
@@ -39,7 +39,7 @@ impl StateManager for RelatedState {
 
     fn iter<'a>(
         &'a mut self,
-        range: RangeBounds<Vec<u8>>,
+        range: ObjectSafeRangeBounds<Vec<u8>>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
         let iter = self.map.range(range);
 

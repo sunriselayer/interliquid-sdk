@@ -3,7 +3,7 @@ use super::keys::{BALANCES, BANK};
 use crate::{
     core::Context,
     types::{InterLiquidSdkError, Tokens, TokensI, U256},
-    utils::{IndexedMap, PrefixBoundTupleOne},
+    utils::{IndexedMap, PrefixBound, PrefixBoundTupleOne},
 };
 
 pub trait BankKeeperI {
@@ -103,8 +103,7 @@ impl BankKeeperI for BankKeeper {
         let mut tokens = Tokens::new();
 
         let bound = PrefixBoundTupleOne::<String, String>::new(address);
-        let range = bound.clone()..=bound;
-        for result in self.balances.iter(ctx.state_manager(), (&range).into()) {
+        for result in self.balances.iter(ctx.state_manager(), bound.exact()) {
             let ((_address, denom), amount) = result?;
             tokens.insert(denom, amount);
         }
