@@ -1,7 +1,4 @@
-use crate::{
-    core::{Module, MsgRegistry, TypeRegistry},
-    tx::Msg,
-};
+use crate::core::{Module, MsgRegistry, TypeRegistry};
 
 use super::keeper::AuthKeeper;
 

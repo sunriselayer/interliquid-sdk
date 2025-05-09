@@ -1,7 +1,4 @@
-use std::{
-    any::Any,
-    collections::{BTreeMap, BTreeSet},
-};
+use std::{any::Any, collections::BTreeMap};
 
 use anyhow::anyhow;
 
@@ -12,14 +9,12 @@ pub struct TypeRegistry {
         &'static str,
         Box<dyn Fn(&SerializableAny) -> Result<Box<dyn Any>, InterLiquidSdkError> + Send + Sync>,
     >,
-    trait_impls: BTreeMap<&'static str, BTreeSet<&'static str>>,
 }
 
 impl TypeRegistry {
     pub fn new() -> Self {
         Self {
             unpack_any: BTreeMap::new(),
-            trait_impls: BTreeMap::new(),
         }
     }
 
@@ -30,72 +25,16 @@ impl TypeRegistry {
         );
     }
 
-    pub fn register_trait(
-        &mut self,
-        sample: &dyn IdentifiableTrait,
-    ) -> Result<(), InterLiquidSdkError> {
-        if self.trait_impls.contains_key(sample.identifier()) {
-            return Err(InterLiquidSdkError::AlreadyExists(anyhow!(
-                "trait already registered"
-            )));
-        }
+    pub fn unpack_any(&self, any: &SerializableAny) -> Result<Box<dyn Any>, InterLiquidSdkError> {
+        let name = any.type_.as_str();
 
-        self.trait_impls
-            .entry(sample.identifier())
-            .or_insert_with(BTreeSet::new);
-
-        Ok(())
-    }
-
-    pub fn register_impl<T: NamedSerializableType>(
-        &mut self,
-        sample: &dyn IdentifiableTrait,
-    ) -> Result<(), InterLiquidSdkError> {
-        let identifier = sample.identifier();
-        let impls = self
-            .trait_impls
-            .get_mut(identifier)
+        let unpack_any = self
+            .unpack_any
+            .get(name)
             .ok_or(InterLiquidSdkError::NotFound(anyhow!(
-                "trait not registered"
-            )))?;
-
-        impls.insert(T::type_name());
-
-        Ok(())
-    }
-
-    pub fn unpack_trait(
-        &self,
-        sample: &dyn IdentifiableTrait,
-        any: &SerializableAny,
-    ) -> Result<Box<dyn Any>, InterLiquidSdkError> {
-        let identifier = sample.identifier();
-        let impls = self
-            .trait_impls
-            .get(identifier)
-            .ok_or(InterLiquidSdkError::NotFound(anyhow!(
-                "trait not registered"
-            )))?;
-
-        if !impls.contains(any.type_.as_str()) {
-            return Err(InterLiquidSdkError::NotFound(anyhow!(
                 "type not registered"
-            )));
-        }
+            )))?;
 
-        let unpack_any =
-            self.unpack_any
-                .get(any.type_.as_str())
-                .ok_or(InterLiquidSdkError::NotFound(anyhow!(
-                    "type not registered"
-                )))?;
-
-        let instance = unpack_any(any)?;
-
-        Ok(instance)
+        unpack_any(any)
     }
-}
-
-pub trait IdentifiableTrait {
-    fn identifier(&self) -> &'static str;
 }

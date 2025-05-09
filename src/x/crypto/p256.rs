@@ -5,7 +5,7 @@ use p256::EncodedPoint;
 
 use crate::types::{InterLiquidSdkError, NamedSerializableType};
 
-use super::key::VerifyingKey;
+use super::verifying_key::VerifyingKey;
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct VerifyingKeyP256 {
