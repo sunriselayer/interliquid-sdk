@@ -63,7 +63,7 @@ $$
 $$
 
 We need to prove the validity of the above equation with ZKP.
-We assume to use SP1 zkVM.
+We assume to use zkVM.
 To prove this, the state transition function is adjusted as follows:
 
 $$
@@ -113,7 +113,7 @@ However, proving it for iter access (all keys which match the designated key pre
 Twin Nibble Trees combines two tree components:
 
 - 4-bit-Radix Sparse Merkle Tree for state inclusion proof
-  - The same architecture as Jellyfish Merkle Tree
+  - The same architecture as [Jellyfish Merkle Tree](https://developers.diem.com/docs/technical-papers/jellyfish-merkle-tree-paper/) made by Diem (ex-Libra)
 - 4-bit-Radix Patricia Trie for key indexing to enable key prefix based iteration
 
 The state root is calculated by the following equation where $$h$$ is the hash function:
@@ -264,6 +264,12 @@ In this zkVM program, each $$\text{TxChunkHash}_i$$ is calculated internally and
 ### Interoperability
 
 The reason why InterLiquid SDK is suitable for building on Sunrise is that Sunrise can support IBC connection with apps made with InterLiquid SDK by using Sunrise's ZKP based light client.
+
+### Serialization
+
+InterLiquid SDK uses [Borsh](https://github.com/near/borsh) made by NEAR for serializing data into binary format.
+[Protocol Buffers](https://github.com/protocolbuffers/protobuf) made by Google was not a bad choice for Cosmos SDK to enhance the reusability of the types and to have deterministic property of serialization,
+but it is not suitable for ZKP and lightweight rollups.
 
 ### Parallelization of tx execution
 
