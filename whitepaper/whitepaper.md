@@ -87,14 +87,12 @@ as the public input of the ZKP, it is possible to generate the verifiable validi
 
 $$
 \begin{aligned}
-\text{PublicInputsStf} &=&& [\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}] \\
-\text{PrivateInputsStf} &=&& [ \\
-                        &&&   \ \text{StatePrev}^{\text{get, iter}}, \\
-                        &&&   \ \text{StateNext}^{\text{set, del}}, \\
-                        &&&   \ \text{StateNodeHashes}^{\text{NoAccess}}, \\
-                        &&&   \ \text{Txs}, \\
-                        &&&] \\
-\text{ProofStf} &=&& \text{ZKP}(\text{PublicInputsStf}, \text{PrivateInputsStf})
+\text{PublicInputsStf} &= [\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}] \\
+\text{PrivateInputsStf} &= [\text{StatePrev}^{\text{get, iter}}, \\
+    &\qquad \text{StateNext}^{\text{set, del}}, \\
+    &\qquad \text{StateNodeHashes}^{\text{NoAccess}}, \\
+    &\qquad \text{Txs}] \\
+\text{ProofStf} &= \text{ZKP}(\text{PublicInputsStf}, \text{PrivateInputsStf})
 \end{aligned}
 $$
 
@@ -216,14 +214,12 @@ $$
 
 $$
 \begin{aligned}
-\text{TxChunkHash}_i &=&& h(\text{TxInChunk}_1 || \dots || \text{TxInChunk}_{c(i)}) \\
-\text{PublicInputsChunkStf}_i &=&& [\text{StateRootPrev}, \text{StateRootNext}_i, \text{TxChunkHash}_i] \\
-\text{PrivateInputsChunkStf}_i &=&& [ \\
-                               &&&  \ \text{StatePrev}_i^{\text{get, iter}}, \\
-                               &&&  \ \text{StateNext}_i^{\text{set, del}}, \\
-                               &&&  \ \text{StateNodeHashes}_i^{\text{NoAccess}}, \\
-                               &&&  \ \text{TxsChunk}_i, \\
-                               &&&]
+\text{TxChunkHash}_i &= h(\text{TxInChunk}_1 || \dots || \text{TxInChunk}_{c(i)}) \\
+\text{PublicInputsChunkStf}_i &= [\text{StateRootPrev}, \text{StateRootNext}_i, \text{TxChunkHash}_i] \\
+\text{PrivateInputsChunkStf}_i &= [\text{StatePrev}_i^{\text{get, iter}}, \\
+    &\qquad \text{StateNext}_i^{\text{set, del}}, \\
+    &\qquad \text{StateNodeHashes}_i^{\text{NoAccess}}, \\
+    &\qquad \text{TxsChunk}_i]
 \end{aligned}
 $$
 
@@ -232,13 +228,11 @@ Then we can generate the proof in parallel for each chunk with a combined circui
 $$
 \begin{aligned}
 \forall i \in \{1:n\} \text{ in parallel:} \\
-\text{PublicInputsChunk}_i &=&& [\text{PublicInputsChunkStf}_i] \\
-\text{PrivateInputsChunk}_i &=&& [ \\
-                            &&&  \ \text{PrivateInputsChunkStf}_i, \\
-                            &&&  \ \text{PrivateInputsChunkGet}_i, \\
-                            &&&  \ \text{PrivateInputsChunkIter}_i, \\
-                            &&&] \\
-\text{ProofChunk}_i &=&& \text{ZKP}(\text{PublicInputsChunk}_i, \text{PrivateInputsChunk}_i)
+\text{PublicInputsChunk}_i &= [\text{PublicInputsChunkStf}_i] \\
+\text{PrivateInputsChunk}_i &= [\text{PrivateInputsChunkStf}_i, \\
+    &\qquad \text{PrivateInputsChunkGet}_i, \\
+    &\qquad \text{PrivateInputsChunkIter}_i] \\
+\text{ProofChunk}_i &= \text{ZKP}(\text{PublicInputsChunk}_i, \text{PrivateInputsChunk}_i)
 \end{aligned}
 $$
 
@@ -252,13 +246,11 @@ Finally, we can aggregate all proofs with recursive ZKP:
 
 $$
 \begin{aligned}
-\text{PublicInputsAgg} &=&& [\text{StateRootPrev}_1, \text{StateRootNext}_n, \text{TxRoot}] \\
-\text{PrivateInputsAgg} &=&& [ \\
-                        &&&  \ \{\text{StateRootPrev}_i\}_{i=2}^{n}, \\
-                        &&&  \ \{\text{StateRootNext}_i\}_{i=1}^{n-1}, \\
-                        &&&  \ \{\text{TxsChunk}_i, \text{ProofChunk}_i\}_{i=1}^{n}, \\
-                        &&&] \\
-\text{ProofAgg} &=&& \text{ZKP}(\text{PublicInputsAgg}, \text{PrivateInputsAgg})
+\text{PublicInputsAgg} &= [\text{StateRootPrev}_1, \text{StateRootNext}_n, \text{TxRoot}] \\
+\text{PrivateInputsAgg} &= [\{\text{StateRootPrev}_i\}_{i=2}^{n}, \\
+    &\qquad \{\text{StateRootNext}_i\}_{i=1}^{n-1}, \\
+    &\qquad \{\text{TxsChunk}_i, \text{ProofChunk}_i\}_{i=1}^{n}] \\
+\text{ProofAgg} &= \text{ZKP}(\text{PublicInputsAgg}, \text{PrivateInputsAgg})
 \end{aligned}
 $$
 
