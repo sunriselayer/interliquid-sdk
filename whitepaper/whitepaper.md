@@ -1,5 +1,5 @@
 ---
-layout: plain
+layout: paper
 title: "InterLiquid SDK Whitepaper"
 permalink: /whitepaper/
 ---
