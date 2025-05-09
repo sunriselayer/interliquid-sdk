@@ -11,20 +11,6 @@ pub struct TxBody {
     pub options: Vec<SerializableAny>,
 }
 
-impl TxBody {
-    pub fn new(
-        msgs: Vec<SerializableAny>,
-        timeout_seconds: u64,
-        options: Vec<SerializableAny>,
-    ) -> Self {
-        Self {
-            msgs,
-            timeout_seconds,
-            options,
-        }
-    }
-}
-
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct AuthInfo {
     pub address: Address,
@@ -33,37 +19,11 @@ pub struct AuthInfo {
     pub verifying_key: SerializableAny,
 }
 
-impl AuthInfo {
-    pub fn new(
-        address: Address,
-        nonce: u64,
-        key_index: u64,
-        verifying_key: SerializableAny,
-    ) -> Self {
-        Self {
-            address,
-            nonce,
-            key_index,
-            verifying_key,
-        }
-    }
-}
-
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct StdTx {
     pub body: TxBody,
     pub auth_info: AuthInfo,
     pub signature: Vec<u8>,
-}
-
-impl StdTx {
-    pub fn new(body: TxBody, auth_info: AuthInfo, signature: Vec<u8>) -> Self {
-        Self {
-            body,
-            auth_info,
-            signature,
-        }
-    }
 }
 
 #[derive(Debug, Clone, BorshSerialize)]

@@ -4,14 +4,14 @@ use crate::{state::StateManager, types::InterLiquidSdkError};
 
 use super::range::ObjectSafeRangeBounds;
 
-pub struct CachedState<S: StateManager> {
+pub struct TransactionalState<S: StateManager> {
     pub state: S,
     pub get: BTreeSet<Vec<u8>>,
     pub set: BTreeMap<Vec<u8>, Vec<u8>>,
     pub del: BTreeSet<Vec<u8>>,
 }
 
-impl<S: StateManager> CachedState<S> {
+impl<S: StateManager> TransactionalState<S> {
     pub fn new(state: S) -> Self {
         Self {
             state,
@@ -38,7 +38,7 @@ impl<S: StateManager> CachedState<S> {
     }
 }
 
-impl<S: StateManager> StateManager for CachedState<S> {
+impl<S: StateManager> StateManager for TransactionalState<S> {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
         self.get.insert(key.to_vec());
 

@@ -1,7 +1,9 @@
-mod cached;
 mod manager;
 mod range;
 mod related;
+mod transactional;
 
-pub use manager::StateManager;
+pub use manager::*;
 pub use range::*;
+pub use related::*;
+pub use transactional::*;

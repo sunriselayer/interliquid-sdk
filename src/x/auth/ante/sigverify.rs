@@ -4,7 +4,7 @@ use anyhow::anyhow;
 
 use crate::{
     core::Context,
-    tx::{Tx, TxAnteHandler},
+    tx::TxAnteHandler,
     types::InterLiquidSdkError,
     x::{
         auth::{
@@ -30,8 +30,8 @@ impl SigVerifyAnteHandler {
 }
 
 impl TxAnteHandler for SigVerifyAnteHandler {
-    fn handle(&self, ctx: &mut dyn Context, tx: &Box<dyn Tx>) -> Result<(), InterLiquidSdkError> {
-        let tx = tx.downcast::<StdTx>().unwrap();
+    fn handle(&self, ctx: &mut dyn Context, tx: &Box<dyn Any>) -> Result<(), InterLiquidSdkError> {
+        let tx = tx.downcast_ref::<StdTx>().unwrap();
 
         let mut account = match self.auth_keeper.get_account(ctx, &tx.auth_info.address)? {
             Some(account) => account,
