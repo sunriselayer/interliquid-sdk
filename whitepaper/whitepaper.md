@@ -28,6 +28,13 @@ Only if it exists, on chain logics can be very flexible as well as NoSQL like Fi
 However, it is not possible in almost all public blockchains.
 It is one of the most painful problems for Developer Experience.
 
+Of course Indexing services should be utilized for proper purposes like search and analytics.
+However, enforcing developers to pay for subscription of Indexing services only for succinct iteration on frontend side,
+while serving the query function which is available only if the user could calculate the slot id of the state like EVM,
+is very absurd.
+
+For succinct purposes, key prefix based iteration should be supported by the blockchain itself, moreover on-chain.
+
 ### Ethereum
 
 Ethereum's state is managed in a Patricia Merkle Trie (PMT) respectively with each address including smart contract address and EOA address, and further internal state of each smart contract is stored in a Patricia Merkle Trie inside the address state.
@@ -38,7 +45,7 @@ Because PMT hashes each key, it disallow developers to iterate state in a key pr
 Solana's state is stored respectively with each account.
 Thanks to its design, Solana succeeded to parallelize state transition for each account.
 However, it is not possible to iterate state in a key prefix based way.
-By making each account like B-tree node, developers can realize the structure of B-tree artificially, but it costs rents of Solana account.
+By making each account like B-tree node, developers can realize the structure of B-tree artificially, but it costs rents of Solana account and the Developer Experience is terrible.
 
 ### Cosmos SDK
 
@@ -264,6 +271,8 @@ In this zkVM program, each $$\text{TxChunkHash}_i$$ is calculated internally and
 ### Interoperability
 
 The reason why InterLiquid SDK is suitable for building on Sunrise is that Sunrise can support IBC connection with apps made with InterLiquid SDK by using Sunrise's ZKP based light client.
+The name of InterLiquid SDK is derived from here.
+Any lightweight rollups which can serve Web2 like UX and DX can access to the public DeFi liquidity through Sunrise.
 
 ### Serialization
 
