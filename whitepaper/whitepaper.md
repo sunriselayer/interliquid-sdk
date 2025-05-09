@@ -49,7 +49,7 @@ If we try to remove the mechanism of self-rebalancing (it means it is simple bin
 
 ## The challenge of InterLiquid SDK
 
-The challenge of InterLiquid SDK is to make key prefix based iteration and ZK friendliness.
+The challenge of InterLiquid SDK is to make key prefix based iteration and ZK friendliness coexisting.
 The architecture to achieve this is **Twin Nibble Trees**.
 
 Before explaining Twin Nibble Trees, let's see how to prove the validity of state transition with ZKP.
@@ -75,7 +75,7 @@ $$
 
 Because zkVM cannot access to the storage, we need to give the state to access $$ \text{State}^{\text{get, iter}} $$ beforehand.
 It is also enough to output only the written state $$ \text{State}^{\text{set, del}} $$ without entire state.
-To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state node hashes $$ \text{StateNodeHashes}_{\text{NoAccess}} $$ to allow zkVM to calculate the state root.
+To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state node hashes $$ \text{StateNodeHashes}^{\text{NoAccess}} $$ to allow zkVM to calculate the state root.
 
 By committing these three values:
 
