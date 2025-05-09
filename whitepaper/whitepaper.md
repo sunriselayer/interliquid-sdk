@@ -171,7 +171,8 @@ pub struct Key4RadixPatriciaNode {
   pub key_fragment: Vec<u8>,
   pub nibble_front: bool,
   pub nibble_back: bool,
-  pub children: [Option<Key4RadixPatriciaNode>; 16],
+  pub child_bitmap: u16,
+  pub children: Vec<Key4RadixPatriciaNode>,
 }
 ```
 
