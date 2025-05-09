@@ -21,7 +21,7 @@ It is one of the most painful problems for Developer Experience.
 
 ### Ethereum
 
-Ethereum’s state is managed in a Merkle Patricia Tree (MPT) respectively with each address including smart contract address and EOA address, and further internal state of each smart contract is stored in a Merkle Patricia Tree inside the address state.
+Ethereum's state is managed in a Merkle Patricia Tree (MPT) respectively with each address including smart contract address and EOA address, and further internal state of each smart contract is stored in a Merkle Patricia Tree inside the address state.
 Because MPT hashes each key, it disallow developers to iterate state in a key prefix based way.
 
 ### Solana
@@ -58,26 +58,34 @@ We assume to use SP1 zkVM.
 To proce this, the state transition function is adjusted as follows:
 
 $$
-\{\text{StateRootNext}, \text{StateNext}^{\text{set, del}}\} = \hat{f}({\text{StateRootPrev} , \text{StatePrev}^{\text{get, iter}}}, \text{StateNodeHashes}^{\text{NoAccess}}, \text{Txs})
+\begin{aligned}
+&\{\text{StateRootNext}, \text{StateNext}^{\text{set, del}}\} \\
+&= \hat{f}({\text{StateRootPrev} , \text{StatePrev}^{\text{get, iter}}}, \text{StateNodeHashes}^{\text{NoAccess}}, \text{Txs})
+\end{aligned}
 $$
 
-Because zkVM cannot access to the storage, hence we need to give the state to access $\text{State}^{\text{get, iter}}$ beforehand.
-It is also enough to output only the state written $\text{State}^{\text{set, del}}$ without entire state.
-To calculate the $\text{StateRootNext}$, it is also needed to give the state node hashes $\text{StateNodeHashes}_{\text{NoAccess}}$ to zkVM to calculate the state root.
+Because zkVM cannot access to the storage, hence we need to give the state to access \( \text{State}^{\text{get, iter}} \) beforehand.
+It is also enough to output only the state written \( \text{State}^{\text{set, del}} \) without entire state.
+To calculate the \( \text{StateRootNext} \), it is also needed to give the state node hashes \( \text{StateNodeHashes}_{\text{NoAccess}} \) to zkVM to calculate the state root.
 
-By commiting these three values:
+By committing these three values:
 
-- $\text{StateRootPrev}$
-- $\text{StateRootNext}$
-- $\text{TxRoot}$
+- \(\text{StateRootPrev}\)
+- \(\text{StateRootNext}\)
+- \(\text{TxRoot}\)
 
 as the public input of the ZKP, it is possible to generate the verifiable validity proof of the state transition.
 
 $$
 \begin{aligned}
-\text{PublicInputsStf} &= [\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}] \\
-\text{PrivateInputsStf} &= [\text{StatePrev}^{\text{get, iter}}, \text{StateNext}^{\text{set, del}}, \text{StateNodeHashes}^{\text{NoAccess}}, \text{Txs}] \\
-\text{ProofStf} &\leftarrow \text{ZKP}(\text{PublicInputsStf}, \text{PrivateInputsStf})
+\text{PublicInputsStf} &=&& [\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}] \\
+\text{PrivateInputsStf} &=&& [ \\
+                        &&&   \ \text{StatePrev}^{\text{get, iter}}, \\
+                        &&&   \ \text{StateNext}^{\text{set, del}}, \\
+                        &&&   \ \text{StateNodeHashes}^{\text{NoAccess}}, \\
+                        &&&   \ \text{Txs}, \\
+                        &&&] \\
+\text{ProofStf} &=&& \text{ZKP}(\text{PublicInputsStf}, \text{PrivateInputsStf})
 \end{aligned}
 $$
 
@@ -101,7 +109,7 @@ Twin Nibble Tries combines two tree components:
   - The same architecture as Jellyfish Merkle Tree
 - 4-bit-Radix Patricia Tree for key indexing to enable key prefix based iteration
 
-The state root is calculated by the following equation where $h$ is the hash function:
+The state root is calculated by the following equation where \(h\) is the hash function:
 
 $$
 \text{StateRoot} = h(\text{StateSmtRoot} || \text{KeyPatriciaRoot})
@@ -132,11 +140,11 @@ Thanks to the property of the hash function, the attack vector of increasing the
 
 By making it 4-bit Radix, the depth of the tree is reduced from 256 to 64, and the proof size is also reduced.
 
-To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $\{ \text{Key}_i \}_{j=1}^{k}$.
+To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for \( \{ \text{Key}_i \}_{j=1}^{k} \).
 
 $$
 \begin{aligned}
-\text{KeysHash} &= h(\text{Key}_1 || \text{Key}_2 || ... || \text{Key}_k) \\
+\text{KeysHash} &= h(\text{Key}_1 || \text{Key}_2 || \dots || \text{Key}_k) \\
 \text{PublicInputsGet} &= [\text{StateSmtRootPrev}, \text{KeysHash}] \\
 \text{PrivateInputsGet} &= [\{\text{Key}_j, \text{StateSmtInclusionProof}_j\}_{j=1}^{k}] \\
 \text{ProofGet} &\leftarrow \text{ZKP}(\text{PublicInputsGet}, \text{PrivateInputsGet})
@@ -158,17 +166,17 @@ pub struct KeyPatriciaNode {
 }
 ```
 
-The node hash is calculated by the following equation where $h$ is the hash function:
+The node hash is calculated by the following equation where \(h\) is the hash function:
 
 $$
-\text{KeyPatriciaNodeHash} = h(\text{KeyFragment} || \text{ChildNodeHash}_1 || \text{ChildNodeHash}_2 || ... || \text{ChildNodeHash}_{16})
+\text{KeyPatriciaNodeHash} = h(\text{KeyFragment} || \text{ChildNodeHash}_1 || ... || \text{ChildNodeHash}_{16})
 $$
 
-To prove the validity of iter access, it is needed to re-construct the $\text{KeyPatriciaNodeHash}$ of the designated key prefix, with all iterated keys.
+To prove the validity of iter access, it is needed to re-construct the \(\text{KeyPatriciaNodeHash}\) of the designated key prefix, with all iterated keys.
 
 $$
 \begin{aligned}
-\text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \text{KeyPrefix}_2 || ... || \text{KeyPrefix}_k) \\
+\text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \dots || \text{KeyPrefix}_k) \\
 \text{KeyPatriciaNodes} &= \{\text{KeyPatriciaNode}_p\}_{p=1}^{q} \\
 \text{PublicInputsIter} &= [\text{KeyPatriciaRootPrev}, \text{KeyPrefixesHash}] \\
 \text{PrivateInputsIter} &= [\{\text{KeyPrefix}_j, \text{KeyPatriciaNodes}_j\}_{j=1}^{k}] \\
@@ -188,7 +196,7 @@ $$
 
 In the InterLiquid SDK, to get the accessed state which is needed to give to zkVM, it is needed to execute the transactions once outside of the zkVM.
 
-Here, we can get the interim result of the state transition function of entire block by assuming the chunk of the transactions $\{\text{TxsChunk}_i\}_{i=1}^{n}$, with emitting the accessed keys $\{\text{Key}_{ij}\}_{j=1}^{k}$ and $\{\text{KeyPrefix}_{ij}\}_{j=1}^{k}$:
+Here, we can get the interim result of the state transition function of entire block by assuming the chunk of the transactions \(\{\text{TxsChunk}_i\}_{i=1}^{n}\), with emitting the accessed keys \(\{\text{Key}_{ij}\}_{j=1}^{k}\) and \(\{\text{KeyPrefix}_{ij}\}_{j=1}^{k}\):
 
 $$
 \begin{aligned}
@@ -199,38 +207,51 @@ $$
 
 $$
 \begin{aligned}
-\text{TxChunkHash}_i &= h(\text{TxInChunk}_1 || \text{TxInChunk}_2 || ... || \text{TxInChunk}_{c(i)}) \\
-\text{PublicInputsChunkStf}_i &= [\text{StateRootPrev}, \text{StateRootNext}_i, \text{TxChunkHash}_i] \\
-\text{PrivateInputsChunkStf}_i &= [\text{StatePrev}_i^{\text{get, iter}}, \text{StateNext}_i^{\text{set, del}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i]
+\text{TxChunkHash}_i &=&& h(\text{TxInChunk}_1 || \text{TxInChunk}_2 || ... || \text{TxInChunk}_{c(i)}) \\
+\text{PublicInputsChunkStf}_i &=&& [\text{StateRootPrev}, \text{StateRootNext}_i, \text{TxChunkHash}_i] \\
+\text{PrivateInputsChunkStf}_i &=&& [ \\
+                               &&&  \ \text{StatePrev}_i^{\text{get, iter}}, \\
+                               &&&  \ \text{StateNext}_i^{\text{set, del}}, \\
+                               &&&  \ \text{StateNodeHashes}_i^{\text{NoAccess}}, \\
+                               &&&  \ \text{TxsChunk}_i, \\
+                               &&&]
 \end{aligned}
 $$
 
-Then we can generate the proof in parallel for each chunk with a combined circuit among $\text{ProofChunkStf}_i$, $\text{ProofChunkGet}_i$, and $\text{ProofChunkIter}_i$:
+Then we can generate the proof in parallel for each chunk with a combined circuit among \(\text{ProofChunkStf}_i\), \(\text{ProofChunkGet}_i\), and \(\text{ProofChunkIter}_i\):
 
 $$
 \begin{aligned}
 \forall i \in \{1:n\} \text{ in parallel:} \\
-\text{PublicInputsChunk}_i &= [\text{PublicInputsChunkStf}_i] \\
-\text{PrivateInputsChunk}_i &= [\text{PrivateInputsChunkStf}_i, \text{PrivateInputsChunkGet}_i, \text{PrivateInputsChunkIter}_i] \\
-\text{ProofChunk}_i &\leftarrow \text{ZKP}(\text{PublicInputsChunk}_i, \text{PrivateInputsChunk}_i)
+\text{PublicInputsChunk}_i &=&& [\text{PublicInputsChunkStf}_i] \\
+\text{PrivateInputsChunk}_i &=&& [ \\
+                            &&&  \ \text{PrivateInputsChunkStf}_i, \\
+                            &&&  \ \text{PrivateInputsChunkGet}_i, \\
+                            &&&  \ \text{PrivateInputsChunkIter}_i, \\
+                            &&&] \\
+\text{ProofChunk}_i &=&& \text{ZKP}(\text{PublicInputsChunk}_i, \text{PrivateInputsChunk}_i)
 \end{aligned}
 $$
 
-By combining these three circuits, we can omit $\text{KeysHash}$ and $\text{KeyPrefixesHash}$ in the public inputs of the ZKP because fundamentally STF $g$ can verify the validity of $\{\text{Key}\}_{j=1}^k$ and $\{\text{KeyPrefix}\}_{j=1}^k$ by itself.
+By combining these three circuits, we can omit \(\text{KeysHash}\) and \(\text{KeyPrefixesHash}\) in the public inputs of the ZKP because fundamentally STF \(g\) can verify the validity of \(\{\text{Key}\}_{j=1}^k\) and \(\{\text{KeyPrefix}\}_{j=1}^k\) by itself.
 
-Needless to say, $\text{StateSmtRootPrev}$ and $\text{KeyPatriciaRootPrev}$ which need to be verified, also can be verified by using $\text{PublicInputsChunk}_i$ in the circuit.
+Needless to say, \(\text{StateSmtRootPrev}\) and \(\text{KeyPatriciaRootPrev}\) which need to be verified, also can be verified by using \(\text{PublicInputsChunk}_i\) in the circuit.
 
 Finally, we can aggregate all proofs with recursive ZKP:
 
 $$
 \begin{aligned}
-\text{PublicInputsAgg} &= [\text{StateRootPrev}_1, \text{StateRootNext}_n, \text{TxRoot}] \\
-\text{PrivateInputsAgg} &= [\{\text{StateRootPrev}_i\}_{i=2}^{n}, \{\text{StateRootNext}_i\}_{i=1}^{n-1}, \{\text{TxsChunk}_i, \text{ProofChunk}_i\}_{i=1}^{n}] \\
-\text{ProofAgg} &\leftarrow \text{ZKP}(\text{PublicInputsAgg}, \text{PrivateInputsAgg})
+\text{PublicInputsAgg} &=&& [\text{StateRootPrev}_1, \text{StateRootNext}_n, \text{TxRoot}] \\
+\text{PrivateInputsAgg} &=&& [ \\
+                        &&&  \ \{\text{StateRootPrev}_i\}_{i=2}^{n}, \\
+                        &&&  \ \{\text{StateRootNext}_i\}_{i=1}^{n-1}, \\
+                        &&&  \ \{\text{TxsChunk}_i, \text{ProofChunk}_i\}_{i=1}^{n}, \\
+                        &&&] \\
+\text{ProofAgg} &=&& \text{ZKP}(\text{PublicInputsAgg}, \text{PrivateInputsAgg})
 \end{aligned}
 $$
 
-In this zkVM program, each $\text{TxChunkHash}_i$ is calculated internally and used for the public input of the internal ZKP verifications because $\text{TxRoot}$ should be not series hash but merkle root of all txs to support the tx inclusion proof.
+In this zkVM program, each \(\text{TxChunkHash}_i\) is calculated internally and used for the public input of the internal ZKP verifications because \(\text{TxRoot}\) should be not series hash but merkle root of all txs to support the tx inclusion proof.
 
 ## Another topics
 
