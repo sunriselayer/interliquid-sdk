@@ -30,8 +30,8 @@ It is one of the most painful problems for Developer Experience.
 
 ### Ethereum
 
-Ethereum's state is managed in a Merkle Patricia Tree (MPT) respectively with each address including smart contract address and EOA address, and further internal state of each smart contract is stored in a Merkle Patricia Tree inside the address state.
-Because MPT hashes each key, it disallow developers to iterate state in a key prefix based way.
+Ethereum's state is managed in a Patricia Merkle Trie (PMT) respectively with each address including smart contract address and EOA address, and further internal state of each smart contract is stored in a Patricia Merkle Trie inside the address state.
+Because PMT hashes each key, it disallow developers to iterate state in a key prefix based way.
 
 ### Solana
 
