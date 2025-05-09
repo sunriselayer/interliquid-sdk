@@ -133,12 +133,12 @@ It can be used for proving get access validity in the state transition, and also
 The leaf index is determined by the key hash, and the leaf value is the state hash.
 
 ```rust
-pub struct StateSmtInclusionProof {
-  pub path: [Option<StateSmtPath>; 63]
+pub struct State4RadixSmtInclusionProof {
+  pub path: [Option<State4RadixSmtPath>; 63]
   pub leaf_hash: [u8; 32],
 }
 
-pub struct StateSmtPath {
+pub struct State4RadixSmtPath {
   pub child_index: u8,
   pub sibling_hashes: [Option<[u8; 32]>; 15],
 }
@@ -156,7 +156,7 @@ $$
 \text{KeysHash} &= h(\text{Key}_1 || \text{Key}_2 || \dots || \text{Key}_k) \\
 \text{PublicInputsGet} &= [\text{StateSmtRootPrev}, \text{KeysHash}] \\
 \text{PrivateInputsGet} &= [\{\text{Key}_j, \text{StateSmtInclusionProof}_j\}_{j=1}^{k}] \\
-\text{ProofGet} &\leftarrow \text{ZKP}(\text{PublicInputsGet}, \text{PrivateInputsGet})
+\text{ProofGet} &= \text{ZKP}(\text{PublicInputsGet}, \text{PrivateInputsGet})
 \end{aligned}
 $$
 
@@ -167,11 +167,11 @@ This tree works for the key indexing.
 It can be used for proving iter access validity in the state transition.
 
 ```rust
-pub struct KeyPatriciaNode {
+pub struct Key4RadixPatriciaNode {
   pub key_fragment: Vec<u8>,
   pub nibble_front: bool,
   pub nibble_back: bool,
-  pub children: [Option<KeyPatriciaNode>; 16],
+  pub children: [Option<Key4RadixPatriciaNode>; 16],
 }
 ```
 
@@ -189,7 +189,7 @@ $$
 \text{KeyPatriciaNodes} &= \{\text{KeyPatriciaNode}_p\}_{p=1}^{q} \\
 \text{PublicInputsIter} &= [\text{KeyPatriciaRootPrev}, \text{KeyPrefixesHash}] \\
 \text{PrivateInputsIter} &= [\{\text{KeyPrefix}_j, \text{KeyPatriciaNodes}_j\}_{j=1}^{k}] \\
-\text{ProofIter} &\leftarrow \text{ZKP}(\text{PublicInputsIter}, \text{PrivateInputsIter})
+\text{ProofIter} &= \text{ZKP}(\text{PublicInputsIter}, \text{PrivateInputsIter})
 \end{aligned}
 $$
 
@@ -210,7 +210,7 @@ Here, we can get the interim result of the state transition function of entire b
 $$
 \begin{aligned}
 &\{ \text{StateRootNext}_i, \text{StateNext}_i^{\text{set, del}}, \{\text{Key}_{ij}, \text{KeyPrefix}_{ij}\}_{j=1}^{k} \} \\
-&\leftarrow g({\text{StateRootPrev} , \text{StatePrev}_i^{\text{get, iter}}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i)
+&= g({\text{StateRootPrev} , \text{StatePrev}_i^{\text{get, iter}}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i)
 \end{aligned}
 $$
 
