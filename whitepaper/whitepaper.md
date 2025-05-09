@@ -64,15 +64,15 @@ $$
 \end{aligned}
 $$
 
-Because zkVM cannot access to the storage, hence we need to give the state to access \( \text{State}^{\text{get, iter}} \) beforehand.
-It is also enough to output only the state written \( \text{State}^{\text{set, del}} \) without entire state.
-To calculate the \( \text{StateRootNext} \), it is also needed to give the state node hashes \( \text{StateNodeHashes}_{\text{NoAccess}} \) to zkVM to calculate the state root.
+Because zkVM cannot access to the storage, hence we need to give the state to access $$ \text{State}^{\text{get, iter}} $$ beforehand.
+It is also enough to output only the state written $$ \text{State}^{\text{set, del}} $$ without entire state.
+To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state node hashes $$ \text{StateNodeHashes}_{\text{NoAccess}} $$ to zkVM to calculate the state root.
 
 By committing these three values:
 
-- \(\text{StateRootPrev}\)
-- \(\text{StateRootNext}\)
-- \(\text{TxRoot}\)
+- $$\text{StateRootPrev}$$
+- $$\text{StateRootNext}$$
+- $$\text{TxRoot}$$
 
 as the public input of the ZKP, it is possible to generate the verifiable validity proof of the state transition.
 
@@ -109,7 +109,7 @@ Twin Nibble Tries combines two tree components:
   - The same architecture as Jellyfish Merkle Tree
 - 4-bit-Radix Patricia Tree for key indexing to enable key prefix based iteration
 
-The state root is calculated by the following equation where \(h\) is the hash function:
+The state root is calculated by the following equation where $$h$$ is the hash function:
 
 $$
 \text{StateRoot} = h(\text{StateSmtRoot} || \text{KeyPatriciaRoot})
@@ -140,7 +140,7 @@ Thanks to the property of the hash function, the attack vector of increasing the
 
 By making it 4-bit Radix, the depth of the tree is reduced from 256 to 64, and the proof size is also reduced.
 
-To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for \( \{ \text{Key}_i \}_{j=1}^{k} \).
+To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \{ \text{Key}_i \}_{j=1}^{k} $$.
 
 $$
 \begin{aligned}
@@ -166,13 +166,13 @@ pub struct KeyPatriciaNode {
 }
 ```
 
-The node hash is calculated by the following equation where \(h\) is the hash function:
+The node hash is calculated by the following equation where $$h$$ is the hash function:
 
 $$
 \text{KeyPatriciaNodeHash} = h(\text{KeyFragment} || \text{ChildNodeHash}_1 || ... || \text{ChildNodeHash}_{16})
 $$
 
-To prove the validity of iter access, it is needed to re-construct the \(\text{KeyPatriciaNodeHash}\) of the designated key prefix, with all iterated keys.
+To prove the validity of iter access, it is needed to re-construct the $$\text{KeyPatriciaNodeHash}$$ of the designated key prefix, with all iterated keys.
 
 $$
 \begin{aligned}
@@ -196,7 +196,7 @@ $$
 
 In the InterLiquid SDK, to get the accessed state which is needed to give to zkVM, it is needed to execute the transactions once outside of the zkVM.
 
-Here, we can get the interim result of the state transition function of entire block by assuming the chunk of the transactions \(\{\text{TxsChunk}_i\}_{i=1}^{n}\), with emitting the accessed keys \(\{\text{Key}_{ij}\}_{j=1}^{k}\) and \(\{\text{KeyPrefix}_{ij}\}_{j=1}^{k}\):
+Here, we can get the interim result of the state transition function of entire block by assuming the chunk of the transactions $$\{\text{TxsChunk}_i\}_{i=1}^{n}$$, with emitting the accessed keys $$\{\text{Key}_{ij}\}_{j=1}^{k}$$ and $$\{\text{KeyPrefix}_{ij}\}_{j=1}^{k}$$:
 
 $$
 \begin{aligned}
@@ -218,7 +218,7 @@ $$
 \end{aligned}
 $$
 
-Then we can generate the proof in parallel for each chunk with a combined circuit among \(\text{ProofChunkStf}_i\), \(\text{ProofChunkGet}_i\), and \(\text{ProofChunkIter}_i\):
+Then we can generate the proof in parallel for each chunk with a combined circuit among $$\text{ProofChunkStf}_i$$, $$\text{ProofChunkGet}_i$$, and $$\text{ProofChunkIter}_i$$:
 
 $$
 \begin{aligned}
@@ -233,9 +233,9 @@ $$
 \end{aligned}
 $$
 
-By combining these three circuits, we can omit \(\text{KeysHash}\) and \(\text{KeyPrefixesHash}\) in the public inputs of the ZKP because fundamentally STF \(g\) can verify the validity of \(\{\text{Key}\}_{j=1}^k\) and \(\{\text{KeyPrefix}\}_{j=1}^k\) by itself.
+By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can verify the validity of $$\{\text{Key}\}_{j=1}^k$$ and $$\{\text{KeyPrefix}\}_{j=1}^k$$ by itself.
 
-Needless to say, \(\text{StateSmtRootPrev}\) and \(\text{KeyPatriciaRootPrev}\) which need to be verified, also can be verified by using \(\text{PublicInputsChunk}_i\) in the circuit.
+Needless to say, $$\text{StateSmtRootPrev}$$ and $$\text{KeyPatriciaRootPrev}$$ which need to be verified, also can be verified by using $$\text{PublicInputsChunk}_i$$ in the circuit.
 
 Finally, we can aggregate all proofs with recursive ZKP:
 
@@ -251,7 +251,7 @@ $$
 \end{aligned}
 $$
 
-In this zkVM program, each \(\text{TxChunkHash}_i\) is calculated internally and used for the public input of the internal ZKP verifications because \(\text{TxRoot}\) should be not series hash but merkle root of all txs to support the tx inclusion proof.
+In this zkVM program, each $$\text{TxChunkHash}_i$$ is calculated internally and used for the public input of the internal ZKP verifications because $$\text{TxRoot}$$ should be not series hash but merkle root of all txs to support the tx inclusion proof.
 
 ## Another topics
 
