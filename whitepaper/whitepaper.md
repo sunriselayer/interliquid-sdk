@@ -6,16 +6,22 @@ permalink: /whitepaper/
 
 # InterLiquid SDK
 
-Author: KIMURA Yu (Sunrise)
+Author: KIMURA Yu ([Sunrise](https://sunriselayer.io))
 
 ## Introduction
 
 InterLiquid SDK is a software development kit for building ZK Sovereign Rollups.
 It aims to realize Web2-like User Experience and Web2-like Developer Experience for apps which can interact with public DeFi ecosystem.
 
+It is suitable for building on Sunrise, but it is not limited to it.
+
+Also if you think that the evolution of hardware acceleration of ZK proof generation is not enough, it is possible to use it for Optimistic Sovereign Rollups.
+
 ## Why Iteration Matters
 
 Key prefix based iteration is a common pattern in Web2 development.
+Only if it exists, on chain logics can be very flexible as well as NoSQL like Firebase Firestore can do.
+
 However, it is not possible in almost all public blockchains.
 It is one of the most painful problems for Developer Experience.
 
@@ -207,7 +213,7 @@ $$
 
 $$
 \begin{aligned}
-\text{TxChunkHash}_i &=&& h(\text{TxInChunk}_1 || \text{TxInChunk}_2 || ... || \text{TxInChunk}_{c(i)}) \\
+\text{TxChunkHash}_i &=&& h(\text{TxInChunk}_1 || \dots || \text{TxInChunk}_{c(i)}) \\
 \text{PublicInputsChunkStf}_i &=&& [\text{StateRootPrev}, \text{StateRootNext}_i, \text{TxChunkHash}_i] \\
 \text{PrivateInputsChunkStf}_i &=&& [ \\
                                &&&  \ \text{StatePrev}_i^{\text{get, iter}}, \\
@@ -232,6 +238,8 @@ $$
 \text{ProofChunk}_i &=&& \text{ZKP}(\text{PublicInputsChunk}_i, \text{PrivateInputsChunk}_i)
 \end{aligned}
 $$
+
+Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningfull to separate txs into chunks.
 
 By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can verify the validity of $$\{\text{Key}\}_{j=1}^k$$ and $$\{\text{KeyPrefix}\}_{j=1}^k$$ by itself.
 
@@ -272,7 +280,7 @@ To realize great User Experience, InterLiquid SDK thinks that Passkey is a key f
 Enabling P256 ECDSA signature is one factor to make it possible to sign transactions with Passkey.
 
 However, it is not the only factor.
-Rotating the linked passkey public key for the certain account is more convenient to manage the account.
+For example, rotating the linked passkey public key for the certain account is more convenient to manage the account.
 InterLiquid SDK allows developers to customize the tx authentication flow.
 
 ## Conclusion
