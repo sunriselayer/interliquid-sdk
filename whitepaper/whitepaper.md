@@ -1,3 +1,9 @@
+---
+layout: plain
+title: "InterLiquid SDK Whitepaper"
+permalink: /whitepaper/
+---
+
 # InterLiquid SDK
 
 Author: KIMURA Yu (Sunrise)
