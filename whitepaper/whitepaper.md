@@ -11,11 +11,14 @@ Author: KIMURA Yu ([Sunrise](https://sunriselayer.io))
 ## Introduction
 
 InterLiquid SDK is a software development kit for building ZK Sovereign Rollups.
-It aims to realize Web2-like User Experience and Web2-like Developer Experience for apps which can interact with public DeFi ecosystem.
+It aims to realize Web2-like User Experience and Web2-like Developer Experience for dApps.
+In other words, it aims to serve a capability for Web2 apps to interact with public DeFi ecosystem.
 
 It is suitable for building on Sunrise, but it is not limited to it.
 
 Also if you think that the evolution of hardware acceleration of ZK proof generation is not enough, it is possible to use it for Optimistic Sovereign Rollups.
+
+To clarify the word of Sovereign Rollup, in ZK Sovereign Rollup, validity proof of state transition are submitted to rollup itself, and in Optimistic Sovereign Rollup, fraud proof is submitted to rollup itself.
 
 ## Why Iteration Matters
 
@@ -263,7 +266,7 @@ In this zkVM program, each $$\text{TxChunkHash}_i$$ is calculated internally and
 
 ## Another topics
 
-### Parallelization of Tx execution
+### Parallelization of tx execution
 
 By adding the accessed keys into the tx, we can realize **Semi-Optimistic Parallel Execution**.
 
