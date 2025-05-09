@@ -64,7 +64,7 @@ $$
 
 We need to prove the validity of the above equation with ZKP.
 We assume to use SP1 zkVM.
-To proce this, the state transition function is adjusted as follows:
+To prove this, the state transition function is adjusted as follows:
 
 $$
 \begin{aligned}
@@ -73,9 +73,9 @@ $$
 \end{aligned}
 $$
 
-Because zkVM cannot access to the storage, hence we need to give the state to access $$ \text{State}^{\text{get, iter}} $$ beforehand.
-It is also enough to output only the state written $$ \text{State}^{\text{set, del}} $$ without entire state.
-To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state node hashes $$ \text{StateNodeHashes}_{\text{NoAccess}} $$ to zkVM to calculate the state root.
+Because zkVM cannot access to the storage, we need to give the state to access $$ \text{State}^{\text{get, iter}} $$ beforehand.
+It is also enough to output only the written state $$ \text{State}^{\text{set, del}} $$ without entire state.
+To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state node hashes $$ \text{StateNodeHashes}_{\text{NoAccess}} $$ to allow zkVM to calculate the state root.
 
 By committing these three values:
 
@@ -132,13 +132,15 @@ The leaf index is determined by the key hash, and the leaf value is the state ha
 
 ```rust
 pub struct State4RadixSmtInclusionProof {
-  pub path: [Option<State4RadixSmtPath>; 63]
   pub leaf_hash: [u8; 32],
+  pub sparse_bitmap: u64,
+  pub path: Vec<State4RadixSmtPath>,
 }
 
 pub struct State4RadixSmtPath {
-  pub child_index: u8,
-  pub sibling_hashes: [Option<[u8; 32]>; 15],
+  pub index: u8,
+  pub sibling_bitmap: u16,
+  pub sibling_hashes: Vec<[u8; 32]>,
 }
 ```
 
