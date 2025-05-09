@@ -50,9 +50,9 @@ If we try to remove the mechanism of self-rebalancing (it means it is simple bin
 ## The challenge of InterLiquid SDK
 
 The challenge of InterLiquid SDK is to make key prefix based iteration and ZK friendliness.
-The architecture to achieve this is **Twin Nibble Tries**.
+The architecture to achieve this is **Twin Nibble Trees**.
 
-Before explaining Twin Nibble Tries, let's see how to prove the validity of state transition with ZKP.
+Before explaining Twin Nibble Trees, let's see how to prove the validity of state transition with ZKP.
 
 ### ZKP of State transition
 
@@ -108,15 +108,15 @@ Proving it only for get access (only for one designated key) is very easy.
 Merkle inclusion proof with the given state root is enough.
 
 However, proving it for iter access (all keys which match the designated key prefix) is not so easy.
-*Twin Nibble Tries* enables it while keeping the ZK friendliness.
+*Twin Nibble Trees* enables it while keeping the ZK friendliness.
 
-### Twin Nibble Tries
+### Twin Nibble Trees
 
-Twin Nibble Tries combines two tree components:
+Twin Nibble Trees combines two tree components:
 
 - 4-bit-Radix Sparse Merkle Tree for state inclusion proof
   - The same architecture as Jellyfish Merkle Tree
-- 4-bit-Radix Patricia Tree for key indexing to enable key prefix based iteration
+- 4-bit-Radix Patricia Trie for key indexing to enable key prefix based iteration
 
 The state root is calculated by the following equation where $$h$$ is the hash function:
 
@@ -160,9 +160,9 @@ $$
 \end{aligned}
 $$
 
-### 4-bit-Radix Patricia Tree
+### 4-bit-Radix Patricia Trie
 
-This tree works for the key indexing.
+This trie works for the key indexing.
 
 It can be used for proving iter access validity in the state transition.
 
