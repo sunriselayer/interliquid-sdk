@@ -266,6 +266,10 @@ In this zkVM program, each $$\text{TxChunkHash}_i$$ is calculated internally and
 
 ## Another topics
 
+### Interoperability
+
+The reason why InterLiquid SDK is suitable for building on Sunrise is that Sunrise can support IBC connection with apps made with InterLiquid SDK by using Sunrise's ZKP based light client.
+
 ### Parallelization of tx execution
 
 By adding the accessed keys into the tx, we can realize **Semi-Optimistic Parallel Execution**.
