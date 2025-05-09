@@ -52,7 +52,7 @@ We assume to use SP1 zkVM.
 To proce this, the state transition function is adjusted as follows:
 
 $$
-\{\text{StateRootNext}, \text{StateNext}^{\text{set, del}}\} = g({\text{StateRootPrev} , \text{StatePrev}^{\text{get, iter}}}, \text{StateNodeHashes}^{\text{NoAccess}}, \text{Txs})
+\{\text{StateRootNext}, \text{StateNext}^{\text{set, del}}\} = \hat{f}({\text{StateRootPrev} , \text{StatePrev}^{\text{get, iter}}}, \text{StateNodeHashes}^{\text{NoAccess}}, \text{Txs})
 $$
 
 Because zkVM cannot access to the storage, hence we need to give the state to access $\text{State}^{\text{get, iter}}$ beforehand.
@@ -182,32 +182,37 @@ $$
 
 In the InterLiquid SDK, to get the accessed state which is needed to give to zkVM, it is needed to execute the transactions once outside of the zkVM.
 
-Here, we can get the interim result of the state transition function of entire block by assuming the chunk of the transactions $\{\text{TxsChunk}_i\}_{i=1}^{n}$:
+Here, we can get the interim result of the state transition function of entire block by assuming the chunk of the transactions $\{\text{TxsChunk}_i\}_{i=1}^{n}$, with emitting the accessed keys $\{\text{Key}_{ij}\}_{j=1}^{k}$ and $\{\text{KeyPrefix}_{ij}\}_{j=1}^{k}$:
 
 $$
-\{\text{StateRootNext}_i, \text{StateNext}_i^{\text{set, del}}\} \leftarrow g({\text{StateRootPrev} , \text{StatePrev}_i^{\text{get, iter}}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i)
+\begin{aligned}
+&\{ \text{StateRootNext}_i, \text{StateNext}_i^{\text{set, del}}, \{\text{Key}_{ij}, \text{KeyPrefix}_{ij}\}_{j=1}^{k} \} \\
+&\leftarrow g({\text{StateRootPrev} , \text{StatePrev}_i^{\text{get, iter}}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i)
+\end{aligned}
 $$
 
 $$
 \begin{aligned}
 \text{TxChunkHash}_i &= h(\text{TxInChunk}_1 || \text{TxInChunk}_2 || ... || \text{TxInChunk}_{c(i)}) \\
 \text{PublicInputsChunkStf}_i &= [\text{StateRootPrev}, \text{StateRootNext}_i, \text{TxChunkHash}_i] \\
-\text{PrivateInputsChunkStf}_i &= [\text{StatePrev}_i^{\text{get, iter}}, \text{StateNext}_i^{\text{set, del}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i] \\
-\text{ProofChunkStf}_i &\leftarrow \text{ZKP}(\text{PublicInputsChunkStf}_i, \text{PrivateInputsChunkStf}_i)
+\text{PrivateInputsChunkStf}_i &= [\text{StatePrev}_i^{\text{get, iter}}, \text{StateNext}_i^{\text{set, del}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i]
 \end{aligned}
 $$
 
-Then we can generate the proof in parallel for each chunk, also for $\text{ProofGet}_i$ and $\text{ProofIter}_i$:
+Then we can generate the proof in parallel for each chunk with a combined circuit among $\text{ProofChunkStf}_i$, $\text{ProofChunkGet}_i$, and $\text{ProofChunkIter}_i$:
 
 $$
 \begin{aligned}
 \forall i \in \{1:n\} \text{ in parallel:} \\
-\text{ProofChunkStf}_i &\leftarrow \text{ZKP}(\text{PublicInputsChunkStf}_i, \text{PrivateInputsChunkStf}_i) \\
-\text{ProofChunkGet}_i &\leftarrow \text{ZKP}(\text{PublicInputsChunkGet}_i, \text{PrivateInputsChunkGet}_i) \\
-\text{ProofChunkIter}_i &\leftarrow \text{ZKP}(\text{PublicInputsChunkIter}_i, \text{PrivateInputsChunkIter}_i) \\
+\text{PublicInputsChunk}_i &= [\text{PublicInputsChunkStf}_i] \\
+\text{PrivateInputsChunk}_i &= [\text{PrivateInputsChunkStf}_i, \text{PrivateInputsChunkGet}_i, \text{PrivateInputsChunkIter}_i] \\
 \text{ProofChunk}_i &\leftarrow \text{ZKP}(\text{PublicInputsChunk}_i, \text{PrivateInputsChunk}_i)
 \end{aligned}
 $$
+
+By combining these three circuits, we can omit $\text{KeysHash}$ and $\text{KeyPrefixesHash}$ in the public inputs of the ZKP because fundamentally STF $g$ can verify the validity of $\{\text{Key}\}_{j=1}^k$ and $\{\text{KeyPrefix}\}_{j=1}^k$ by itself.
+
+Needless to say, $\text{StateSmtRootPrev}$ and $\text{KeyPatriciaRootPrev}$ which need to be verified, also can be verified by using $\text{PublicInputsChunk}_i$ in the circuit.
 
 Finally, we can aggregate all proofs with recursive ZKP:
 
