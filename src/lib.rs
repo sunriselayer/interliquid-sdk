@@ -1,5 +1,5 @@
 pub mod core;
-pub mod patricia_trie;
+pub mod merkle;
 pub mod state;
 pub mod tx;
 pub mod types;

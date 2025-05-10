@@ -1,4 +1,4 @@
-use crate::patricia_trie::{
+use crate::merkle::patricia_trie::{
     bitmap::OctRadPatriciaBitmap, consts::HASH_BYTES, OctRadPatriciaNodeBranch,
     OctRadPatriciaTrieError,
 };

@@ -1,4 +1,6 @@
-use crate::patricia_trie::{consts::HASH_BYTES, OctRadPatriciaNodeLeaf, OctRadPatriciaTrieError};
+use crate::merkle::patricia_trie::{
+    consts::HASH_BYTES, OctRadPatriciaNodeLeaf, OctRadPatriciaTrieError,
+};
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use super::{key_fragment_diff, OctRadPatriciaPath};

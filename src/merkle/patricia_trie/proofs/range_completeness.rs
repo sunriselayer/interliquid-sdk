@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 
-use crate::patricia_trie::{consts::HASH_BYTES, OctRadPatriciaNode, OctRadPatriciaTrieError};
+use crate::merkle::patricia_trie::{
+    consts::HASH_BYTES, OctRadPatriciaNode, OctRadPatriciaTrieError,
+};
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use super::{inclusion::OctRadPatriciaInclusionProof, key_fragment_diff, OctRadPatriciaPath};
