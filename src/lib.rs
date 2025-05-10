@@ -1,3 +1,4 @@
+pub mod block;
 pub mod core;
 pub mod merkle;
 pub mod state;

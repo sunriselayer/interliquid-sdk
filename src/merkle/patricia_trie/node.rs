@@ -100,6 +100,87 @@ impl OctRadPatriciaNode {
         key_fragment: &[u8],
         key_suffixes: &BTreeSet<Vec<u8>>,
     ) -> Result<Self, OctRadPatriciaTrieError> {
-        todo!()
+        if key_suffixes.is_empty() {
+            return Err(OctRadPatriciaTrieError::EmptyKeySet);
+        }
+
+        // Stack to store pending nodes to process
+        #[derive(Debug)]
+        struct StackItem {
+            key_fragment: Vec<u8>,
+            suffixes: BTreeSet<Vec<u8>>,
+            parent_byte: Option<u8>,
+        }
+
+        let mut stack = vec![StackItem {
+            key_fragment: key_fragment.to_vec(),
+            suffixes: key_suffixes.clone(),
+            parent_byte: None,
+        }];
+        let mut node_stack = Vec::new();
+
+        while let Some(item) = stack.pop() {
+            // Group key suffixes by their first byte
+            let mut children_map: std::collections::BTreeMap<u8, BTreeSet<Vec<u8>>> =
+                std::collections::BTreeMap::new();
+            for suffix in item.suffixes {
+                if suffix.is_empty() {
+                    return Err(OctRadPatriciaTrieError::EmptyKeySuffix);
+                }
+                let first_byte = suffix[0];
+                let rest = suffix[1..].to_vec();
+                children_map.entry(first_byte).or_default().insert(rest);
+            }
+
+            // If there's only one child and it has no remaining suffix, create a leaf node
+            if children_map.len() == 1 {
+                let (byte, suffixes) = children_map.iter().next().unwrap();
+                if suffixes.len() == 1 && suffixes.iter().next().unwrap().is_empty() {
+                    let mut full_key = item.key_fragment.clone();
+                    full_key.push(*byte);
+                    node_stack.push((
+                        item.parent_byte,
+                        OctRadPatriciaNode::Leaf(OctRadPatriciaNodeLeaf::new(full_key)),
+                    ));
+                    continue;
+                }
+            }
+
+            // Create child nodes
+            let mut children = Vec::new();
+            let mut child_bitmap = OctRadBitmap::default();
+
+            // Push children to stack in reverse order to maintain correct order
+            for (byte, suffixes) in children_map.into_iter().rev() {
+                child_bitmap.set(byte, true);
+                let mut child_key = item.key_fragment.clone();
+                child_key.push(byte);
+                stack.push(StackItem {
+                    key_fragment: child_key,
+                    suffixes,
+                    parent_byte: Some(byte),
+                });
+            }
+
+            // Wait for all children to be processed
+            while node_stack
+                .last()
+                .map_or(false, |(b, _)| *b == item.parent_byte)
+            {
+                let (_, child) = node_stack.pop().unwrap();
+                children.push(child);
+            }
+
+            // Create branch node
+            let branch = OctRadPatriciaNode::Branch(OctRadPatriciaNodeBranch::new(
+                item.key_fragment,
+                child_bitmap,
+                children,
+            ));
+            node_stack.push((item.parent_byte, branch));
+        }
+
+        // The root node should be the only remaining node
+        Ok(node_stack.pop().unwrap().1)
     }
 }
