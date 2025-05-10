@@ -84,11 +84,7 @@ Because zkVM cannot access to the storage, we need to give the state to access $
 It is also enough to output only the written state $$ \text{State}^{\text{set, del}} $$ without entire state.
 To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state node hashes $$ \text{StateNodeHashes}^{\text{NoAccess}} $$ to allow zkVM to calculate the state root.
 
-By committing these three values:
-
-- $$\text{StateRootPrev}$$
-- $$\text{StateRootNext}$$
-- $$\text{TxRoot}$$
+By committing these three values $$\text{StateRootPrev}$$, $$\text{StateRootNext}$$ and $$\text{TxRoot}$$:
 
 as the public input of the ZKP, it is possible to generate the verifiable validity proof of the state transition.
 
