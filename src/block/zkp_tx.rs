@@ -15,8 +15,8 @@ pub struct PublicInputTx {
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct PrivateInputTx {
     pub tx: Vec<u8>,
-    pub accum_diffs_prev: CompressedDiffs,
     pub state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
+    pub accum_diffs_prev: CompressedDiffs,
     pub read_found_inclusion_proof: BTreeMap<Vec<u8>, Vec<u8>>,
     pub read_notfound_noninclusion_proof: BTreeMap<Vec<u8>, Vec<u8>>,
     pub iter_completeness_proof: BTreeMap<Vec<u8>, Vec<u8>>,
