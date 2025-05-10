@@ -31,7 +31,11 @@ pub struct StdTx {
     pub signature: BTreeMap<Address, Vec<u8>>,
 }
 
-impl Tx for StdTx {}
+impl Tx for StdTx {
+    fn msgs(&self) -> Vec<SerializableAny> {
+        self.body.msgs.clone()
+    }
+}
 
 #[derive(Debug, Clone, BorshSerialize)]
 pub struct SignDoc<'a> {

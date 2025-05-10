@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use anyhow::anyhow;
+
 use crate::tx::{Tx, TxAnteHandler, TxPostHandler};
 use crate::types::InterLiquidSdkError;
 
@@ -49,6 +51,19 @@ impl<C: Context, TX: Tx> App<C, TX> {
     pub fn execute_tx(&mut self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError> {
         for handler in self.tx_ante_handlers.iter_mut() {
             handler.handle(ctx, tx)?;
+        }
+
+        for msg in tx.msgs() {
+            let type_name = msg.type_.as_str();
+            let msg = self.msg_registry.unpack(&msg)?;
+            let handler = self.msg_handler_registry.get(&type_name).ok_or(
+                InterLiquidSdkError::InvalidRequest(anyhow!(
+                    "msg handler not found: {}",
+                    type_name
+                )),
+            )?;
+
+            handler(ctx, &msg)?;
         }
 
         for handler in self.tx_post_handlers.iter_mut() {

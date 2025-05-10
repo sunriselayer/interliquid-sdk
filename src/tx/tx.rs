@@ -1,3 +1,7 @@
 use borsh::BorshDeserialize;
 
-pub trait Tx: BorshDeserialize {}
+use crate::types::SerializableAny;
+
+pub trait Tx: BorshDeserialize {
+    fn msgs(&self) -> Vec<SerializableAny>;
+}

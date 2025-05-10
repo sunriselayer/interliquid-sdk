@@ -33,4 +33,11 @@ impl<C: Context> MsgHandlerRegistry<C> {
             }),
         );
     }
+
+    pub fn get(
+        &self,
+        name: &str,
+    ) -> Option<&Box<dyn Fn(&mut C, &dyn Any) -> Result<(), InterLiquidSdkError>>> {
+        self.handlers.get(name)
+    }
 }
