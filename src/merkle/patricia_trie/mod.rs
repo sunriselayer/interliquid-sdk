@@ -1,5 +1,3 @@
-mod bitmap;
-mod consts;
 mod error;
 mod node;
 mod proofs;

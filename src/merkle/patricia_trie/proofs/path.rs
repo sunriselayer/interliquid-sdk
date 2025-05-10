@@ -1,6 +1,7 @@
-use crate::merkle::patricia_trie::{
-    bitmap::OctRadPatriciaBitmap, consts::HASH_BYTES, OctRadPatriciaNodeBranch,
-    OctRadPatriciaTrieError,
+use crate::merkle::{
+    bitmap::OctRadBitmap,
+    consts::HASH_BYTES,
+    patricia_trie::{OctRadPatriciaNodeBranch, OctRadPatriciaTrieError},
 };
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 use std::iter::once;
@@ -9,7 +10,7 @@ use std::iter::once;
 pub struct OctRadPatriciaPath {
     pub key_fragment: Vec<u8>,
     // it should be 0 flag for index_among_siblings
-    pub child_bitmap: OctRadPatriciaBitmap,
+    pub child_bitmap: OctRadBitmap,
     pub child_hashes_left: Vec<[u8; 32]>,
     pub child_hashes_right: Vec<[u8; 32]>,
 }

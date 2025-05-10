@@ -3,7 +3,9 @@ use std::collections::BTreeSet;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 use sha2::{Digest, Sha256};
 
-use super::{bitmap::OctRadPatriciaBitmap, consts::HASH_BYTES, OctRadPatriciaTrieError};
+use crate::merkle::{bitmap::OctRadBitmap, consts::HASH_BYTES};
+
+use super::OctRadPatriciaTrieError;
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum OctRadPatriciaNode {
@@ -36,14 +38,14 @@ impl OctRadPatriciaNodeLeaf {
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct OctRadPatriciaNodeBranch {
     pub key_fragment: Vec<u8>,
-    pub child_bitmap: OctRadPatriciaBitmap,
+    pub child_bitmap: OctRadBitmap,
     pub children: Vec<OctRadPatriciaNode>,
 }
 
 impl OctRadPatriciaNodeBranch {
     pub fn new(
         key_fragment: Vec<u8>,
-        child_bitmap: OctRadPatriciaBitmap,
+        child_bitmap: OctRadBitmap,
         children: Vec<OctRadPatriciaNode>,
     ) -> Self {
         Self {
@@ -68,7 +70,7 @@ impl OctRadPatriciaNodeBranch {
 
     pub fn hash_from_child_hashes<'a>(
         key_fragment: &[u8],
-        child_bitmap: &OctRadPatriciaBitmap,
+        child_bitmap: &OctRadBitmap,
         child_hashes: impl Iterator<Item = &'a [u8; HASH_BYTES]>,
     ) -> [u8; HASH_BYTES] {
         let mut hasher = Sha256::new();
