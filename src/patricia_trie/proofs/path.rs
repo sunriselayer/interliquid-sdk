@@ -59,13 +59,7 @@ pub(crate) fn key_fragment_diff(
         .collect();
     let concatenated_len = key_fragment_concatenated.len();
 
-    if key.len() < concatenated_len {
-        return Err(OctRadPatriciaTrieError::InvalidProof(anyhow::anyhow!(
-            "key is too short"
-        )));
-    }
-
-    if !key[..concatenated_len].eq(&key_fragment_concatenated) {
+    if !key.starts_with(&key_fragment_concatenated) {
         return Err(OctRadPatriciaTrieError::InvalidProof(anyhow::anyhow!(
             "key is not consistent with the path"
         )));

@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use anyhow::anyhow;
 
 use crate::{
@@ -29,10 +27,8 @@ impl SigVerifyAnteHandler {
     }
 }
 
-impl TxAnteHandler for SigVerifyAnteHandler {
-    fn handle(&self, ctx: &mut dyn Context, tx: &Box<dyn Any>) -> Result<(), InterLiquidSdkError> {
-        let tx = tx.downcast_ref::<StdTx>().unwrap();
-
+impl TxAnteHandler<StdTx> for SigVerifyAnteHandler {
+    fn handle(&self, ctx: &mut dyn Context, tx: &StdTx) -> Result<(), InterLiquidSdkError> {
         let mut account = match self.auth_keeper.get_account(ctx, &tx.auth_info.address)? {
             Some(account) => account,
             None => {

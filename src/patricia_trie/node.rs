@@ -101,7 +101,7 @@ impl OctRadPatriciaNode {
 
     pub fn from_map(
         key_fragment: &[u8],
-        keys: &BTreeSet<Vec<u8>>,
+        key_suffixes: &BTreeSet<Vec<u8>>,
         value: impl Fn(&Vec<u8>) -> Vec<u8>,
     ) -> Result<Self, OctRadPatriciaTrieError> {
         todo!()

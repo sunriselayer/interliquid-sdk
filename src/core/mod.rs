@@ -1,10 +1,10 @@
-mod base_app;
+mod app;
 mod context;
 mod module;
 mod msg_registry;
 mod type_registry;
 
-pub use base_app::*;
+pub use app::*;
 pub use context::*;
 pub use module::*;
 pub use msg_registry::*;

@@ -1,7 +1,10 @@
 use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::types::{Address, InterLiquidSdkError, SerializableAny};
+use crate::{
+    tx::Tx,
+    types::{Address, InterLiquidSdkError, SerializableAny},
+};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct TxBody {
@@ -25,6 +28,8 @@ pub struct StdTx {
     pub auth_info: AuthInfo,
     pub signature: Vec<u8>,
 }
+
+impl Tx for StdTx {}
 
 #[derive(Debug, Clone, BorshSerialize)]
 pub struct SignDoc<'a> {
