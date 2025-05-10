@@ -57,9 +57,9 @@ If we try to remove the mechanism of self-rebalancing (it means it is simple bin
 ## The challenge of InterLiquid SDK
 
 The challenge of InterLiquid SDK is to make key prefix based iteration and ZK friendliness coexisting.
-The architecture to achieve this is **Twin Nibble Tries**.
+The architecture to achieve this is **Twin Radix Trees**.
 
-Before explaining Twin Nibble Tries, let's see how to prove the validity of state transition with ZKP.
+Before explaining Twin Radix Trees, let's see how to prove the validity of state transition with ZKP.
 
 ### ZKP of State transition
 
@@ -111,13 +111,13 @@ Proving it only for get access (only for one designated key) is very easy.
 Merkle inclusion proof with the given state root is enough.
 
 However, proving it for iter access (all keys which match the designated key prefix) is not so easy.
-*Twin Nibble Tries* enables it while keeping the ZK friendliness.
+*Twin Radix Trees* enables it while keeping the ZK friendliness.
 
-### Twin Nibble Tries
+### Twin Radix Trees
 
-Twin Nibble Tries combines two tree components:
+Twin Radix Trees combines two tree components:
 
-- 8-bit-Radix Patricia Merkle Trie for state inclusion proof
+- 8-bit-Radix Sparse Merkle Tree for state inclusion proof
 - 8-bit-Radix Patricia Trie for key indexing to enable key prefix based iteration
 
 The state root is calculated by the following equation where $$h$$ is the hash function:
@@ -168,10 +168,19 @@ This trie works for the key indexing.
 It can be used for proving iter access validity in the state transition.
 
 ```rust
-pub struct OctRadPatriciaNode {
-  pub key_fragment: Vec<u8>,
-  pub child_bitmap: [u8; 32],
-  pub children: Vec<OctRadPatriciaNode>,
+pub enum OctRadPatriciaNode {
+    Leaf(OctRadPatriciaNodeLeaf),
+    Branch(OctRadPatriciaNodeBranch),
+}
+
+pub struct OctRadPatriciaNodeLeaf {
+    pub key_fragment: Vec<u8>,
+}
+
+pub struct OctRadPatriciaNodeBranch {
+    pub key_fragment: Vec<u8>,
+    pub child_bitmap: OctRadBitmap,
+    pub children: Vec<OctRadPatriciaNode>,
 }
 ```
 

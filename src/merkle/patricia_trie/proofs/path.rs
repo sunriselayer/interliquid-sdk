@@ -4,15 +4,12 @@ use crate::merkle::{
     patricia_trie::{OctRadPatriciaNodeBranch, OctRadPatriciaTrieError},
 };
 use borsh_derive::{BorshDeserialize, BorshSerialize};
-use std::iter::once;
+use std::{collections::BTreeMap, iter::once};
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct OctRadPatriciaPath {
     pub key_fragment: Vec<u8>,
-    // it should be 0 flag for index_among_siblings
-    pub child_bitmap: OctRadBitmap,
-    pub child_hashes_left: Vec<[u8; 32]>,
-    pub child_hashes_right: Vec<[u8; 32]>,
+    pub child_hashes: BTreeMap<u8, [u8; 32]>,
 }
 
 impl OctRadPatriciaPath {
@@ -27,21 +24,23 @@ impl OctRadPatriciaPath {
             )));
         }
 
-        if self.child_bitmap.get(calculated_child_index_among_siblings) {
-            return Err(OctRadPatriciaTrieError::InvalidProof(anyhow::anyhow!(
-                "self index must not be in the sibling bitmap"
-            )));
-        }
+        let mut child_bitmap = OctRadBitmap::from_index_set(self.child_hashes.keys().copied());
+        child_bitmap.set(calculated_child_index_among_siblings, true);
 
         let child_hashes = self
-            .child_hashes_left
-            .iter()
+            .child_hashes
+            .range(..calculated_child_index_among_siblings)
+            .map(|(_, hash)| hash)
             .chain(once(calculated_child_hash))
-            .chain(self.child_hashes_right.iter());
+            .chain(
+                self.child_hashes
+                    .range(calculated_child_index_among_siblings + 1..)
+                    .map(|(_, hash)| hash),
+            );
 
         let hash = OctRadPatriciaNodeBranch::hash_from_child_hashes(
             &self.key_fragment,
-            &self.child_bitmap,
+            &child_bitmap,
             child_hashes,
         );
 
