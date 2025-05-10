@@ -73,3 +73,13 @@ impl<C: Context, TX: Tx> App<C, TX> {
         Ok(())
     }
 }
+
+pub trait AppI<C: Context, TX: Tx> {
+    fn execute_tx(&mut self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError>;
+}
+
+impl<C: Context, TX: Tx> AppI<C, TX> for App<C, TX> {
+    fn execute_tx(&mut self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError> {
+        self.execute_tx(ctx, tx)
+    }
+}

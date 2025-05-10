@@ -2,29 +2,26 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{state::StateManager, types::InterLiquidSdkError};
 
-use super::range::ObjectSafeRangeBounds;
+use super::{
+    log::{StateLog, StateLogIter, StateLogRead},
+    range::ObjectSafeRangeBounds,
+};
 
 pub struct TransactionalState<S: StateManager> {
     pub state: S,
-    pub get: BTreeMap<Vec<u8>, bool>,
     pub set: BTreeMap<Vec<u8>, Vec<u8>>,
-    pub del: BTreeMap<Vec<u8>, Vec<u8>>,
-    pub iter: Vec<IterRecord>,
+    pub del: BTreeSet<Vec<u8>>,
+    pub logs: Vec<StateLog>,
 }
 
 impl<S: StateManager> TransactionalState<S> {
     pub fn new(state: S) -> Self {
         Self {
             state,
-            get: BTreeMap::new(),
             set: BTreeMap::new(),
-            del: BTreeMap::new(),
-            iter: Vec::new(),
+            del: BTreeSet::new(),
+            logs: Vec::new(),
         }
-    }
-
-    pub fn get_accessed(&self) -> &BTreeMap<Vec<u8>, bool> {
-        &self.get
     }
 
     pub fn commit(&mut self) -> Result<(), InterLiquidSdkError> {
@@ -32,7 +29,7 @@ impl<S: StateManager> TransactionalState<S> {
             self.state.set(key, self.set.get(key).unwrap())?;
         }
 
-        for key in self.del.keys() {
+        for key in self.del.iter() {
             self.state.del(key)?;
         }
 
@@ -42,7 +39,7 @@ impl<S: StateManager> TransactionalState<S> {
 
 impl<S: StateManager> StateManager for TransactionalState<S> {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
-        let val = if self.del.contains_key(key) {
+        let val = if self.del.contains(key) {
             None
         } else if let Some(value) = self.set.get(key) {
             Some(value.clone())
@@ -50,9 +47,10 @@ impl<S: StateManager> StateManager for TransactionalState<S> {
             self.state.get(key)?
         };
 
-        if !self.get.contains_key(key) {
-            self.get.insert(key.to_vec(), val.is_some());
-        }
+        self.logs.push(StateLog::Read(StateLogRead {
+            key: key.to_vec(),
+            found: val.is_some(),
+        }));
 
         Ok(val)
     }
@@ -65,14 +63,9 @@ impl<S: StateManager> StateManager for TransactionalState<S> {
     }
 
     fn del(&mut self, key: &[u8]) -> Result<(), InterLiquidSdkError> {
-        // do not use self.get to not update the get map
-        let deleted = self.state.get(key)?;
-
         self.set.remove(key);
 
-        if let Some(deleted) = deleted {
-            self.del.insert(key.to_vec(), deleted);
-        }
+        self.del.insert(key.to_vec());
 
         Ok(())
     }
@@ -87,7 +80,7 @@ impl<S: StateManager> StateManager for TransactionalState<S> {
                 Err(e) => return Some(Err(e)),
             };
 
-            if self.del.contains_key(&key) {
+            if self.del.contains(&key) {
                 return None;
             }
 
@@ -100,36 +93,35 @@ impl<S: StateManager> StateManager for TransactionalState<S> {
             Some(Ok((key, value)))
         });
 
-        let record_index = self.iter.len();
-        self.iter.push(IterRecord::new());
+        let record_index = self.logs.len();
+        self.logs.push(StateLog::Iter(StateLogIter::new()));
 
-        Box::new(TransactionalStateIterator::new(
-            &mut self.iter[record_index],
-            Box::new(iter),
-        ))
+        if let StateLog::Iter(recorder) = &mut self.logs[record_index] {
+            Box::new(TransactionalStateIterator::new(recorder, Box::new(iter)))
+        } else {
+            unreachable!()
+        }
     }
 }
 pub struct IterRecord {
     pub keys: BTreeSet<Vec<u8>>,
-    pub finished: bool,
 }
 
 impl IterRecord {
     pub fn new() -> Self {
         Self {
             keys: BTreeSet::new(),
-            finished: false,
         }
     }
 }
 pub struct TransactionalStateIterator<'a> {
-    recorder: &'a mut IterRecord,
+    recorder: &'a mut StateLogIter,
     iterator: Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a>,
 }
 
 impl<'a> TransactionalStateIterator<'a> {
     pub fn new(
-        recorder: &'a mut IterRecord,
+        recorder: &'a mut StateLogIter,
         iterator: Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a>,
     ) -> Self {
         Self { recorder, iterator }
@@ -146,8 +138,6 @@ impl<'a> Iterator for TransactionalStateIterator<'a> {
             if let Ok((key, _)) = item {
                 self.recorder.keys.insert(key.to_owned());
             }
-        } else {
-            self.recorder.finished = true;
         }
 
         item
