@@ -1,21 +1,33 @@
-use crate::core::{Module, MsgRegistry, TypeRegistry};
+use std::marker::PhantomData;
 
-use super::{keeper::CryptoKeeper, p256::VerifyingKeyP256};
+use crate::core::{Context, Module, MsgHandlerRegistry, MsgRegistry};
 
-pub struct CryptoModule {
-    _keeper: CryptoKeeper,
+use super::{
+    keeper::{CryptoKeeper, CryptoKeeperI},
+    p256::VerifyingKeyP256,
+};
+
+pub struct CryptoModule<C: Context> {
+    keeper: CryptoKeeper<C>,
+    phantom: PhantomData<C>,
 }
 
-impl CryptoModule {
-    pub fn new(_keeper: CryptoKeeper) -> Self {
-        Self { _keeper }
+impl<C: Context> CryptoModule<C> {
+    pub fn new(mut keeper: CryptoKeeper<C>) -> Self {
+        keeper.register_verifying_key::<VerifyingKeyP256>().unwrap();
+
+        Self {
+            keeper,
+            phantom: PhantomData,
+        }
     }
 }
 
-impl Module for CryptoModule {
-    fn register_types(&self, type_registry: &mut TypeRegistry) {
-        type_registry.register::<VerifyingKeyP256>();
+impl<C: Context> Module<C> for CryptoModule<C> {
+    fn register_msgs(
+        &'static self,
+        _msg_registry: &mut MsgRegistry,
+        _msg_handler_registry: &mut MsgHandlerRegistry<C>,
+    ) {
     }
-
-    fn register_msgs(&'static self, _msg_registry: &mut MsgRegistry) {}
 }

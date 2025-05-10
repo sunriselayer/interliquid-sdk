@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
@@ -25,8 +27,8 @@ pub struct AuthInfo {
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct StdTx {
     pub body: TxBody,
-    pub auth_info: AuthInfo,
-    pub signature: Vec<u8>,
+    pub auth_info: BTreeMap<Address, AuthInfo>,
+    pub signature: BTreeMap<Address, Vec<u8>>,
 }
 
 impl Tx for StdTx {}
@@ -34,12 +36,16 @@ impl Tx for StdTx {}
 #[derive(Debug, Clone, BorshSerialize)]
 pub struct SignDoc<'a> {
     pub body: &'a TxBody,
-    pub auth_info: &'a AuthInfo,
+    pub auth_info: &'a BTreeMap<Address, AuthInfo>,
     pub chain_id: &'a str,
 }
 
 impl<'a> SignDoc<'a> {
-    pub fn new(body: &'a TxBody, auth_info: &'a AuthInfo, chain_id: &'a str) -> Self {
+    pub fn new(
+        body: &'a TxBody,
+        auth_info: &'a BTreeMap<Address, AuthInfo>,
+        chain_id: &'a str,
+    ) -> Self {
         Self {
             body,
             auth_info,

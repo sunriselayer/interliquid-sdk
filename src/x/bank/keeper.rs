@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use super::keys::{BALANCES, BANK};
 
 use crate::{
@@ -6,43 +8,45 @@ use crate::{
     utils::{IndexedMap, PrefixBound, PrefixBoundTupleOne},
 };
 
-pub trait BankKeeperI {
+pub trait BankKeeperI<C: Context> {
     fn get_balance(
         &self,
-        ctx: &mut dyn Context,
+        ctx: &mut C,
         address: &Address,
         denom: &str,
     ) -> Result<Option<U256>, InterLiquidSdkError>;
 
     fn get_all_balances(
         &self,
-        ctx: &mut dyn Context,
+        ctx: &mut C,
         address: &Address,
     ) -> Result<Tokens, InterLiquidSdkError>;
 
     fn send(
         &self,
-        ctx: &mut dyn Context,
+        ctx: &mut C,
         from: &Address,
         to: &Address,
         tokens: &Tokens,
     ) -> Result<(), InterLiquidSdkError>;
 }
 
-pub struct BankKeeper {
+pub struct BankKeeper<C: Context> {
     balances: IndexedMap<(Address, String), U256>,
+    phantom: PhantomData<C>,
 }
 
-impl BankKeeper {
+impl<C: Context> BankKeeper<C> {
     pub fn new() -> Self {
         Self {
             balances: IndexedMap::new([BANK, BALANCES]),
+            phantom: PhantomData,
         }
     }
 
     fn add_balance(
         &self,
-        ctx: &mut dyn Context,
+        ctx: &mut C,
         address: &Address,
         denom: &str,
         amount: &U256,
@@ -62,7 +66,7 @@ impl BankKeeper {
 
     fn sub_balance(
         &self,
-        ctx: &mut dyn Context,
+        ctx: &mut C,
         address: &Address,
         denom: &str,
         amount: &U256,
@@ -83,10 +87,10 @@ impl BankKeeper {
     }
 }
 
-impl BankKeeperI for BankKeeper {
+impl<C: Context> BankKeeperI<C> for BankKeeper<C> {
     fn get_balance(
         &self,
-        ctx: &mut dyn Context,
+        ctx: &mut C,
         address: &Address,
         denom: &str,
     ) -> Result<Option<U256>, InterLiquidSdkError> {
@@ -97,7 +101,7 @@ impl BankKeeperI for BankKeeper {
 
     fn get_all_balances(
         &self,
-        ctx: &mut dyn Context,
+        ctx: &mut C,
         address: &Address,
     ) -> Result<Tokens, InterLiquidSdkError> {
         let mut tokens = Tokens::new();
@@ -113,7 +117,7 @@ impl BankKeeperI for BankKeeper {
 
     fn send(
         &self,
-        ctx: &mut dyn Context,
+        ctx: &mut C,
         from: &Address,
         to: &Address,
         tokens: &Tokens,

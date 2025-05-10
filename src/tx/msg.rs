@@ -1,5 +1,7 @@
-use crate::types::{Address, NamedSerializableType};
+use std::collections::BTreeSet;
 
-pub trait Msg: NamedSerializableType {
-    fn signer_address(&self) -> Address;
+use crate::types::Address;
+
+pub trait Msg {
+    fn signer_addresses(&self) -> BTreeSet<Address>;
 }

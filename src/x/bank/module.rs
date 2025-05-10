@@ -1,23 +1,25 @@
-use crate::core::{Module, MsgRegistry, TypeRegistry};
+use crate::core::{Context, Module, MsgHandlerRegistry, MsgRegistry};
 
 use super::{msg_send::MsgSend, BankKeeper};
 
-pub struct BankModule {
-    keeper: BankKeeper,
+pub struct BankModule<C: Context> {
+    keeper: BankKeeper<C>,
 }
 
-impl BankModule {
-    pub fn new(keeper: BankKeeper) -> Self {
+impl<C: Context> BankModule<C> {
+    pub fn new(keeper: BankKeeper<C>) -> Self {
         Self { keeper }
     }
 }
 
-impl Module for BankModule {
-    fn register_types(&self, type_registry: &mut TypeRegistry) {
-        type_registry.register::<MsgSend>();
-    }
-
-    fn register_msgs(&'static self, msg_registry: &mut MsgRegistry) {
-        msg_registry.register::<MsgSend>(Box::new(move |ctx, msg| self.keeper.msg_send(ctx, msg)));
+impl<C: Context> Module<C> for BankModule<C> {
+    fn register_msgs(
+        &'static self,
+        msg_registry: &mut MsgRegistry,
+        msg_handler_registry: &mut MsgHandlerRegistry<C>,
+    ) {
+        msg_registry.register::<MsgSend>();
+        msg_handler_registry
+            .register::<MsgSend>(Box::new(move |ctx, msg| self.keeper.msg_send(ctx, msg)));
     }
 }

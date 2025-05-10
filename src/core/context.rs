@@ -1,28 +1,37 @@
-use crate::core::type_registry::TypeRegistry;
 use crate::state::StateManager;
 
-pub trait Context {
+use super::MsgRegistry;
+
+pub trait Context: 'static {
     fn chain_id(&self) -> &str;
+    fn block_height(&self) -> u64;
+    fn block_time_seconds(&self) -> u64;
     fn state_manager(&mut self) -> &mut dyn StateManager;
-    fn type_registry(&self) -> &TypeRegistry;
+    fn msg_registry(&self) -> &MsgRegistry;
 }
 
 pub struct SdkContext {
     chain_id: String,
+    block_height: u64,
+    block_time_seconds: u64,
     state_manager: Box<dyn StateManager>,
-    type_registry: TypeRegistry,
+    msg_registry: MsgRegistry,
 }
 
 impl SdkContext {
-    pub fn new<S: StateManager>(
+    pub fn new(
         chain_id: String,
-        state_manager: S,
-        type_registry: TypeRegistry,
+        block_height: u64,
+        block_time_seconds: u64,
+        state_manager: Box<dyn StateManager>,
+        msg_registry: MsgRegistry,
     ) -> Self {
         Self {
             chain_id,
-            state_manager: Box::new(state_manager),
-            type_registry,
+            block_height,
+            block_time_seconds,
+            state_manager,
+            msg_registry,
         }
     }
 }
@@ -32,11 +41,19 @@ impl Context for SdkContext {
         &self.chain_id
     }
 
+    fn block_height(&self) -> u64 {
+        self.block_height
+    }
+
+    fn block_time_seconds(&self) -> u64 {
+        self.block_time_seconds
+    }
+
     fn state_manager(&mut self) -> &mut dyn StateManager {
         self.state_manager.as_mut()
     }
 
-    fn type_registry(&self) -> &TypeRegistry {
-        &self.type_registry
+    fn msg_registry(&self) -> &MsgRegistry {
+        &self.msg_registry
     }
 }

@@ -1,33 +1,49 @@
-use std::{any::Any, collections::BTreeMap};
+use std::collections::BTreeMap;
 
-use crate::{tx::Msg, types::InterLiquidSdkError};
+use anyhow::anyhow;
 
-use super::Context;
+use crate::{
+    tx::Msg,
+    types::{InterLiquidSdkError, NamedSerializableType, SerializableAny},
+};
 
 pub struct MsgRegistry {
-    handlers: BTreeMap<
+    unpack: BTreeMap<
         &'static str,
-        Box<dyn Fn(&mut dyn Context, &dyn Any) -> Result<(), InterLiquidSdkError>>,
+        Box<dyn Fn(&SerializableAny) -> Result<Box<dyn Msg>, InterLiquidSdkError> + Send + Sync>,
     >,
 }
 
 impl MsgRegistry {
     pub fn new() -> Self {
         Self {
-            handlers: BTreeMap::new(),
+            unpack: BTreeMap::new(),
         }
     }
 
-    pub fn register<T: Msg>(
-        &mut self,
-        handler: Box<dyn Fn(&mut dyn Context, &T) -> Result<(), InterLiquidSdkError>>,
-    ) {
-        self.handlers.insert(
-            T::type_name(),
-            Box::new(move |ctx, any| {
-                let msg = any.downcast_ref::<T>().unwrap();
-                handler(ctx, msg)
+    pub fn register<T: Msg + NamedSerializableType>(&mut self) {
+        let name = T::type_name();
+
+        self.unpack.insert(
+            name,
+            Box::new(|any| {
+                let msg = T::deserialize(&mut &any.value[..])?;
+
+                Ok(Box::new(msg))
             }),
         );
+    }
+
+    pub fn unpack(&self, any: &SerializableAny) -> Result<Box<dyn Msg>, InterLiquidSdkError> {
+        let name = any.type_.as_str();
+
+        let unpack = self
+            .unpack
+            .get(name)
+            .ok_or(InterLiquidSdkError::NotFound(anyhow!(
+                "msg type not registered"
+            )))?;
+
+        Ok(unpack(any)?)
     }
 }

@@ -13,6 +13,8 @@ pub enum InterLiquidSdkError {
     NotFound(anyhow::Error),
     #[error("Already exists")]
     AlreadyExists(anyhow::Error),
+    #[error("Unauthorized")]
+    Unauthorized(anyhow::Error),
 
     // Token
     #[error("Invalid denom")]

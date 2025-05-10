@@ -1,6 +1,9 @@
-use super::{msg_registry::MsgRegistry, type_registry::TypeRegistry};
+use super::{msg_registry::MsgRegistry, Context, MsgHandlerRegistry};
 
-pub trait Module {
-    fn register_types(&self, type_registry: &mut TypeRegistry);
-    fn register_msgs(&'static self, msg_registry: &mut MsgRegistry);
+pub trait Module<C: Context> {
+    fn register_msgs(
+        &'static self,
+        msg_registry: &mut MsgRegistry,
+        msg_handler_registry: &mut MsgHandlerRegistry<C>,
+    );
 }

@@ -1,4 +1,4 @@
-use std::{any::Any, collections::BTreeMap};
+use std::{collections::BTreeMap, marker::PhantomData};
 
 use anyhow::anyhow;
 
@@ -9,73 +9,75 @@ use crate::{
 
 use super::verifying_key::VerifyingKey;
 
-pub trait CryptoKeeperI {
+pub trait CryptoKeeperI<C: Context> {
     fn register_verifying_key<T: VerifyingKey + NamedSerializableType>(
         &mut self,
-        downcast: Box<
-            dyn Fn(Box<dyn Any>) -> Result<Box<dyn VerifyingKey>, InterLiquidSdkError>
-                + Send
-                + Sync,
-        >,
     ) -> Result<(), InterLiquidSdkError>;
 
     fn unpack_verifying_key(
         &self,
-        ctx: &dyn Context,
         any: &SerializableAny,
     ) -> Result<Box<dyn VerifyingKey>, InterLiquidSdkError>;
 }
 
-pub struct CryptoKeeper {
-    verifying_key_types: BTreeMap<
+pub struct CryptoKeeper<C: Context> {
+    unpack: BTreeMap<
         &'static str,
         Box<
-            dyn Fn(Box<dyn Any>) -> Result<Box<dyn VerifyingKey>, InterLiquidSdkError>
+            dyn Fn(&SerializableAny) -> Result<Box<dyn VerifyingKey>, InterLiquidSdkError>
                 + Send
                 + Sync,
         >,
     >,
+    phantom: PhantomData<C>,
 }
 
-impl CryptoKeeperI for CryptoKeeper {
+impl<C: Context> CryptoKeeper<C> {
+    pub fn new() -> Self {
+        Self {
+            unpack: BTreeMap::new(),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<C: Context> CryptoKeeperI<C> for CryptoKeeper<C> {
     fn register_verifying_key<T: VerifyingKey + NamedSerializableType>(
         &mut self,
-        downcast: Box<
-            dyn Fn(Box<dyn Any>) -> Result<Box<dyn VerifyingKey>, InterLiquidSdkError>
-                + Send
-                + Sync,
-        >,
     ) -> Result<(), InterLiquidSdkError> {
         let name = T::type_name();
 
-        if self.verifying_key_types.contains_key(name) {
+        if self.unpack.contains_key(name) {
             return Err(InterLiquidSdkError::AlreadyExists(anyhow!(
                 "verifying key type already registered"
             )));
         }
 
-        self.verifying_key_types.insert(name, downcast);
+        self.unpack.insert(
+            name,
+            Box::new(|any| {
+                let verifying_key = T::deserialize(&mut &any.value[..])?;
+
+                Ok(Box::new(verifying_key))
+            }),
+        );
 
         Ok(())
     }
 
     fn unpack_verifying_key(
         &self,
-        ctx: &dyn Context,
         any: &SerializableAny,
     ) -> Result<Box<dyn VerifyingKey>, InterLiquidSdkError> {
         let name = any.type_.as_str();
 
-        let downcast = self
-            .verifying_key_types
+        let unpack = self
+            .unpack
             .get(name)
             .ok_or(InterLiquidSdkError::NotFound(anyhow!(
-                "type not registered"
+                "verifying key type not registered"
             )))?;
 
-        let instance = ctx.type_registry().unpack_any(any)?;
-        let casted = downcast(instance)?;
-
-        Ok(casted)
+        Ok(unpack(any)?)
     }
 }
