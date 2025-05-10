@@ -96,11 +96,11 @@ impl OctRadPatriciaNode {
         }
     }
 
-    pub fn from_map(
+    pub fn from_child_suffixes(
         key_fragment: &[u8],
-        key_suffixes: &BTreeSet<Vec<u8>>,
+        child_key_suffixes: &BTreeSet<Vec<u8>>,
     ) -> Result<Self, OctRadPatriciaTrieError> {
-        if key_suffixes.is_empty() {
+        if child_key_suffixes.is_empty() {
             return Err(OctRadPatriciaTrieError::EmptyKeySet);
         }
 
@@ -114,7 +114,7 @@ impl OctRadPatriciaNode {
 
         let mut stack = vec![StackItem {
             key_fragment: key_fragment.to_vec(),
-            suffixes: key_suffixes.clone(),
+            suffixes: child_key_suffixes.clone(),
             parent_byte: None,
         }];
         let mut node_stack = Vec::new();

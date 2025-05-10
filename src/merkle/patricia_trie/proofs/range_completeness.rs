@@ -26,7 +26,7 @@ impl OctRadPatriciaRangeCompletenessProof {
     ) -> Result<Self, OctRadPatriciaTrieError> {
         let key_fragment = key_fragment_diff(key_prefix, &path)?;
 
-        let node = OctRadPatriciaNode::from_map(&key_fragment, key_suffixes)?;
+        let node = OctRadPatriciaNode::from_child_suffixes(&key_fragment, key_suffixes)?;
 
         Ok(Self::new(node, path))
     }
