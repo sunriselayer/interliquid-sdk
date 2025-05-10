@@ -57,9 +57,9 @@ If we try to remove the mechanism of self-rebalancing (it means it is simple bin
 ## The challenge of InterLiquid SDK
 
 The challenge of InterLiquid SDK is to make key prefix based iteration and ZK friendliness coexisting.
-The architecture to achieve this is **Twin Nibble Trees**.
+The architecture to achieve this is **Twin Nibble Tries**.
 
-Before explaining Twin Nibble Trees, let's see how to prove the validity of state transition with ZKP.
+Before explaining Twin Nibble Tries, let's see how to prove the validity of state transition with ZKP.
 
 ### ZKP of State transition
 
@@ -75,8 +75,8 @@ To prove this, the state transition function is adjusted as follows:
 
 $$
 \begin{aligned}
-&\{\text{StateRootNext}, \text{StateNext}^{\text{set, del}}\} \\
-&= \hat{f}({\text{StateRootPrev} , \text{StatePrev}^{\text{get, iter}}}, \text{StateNodeHashes}^{\text{NoAccess}}, \text{Txs})
+  &\{\text{StateRootNext}, \text{StateNext}^{\text{set, del}}\} \\
+  &= \hat{f}({\text{StateRootPrev} , \text{StatePrev}^{\text{get, iter}}}, \text{StateNodeHashes}^{\text{NoAccess}}, \text{Txs})
 \end{aligned}
 $$
 
@@ -94,12 +94,14 @@ as the public input of the ZKP, it is possible to generate the verifiable validi
 
 $$
 \begin{aligned}
-\text{PublicInputsStf} &= [\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}] \\
-\text{PrivateInputsStf} &= [\text{StatePrev}^{\text{get, iter}}, \\
-    &\qquad \text{StateNext}^{\text{set, del}}, \\
-    &\qquad \text{StateNodeHashes}^{\text{NoAccess}}, \\
-    &\qquad \text{Txs}] \\
-\text{ProofStf} &= \text{ZKP}(\text{PublicInputsStf}, \text{PrivateInputsStf})
+  \text{PublicInputsStf} &= \{\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}\} \\
+  \text{PrivateInputsStf} &= \left\{ \begin{aligned}
+    & \text{StatePrev}^{\text{get, iter}} \\
+    & \text{StateNext}^{\text{set, del}} \\
+    & \text{StateNodeHashes}^{\text{NoAccess}} \\
+    & \text{Txs}
+  \end{aligned} \right\} \\
+  \text{ProofStf} &= \text{CircuitStf}(\text{PublicInputsStf}, \text{PrivateInputsStf})
 \end{aligned}
 $$
 
@@ -113,15 +115,14 @@ Proving it only for get access (only for one designated key) is very easy.
 Merkle inclusion proof with the given state root is enough.
 
 However, proving it for iter access (all keys which match the designated key prefix) is not so easy.
-*Twin Nibble Trees* enables it while keeping the ZK friendliness.
+*Twin Nibble Tries* enables it while keeping the ZK friendliness.
 
-### Twin Nibble Trees
+### Twin Nibble Tries
 
-Twin Nibble Trees combines two tree components:
+Twin Nibble Tries combines two tree components:
 
-- 4-bit-Radix Sparse Merkle Tree for state inclusion proof
-  - The same architecture as [Jellyfish Merkle Tree](https://developers.diem.com/docs/technical-papers/jellyfish-merkle-tree-paper/) made by Diem (ex-Libra)
-- 4-bit-Radix Patricia Trie for key indexing to enable key prefix based iteration
+- 8-bit-Radix Patricia Merkle Trie for state inclusion proof
+- 8-bit-Radix Patricia Trie for key indexing to enable key prefix based iteration
 
 The state root is calculated by the following equation where $$h$$ is the hash function:
 
@@ -129,75 +130,79 @@ $$
 \text{StateRoot} = h(\text{StateSmtRoot} || \text{KeyPatriciaRoot})
 $$
 
-### 4-bit-Radix Sparse Merkle Tree
+### 8-bit-Radix Patricia Merkle Trie
 
-This tree works for the state inclusion proof.
+This trie works for the state inclusion proof.
 
 It can be used for proving get access validity in the state transition, and also for state inclusion proof of light client based interoperability protocol like IBC.
 
 The leaf index is determined by the key hash, and the leaf value is the state hash.
 
 ```rust
-pub struct State4RadixSmtInclusionProof {
-  pub leaf_hash: [u8; 32],
-  pub sparse_bitmap: u64,
-  pub path: Vec<State4RadixSmtPath>,
+pub struct OctRadPatriciaInclusionProof {
+  pub path: Vec<OctRadPatriciaPath>,
 }
 
-pub struct State4RadixSmtPath {
-  pub index: u8,
-  pub sibling_bitmap: u16,
-  pub sibling_hashes: Vec<[u8; 32]>,
+pub struct OctRadPatriciaPath {
+  pub key_fragment: Vec<u8>,
+  pub child_bitmap: [u8; 32],
+  pub child_hashes: Vec<[u8; 32]>,
 }
 ```
 
-Thanks to the property of the sparseness, if the sibling hashes are not present, the proof size is reduced.
 Thanks to the property of the hash function, the attack vector of increasing the inclusion proof size of the specific key is also reduced.
 
-By making it 4-bit Radix, the depth of the tree is reduced from 256 to 64, and the proof size is also reduced.
+By making it 8-bit Radix, the maximum depth of the tree is reduced from 256 to 256/8=32.
 
 To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \{ \text{Key}_i \}_{j=1}^{k} $$.
 
 $$
 \begin{aligned}
-\text{KeysHash} &= h(\text{Key}_1 || \text{Key}_2 || \dots || \text{Key}_k) \\
-\text{PublicInputsGet} &= [\text{StateSmtRootPrev}, \text{KeysHash}] \\
-\text{PrivateInputsGet} &= [\{\text{Key}_j, \text{StateSmtInclusionProof}_j\}_{j=1}^{k}] \\
-\text{ProofGet} &= \text{ZKP}(\text{PublicInputsGet}, \text{PrivateInputsGet})
+  \text{KeysHash} &= h(\text{Key}_1 || \text{Key}_2 || \dots || \text{Key}_k) \\
+  \text{PublicInputsGet} &= [\text{StateSmtRootPrev}, \text{KeysHash}] \\
+  \text{PrivateInputsGet} &= [\{\text{Key}_j, \text{StateSmtInclusionProof}_j\}_{j=1}^{k}] \\
+  \text{ProofGet} &= \text{CircuitGet}(\text{PublicInputsGet}, \text{PrivateInputsGet})
 \end{aligned}
 $$
 
-### 4-bit-Radix Patricia Trie
+### 8-bit-Radix Patricia Trie
 
 This trie works for the key indexing.
 
 It can be used for proving iter access validity in the state transition.
 
 ```rust
-pub struct Key4RadixPatriciaNode {
+pub struct OctRadPatriciaNode {
   pub key_fragment: Vec<u8>,
-  pub nibble_front: bool,
-  pub nibble_back: bool,
-  pub child_bitmap: u16,
-  pub children: Vec<Key4RadixPatriciaNode>,
+  pub child_bitmap: [u8; 32],
+  pub children: Vec<OctRadPatriciaNode>,
 }
 ```
 
 The node hash is calculated by the following equation where $$h$$ is the hash function:
 
 $$
-\text{KeyPatriciaNodeHash} = h(\text{KeyFragment} || \text{ChildNodeHash}_1 || ... || \text{ChildNodeHash}_{16})
+\begin{aligned}
+  &\text{KeyPatriciaNodeHash} \\
+  &= \begin{cases}
+    \begin{aligned}
+      h(&\text{KeyFragment} \\
+        &|| \text{ChildNodeHash}_1 || ... || \text{ChildNodeHash}_{256})
+    \end{aligned} & \text{if } \text{ChildBitmap} \neq 0\\
+    \text{EmptyByte} & \text{if } \text{ChildBitmap} = 0
+  \end{cases}
+\end{aligned}
 $$
 
 To prove the validity of iter access, it is needed to re-construct the $$\text{KeyPatriciaNodeHash}$$ of the designated key prefix, with all iterated keys.
 
 $$
 \begin{aligned}
-\text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \dots || \text{KeyPrefix}_k) \\
-\text{KeyPatriciaNodes} &= \{\text{KeyPatriciaNode}_p\}_{p=1}^{q} \\
-\text{PublicInputsIter} &= [\text{KeyPatriciaRootPrev}, \text{KeyPrefixesHash}] \\
-\text{PrivateInputsIter} &= [\{\text{KeyPrefix}_j, \text{KeyPatriciaNodes}_j\}_{j=1}^{k}] \\
-\text{ProofIter} &= \text{ZKP}(\text{PublicInputsIter}, \text{PrivateInputsIter})
+  \text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \dots || \text{KeyPrefix}_k) \\
+  \text{KeyPatriciaNodes} &= \{\text{KeyPatriciaNode}_p\}_{p=1}^{q} \\
+  \text{PublicInputsIter} &= [\text{KeyPatriciaRootPrev}, \text{KeyPrefixesHash}] \\
+  \text{PrivateInputsIter} &= [\{\text{KeyPrefix}_j, \text{KeyPatriciaNodes}_j\}_{j=1}^{k}] \\
+  \text{ProofIter} &= \text{CircuitIter}(\text{PublicInputsIter}, \text{PrivateInputsIter})
 \end{aligned}
 $$
 
@@ -217,19 +222,21 @@ Here, we can get the interim result of the state transition function of entire b
 
 $$
 \begin{aligned}
-&\{ \text{StateRootNext}_i, \text{StateNext}_i^{\text{set, del}}, \{\text{Key}_{ij}, \text{KeyPrefix}_{ij}\}_{j=1}^{k} \} \\
-&= g({\text{StateRootPrev} , \text{StatePrev}_i^{\text{get, iter}}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i)
+  &\{ \text{StateRootNext}_i, \text{StateNext}_i^{\text{set, del}}, \{\text{Key}_{ij}, \text{KeyPrefix}_{ij}\}_{j=1}^{k} \} \\
+  &= g({\text{StateRootPrev} , \text{StatePrev}_i^{\text{get, iter}}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i)
 \end{aligned}
 $$
 
 $$
 \begin{aligned}
-\text{TxChunkHash}_i &= h(\text{TxInChunk}_1 || \dots || \text{TxInChunk}_{c(i)}) \\
-\text{PublicInputsChunkStf}_i &= [\text{StateRootPrev}, \text{StateRootNext}_i, \text{TxChunkHash}_i] \\
-\text{PrivateInputsChunkStf}_i &= [\text{StatePrev}_i^{\text{get, iter}}, \\
-    &\qquad \text{StateNext}_i^{\text{set, del}}, \\
-    &\qquad \text{StateNodeHashes}_i^{\text{NoAccess}}, \\
-    &\qquad \text{TxsChunk}_i]
+  \text{TxChunkHash}_i &= h(\text{TxInChunk}_1 || \dots || \text{TxInChunk}_{c(i)}) \\
+  \text{PublicInputsChunkStf}_i &= \{\text{StateRootPrev}, \text{StateRootNext}_i, \text{TxChunkHash}_i\} \\
+  \text{PrivateInputsChunkStf}_i &= \left\{ \begin{aligned}
+    & \text{StatePrev}_i^{\text{get, iter}} \\
+    & \text{StateNext}_i^{\text{set, del}} \\
+    & \text{StateNodeHashes}_i^{\text{NoAccess}} \\
+    & \text{TxsChunk}_i
+  \end{aligned} \right\}
 \end{aligned}
 $$
 
@@ -237,12 +244,14 @@ Then we can generate the proof in parallel for each chunk with a combined circui
 
 $$
 \begin{aligned}
-\forall i \in \{1:n\} \text{ in parallel:} \\
-\text{PublicInputsChunk}_i &= [\text{PublicInputsChunkStf}_i] \\
-\text{PrivateInputsChunk}_i &= [\text{PrivateInputsChunkStf}_i, \\
-    &\qquad \text{PrivateInputsChunkGet}_i, \\
-    &\qquad \text{PrivateInputsChunkIter}_i] \\
-\text{ProofChunk}_i &= \text{ZKP}(\text{PublicInputsChunk}_i, \text{PrivateInputsChunk}_i)
+  \forall i \in \{1:n\} \text{ in parallel:} \\
+  \text{PublicInputsChunk}_i &= \{\text{PublicInputsChunkStf}_i\} \\
+  \text{PrivateInputsChunk}_i &= \left\{ \begin{aligned}
+    & \text{PrivateInputsChunkStf}_i \\
+    & \text{PrivateInputsChunkGet}_i \\
+    & \text{PrivateInputsChunkIter}_i
+  \end{aligned} \right\} \\
+  \text{ProofChunk}_i &= \text{CircuitChunk}(\text{PublicInputsChunk}_i, \text{PrivateInputsChunk}_i)
 \end{aligned}
 $$
 
@@ -256,11 +265,13 @@ Finally, we can aggregate all proofs with recursive ZKP:
 
 $$
 \begin{aligned}
-\text{PublicInputsAgg} &= [\text{StateRootPrev}_1, \text{StateRootNext}_n, \text{TxRoot}] \\
-\text{PrivateInputsAgg} &= [\{\text{StateRootPrev}_i\}_{i=2}^{n}, \\
-    &\qquad \{\text{StateRootNext}_i\}_{i=1}^{n-1}, \\
-    &\qquad \{\text{TxsChunk}_i, \text{ProofChunk}_i\}_{i=1}^{n}] \\
-\text{ProofAgg} &= \text{ZKP}(\text{PublicInputsAgg}, \text{PrivateInputsAgg})
+  \text{PublicInputsAgg} &= \{\text{StateRootPrev}_1, \text{StateRootNext}_n, \text{TxRoot}\} \\
+  \text{PrivateInputsAgg} &= \left\{ \begin{aligned}
+    & \{\text{StateRootPrev}_i\}_{i=2}^{n} \\
+    & \{\text{StateRootNext}_i\}_{i=1}^{n-1} \\
+    & \{\text{TxsChunk}_i, \text{ProofChunk}_i\}_{i=1}^{n}
+  \end{aligned} \right\} \\
+  \text{ProofAgg} &= \text{CircuitAgg}(\text{PublicInputsAgg}, \text{PrivateInputsAgg})
 \end{aligned}
 $$
 
