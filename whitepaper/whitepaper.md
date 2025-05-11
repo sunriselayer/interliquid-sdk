@@ -23,7 +23,7 @@ To clarify the word of Sovereign Rollup, in ZK Sovereign Rollup, validity proof 
 ## Why Iteration Matters
 
 Key prefix based iteration is a common pattern in Web2 development.
-Only if it exists, on chain logics can be very flexible as well as NoSQL like Firebase Firestore can do.
+Only if it exists can on-chain logic be as flexible as that of NoSQL systems like Firebase Firestore.
 
 However, it is not possible in almost all public blockchains.
 It is one of the most painful problems for Developer Experience.
@@ -37,15 +37,15 @@ For succinct purposes, key prefix based iteration should be supported by the blo
 
 ### Ethereum
 
-Ethereum's state is managed in a Patricia Merkle Trie (PMT) respectively with each address including smart contract address and EOA address, and further internal state of each smart contract is stored in a Patricia Merkle Trie inside the address state.
-Because PMT hashes each key, it disallow developers to iterate state in a key prefix based way.
+Ethereum's state is managed in a Patricia Merkle Trie (PMT) for each address including smart contract address and EOA address, and further internal state of each smart contract is stored in a Patricia Merkle Trie inside the address state.
+Because PMT hashes each key, it disallow developers from iterating state in a key prefix based way.
 
 ### Solana
 
 Solana's state is stored respectively with each account.
 Thanks to its design, Solana succeeded to parallelize state transition for each account.
 However, it is not possible to iterate state in a key prefix based way.
-By making each account like B-tree node, developers can realize the structure of B-tree artificially, but it costs rents of Solana account and the Developer Experience is terrible.
+By making each account like B-tree node, developers can realize the structure of B-tree artificially, but it requires paying Solana account rent and the Developer Experience is terrible.
 
 ### Cosmos SDK
 
@@ -107,7 +107,7 @@ Here, it is said that we give the state to zkVM beforehand.
 If we don't prove that the given state is correct, it is possible to make a false proof.
 To prevent this, we also need to prove that the given state is correct.
 
-Proving it only for get access (only for one designated key) is very easy.
+Proving it only for get access (only for one designated key) is straightforward.
 Merkle inclusion proof with the given state root is enough.
 
 However, proving it for iter access (all keys which match the designated key prefix) requires a smart design.
@@ -156,7 +156,7 @@ pub struct OctRadSparseTreePath(BTreeMap<Vec<u8>, [u8; 32]>);
 
 Thanks to the property of the hash function, the attack vector of increasing the inclusion proof size of the specific key is also reduced.
 
-By making it 8-bit Radix, the maximum depth of the tree is reduced from 256 to 256/8=32.
+Using an 8-bit radix reduces the maximum tree depth from 256 to 32.
 
 To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \{ \text{Key}_i \}_{j=1}^{k} $$.
 
