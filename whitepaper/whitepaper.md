@@ -75,14 +75,14 @@ To prove this, the state transition function is adjusted as follows:
 
 $$
 \begin{aligned}
-  &\{\text{StateRootNext}, \text{StateNext}^{\text{set, del}}\} \\
-  &= \hat{f}({\text{StateRootPrev} , \text{StatePrev}^{\text{get, iter}}}, \text{StateNodeHashes}^{\text{NoAccess}}, \text{Txs})
+  &\{\text{StateRootNext}, \text{Diffs}\} \\
+  &= \hat{f}({\text{StateRootPrev} , \text{StateForAccess}}, \text{StateCommitPath}, \text{Txs})
 \end{aligned}
 $$
 
-Because zkVM cannot access to the storage, we need to give the state to access $$ \text{State}^{\text{get, iter}} $$ beforehand.
-It is also enough to output only the written state $$ \text{State}^{\text{set, del}} $$ without entire state.
-To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state node hashes $$ \text{StateNodeHashes}^{\text{NoAccess}} $$ to allow zkVM to calculate the state root.
+Because zkVM cannot access to the storage, we need to give the state to access $$ \text{StateForAccess} $$ beforehand.
+It is also enough to output only the diffs $$ \text{Diffs} $$ without entire state.
+To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state commit path $$ \text{StateCommitPath} $$ to allow zkVM to calculate the state root.
 
 By committing these three values $$\text{StateRootPrev}$$, $$\text{StateRootNext}$$ and $$\text{TxRoot}$$:
 
@@ -92,9 +92,9 @@ $$
 \begin{aligned}
   \text{PublicInputsStf} &= \{\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}\} \\
   \text{PrivateInputsStf} &= \left\{ \begin{aligned}
-    & \text{StatePrev}^{\text{get, iter}} \\
-    & \text{StateNext}^{\text{set, del}} \\
-    & \text{StateNodeHashes}^{\text{NoAccess}} \\
+    & \text{StateForAccess} \\
+    & \text{Diffs} \\
+    & \text{StateCommitPath} \\
     & \text{Txs}
   \end{aligned} \right\} \\
   \text{ProofStf} &= \text{CircuitStf}(\text{PublicInputsStf}, \text{PrivateInputsStf})
@@ -123,26 +123,44 @@ Twin Radix Trees combines two tree components:
 The state root is calculated by the following equation where $$h$$ is the hash function:
 
 $$
-\text{StateRoot} = h(\text{StateSmtRoot} || \text{KeyPatriciaRoot})
+\text{EntireStateRoot} = h(\text{StateSparseTreeRoot} || \text{KeysPatriciaTrieRoot})
 $$
 
-### 8-bit-Radix Patricia Merkle Trie
+### 8-bit-Radix Sparse Merkle Tree
 
-This trie works for the state inclusion proof.
+This tree works for the state inclusion proof.
 
 It can be used for proving get access validity in the state transition, and also for state inclusion proof of light client based interoperability protocol like IBC.
 
 The leaf index is determined by the key hash, and the leaf value is the state hash.
 
 ```rust
-pub struct OctRadPatriciaInclusionProof {
-  pub path: Vec<OctRadPatriciaPath>,
-}
+pub struct OctRadSparseTreePath(BTreeMap<Vec<u8>, [u8; 32]>);
 
-pub struct OctRadPatriciaPath {
-  pub key_fragment: Vec<u8>,
-  pub child_bitmap: [u8; 32],
-  pub child_hashes: Vec<[u8; 32]>,
+impl OctRadSparseTreePath {
+    pub fn new(path: BTreeMap<Vec<u8>, [u8; 32]>) -> Self {
+        Self(path)
+    }
+
+    pub fn root(&self, remainder_node_hashes: &BTreeMap<Vec<u8>, [u8; 32]>) -> [u8; 32] {
+        todo!()
+    }
+
+    pub fn inclusion_proof(
+        &self,
+        node_hashes_to_prove: &BTreeMap<Vec<u8>, [u8; 32]>,
+        root: &[u8; 32],
+    ) -> Result<(), OctRadSparseTreeError> {
+        todo!()
+    }
+
+    pub fn non_inclusion_proof(
+        &self,
+        key_hash_dead_end_lens: &BTreeMap<Vec<u8>, u8>,
+        root: &[u8; 32],
+    ) -> Result<(), OctRadSparseTreeError> {
+        todo!()
+    }
 }
 ```
 
@@ -154,12 +172,14 @@ To prove the validity of get access, it is needed to prove the inclusion of the 
 
 $$
 \begin{aligned}
-  \text{KeysHash} &= h(\text{Key}_1 || \text{Key}_2 || \dots || \text{Key}_k) \\
-  \text{PublicInputsGet} &= [\text{StateSmtRootPrev}, \text{KeysHash}] \\
-  \text{PrivateInputsGet} &= [\{\text{Key}_j, \text{StateSmtInclusionProof}_j\}_{j=1}^{k}] \\
+  \text{KeysHash} &= h(\text{Key}_1 || \dots || \text{Key}_k) \\
+  \text{PublicInputsGet} &= [\text{StateSparseTreeRootPrev}, \text{KeysHash}] \\
+  \text{PrivateInputsGet} &= [\{\text{Key}_j\}_{j=1}^{k}, \text{ReadProofPath}] \\
   \text{ProofGet} &= \text{CircuitGet}(\text{PublicInputsGet}, \text{PrivateInputsGet})
 \end{aligned}
 $$
+
+It is also needed to prove the non-inclusion of the key which was tried to be be accessed in the STF but not found. To do this, it is enough to prove the inclusion of dead end node in the tree.
 
 ### 8-bit-Radix Patricia Trie
 
@@ -168,19 +188,32 @@ This trie works for the key indexing.
 It can be used for proving iter access validity in the state transition.
 
 ```rust
-pub enum OctRadPatriciaNode {
-    Leaf(OctRadPatriciaNodeLeaf),
-    Branch(OctRadPatriciaNodeBranch),
-}
+pub struct OctRadPatriciaTriePath(BTreeMap<Vec<u8>, [u8; 32]>);
 
-pub struct OctRadPatriciaNodeLeaf {
-    pub key_fragment: Vec<u8>,
-}
+impl OctRadPatriciaTriePath {
+    pub fn new(path: BTreeMap<Vec<u8>, [u8; 32]>) -> Self {
+        Self(path)
+    }
 
-pub struct OctRadPatriciaNodeBranch {
-    pub key_fragment: Vec<u8>,
-    pub child_bitmap: OctRadBitmap,
-    pub children: Vec<OctRadPatriciaNode>,
+    pub fn root(&self, remainder_node_hashes: &BTreeMap<Vec<u8>, [u8; 32]>) -> [u8; 32] {
+        todo!()
+    }
+
+    pub fn inclusion_proof(
+        &self,
+        node_hashes_to_prove: &BTreeMap<Vec<u8>, [u8; 32]>,
+        root: &[u8; 32],
+    ) -> Result<(), OctRadPatriciaTrieError> {
+        todo!()
+    }
+
+    pub fn range_completeness_proof(
+        &self,
+        key_suffixes_for_prefix: &BTreeMap<Vec<u8>, Vec<u8>>,
+        root: &[u8; 32],
+    ) -> Result<(), OctRadPatriciaTrieError> {
+        todo!()
+    }
 }
 ```
 
@@ -205,8 +238,8 @@ $$
 \begin{aligned}
   \text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \dots || \text{KeyPrefix}_k) \\
   \text{KeyPatriciaNodes} &= \{\text{KeyPatriciaNode}_p\}_{p=1}^{q} \\
-  \text{PublicInputsIter} &= [\text{KeyPatriciaRootPrev}, \text{KeyPrefixesHash}] \\
-  \text{PrivateInputsIter} &= [\{\text{KeyPrefix}_j, \text{KeyPatriciaNodes}_j\}_{j=1}^{k}] \\
+  \text{PublicInputsIter} &= [\text{KeysPatriciaTrieRootPrev}, \text{KeyPrefixesHash}] \\
+  \text{PrivateInputsIter} &= [\{\text{KeyPrefix}_j\}_{j=1}^{k}, \text{IterProofPath}] \\
   \text{ProofIter} &= \text{CircuitIter}(\text{PublicInputsIter}, \text{PrivateInputsIter})
 \end{aligned}
 $$
@@ -223,64 +256,74 @@ $$
 
 In the InterLiquid SDK, to get the accessed state which is needed to give to zkVM, it is needed to execute the transactions once outside of the zkVM.
 
-Here, we can get the interim result of the state transition function of entire block by assuming the chunk of the transactions $$\{\text{TxsChunk}_i\}_{i=1}^{n}$$, with emitting the accessed keys $$\{\text{Key}_{ij}\}_{j=1}^{k}$$ and $$\{\text{KeyPrefix}_{ij}\}_{j=1}^{k}$$:
+Here, we can get the interim result of the state transition function for each transaction $$\{\text{Tx}_i\}_{i=1}^{n}$$, with emitting the accessed keys $$\{\text{Key}_{ij}\}_{j=1}^{k}$$ and $$\{\text{KeyPrefix}_{ij}\}_{j=1}^{k}$$:
 
 $$
 \begin{aligned}
-  &\{ \text{StateRootNext}_i, \text{StateNext}_i^{\text{set, del}}, \{\text{Key}_{ij}, \text{KeyPrefix}_{ij}\}_{j=1}^{k} \} \\
-  &= g({\text{StateRootPrev} , \text{StatePrev}_i^{\text{get, iter}}}, \text{StateNodeHashes}_i^{\text{NoAccess}}, \text{TxsChunk}_i)
+  &\left\{ \text{AccumDiffs}_{1:i}, \{\text{Key}_{ij}, \text{KeyPrefix}_{ij}\}_{j=1}^{k} \right\} \\
+  &= g\left(\text{StateForAccess}_i, \text{AccumDiffs}_{1:i-1}, \text{Tx}_i\right)
 \end{aligned}
 $$
 
-$$
-\begin{aligned}
-  \text{TxChunkHash}_i &= h(\text{TxInChunk}_1 || \dots || \text{TxInChunk}_{c(i)}) \\
-  \text{PublicInputsChunkStf}_i &= \{\text{StateRootPrev}, \text{StateRootNext}_i, \text{TxChunkHash}_i\} \\
-  \text{PrivateInputsChunkStf}_i &= \left\{ \begin{aligned}
-    & \text{StatePrev}_i^{\text{get, iter}} \\
-    & \text{StateNext}_i^{\text{set, del}} \\
-    & \text{StateNodeHashes}_i^{\text{NoAccess}} \\
-    & \text{TxsChunk}_i
-  \end{aligned} \right\}
-\end{aligned}
-$$
-
-Then we can generate the proof in parallel for each chunk with a combined circuit among $$\text{ProofChunkStf}_i$$, $$\text{ProofChunkGet}_i$$, and $$\text{ProofChunkIter}_i$$:
+Then we can generate the proof in parallel for each transaction with one circuit which can be regarded as a combination of $$\text{ProofStf}_i$$, $$\text{ProofGet}_i$$, and $$\text{ProofIter}_i$$:
 
 $$
 \begin{aligned}
-  \forall i \in \{1:n\} \text{ in parallel:} \\
-  \text{PublicInputsChunk}_i &= \{\text{PublicInputsChunkStf}_i\} \\
-  \text{PrivateInputsChunk}_i &= \left\{ \begin{aligned}
-    & \text{PrivateInputsChunkStf}_i \\
-    & \text{PrivateInputsChunkGet}_i \\
-    & \text{PrivateInputsChunkIter}_i
+  \text{PublicInputsTx}_i &= \{\text{TxHash}_i, \text{EntireStateRoot}, \text{AccumDiffsHashPrev}_i, \text{AccumDiffsHashNext}_i \} \\
+  \text{PrivateInputsTx}_i &= \left\{ \begin{aligned}
+    & \text{StateSparseTreeRoot} \\
+    & \text{KeysPatriciaTrieRoot} \\
+    & \text{StateForAccess}_i \\
+    & \text{AccumDiffs}_{1:i} \\
+    & \text{ReadProofPath}_i \\
+    & \text{IterProofPath}_i \\
+    & \text{Tx}_i
   \end{aligned} \right\} \\
-  \text{ProofChunk}_i &= \text{CircuitChunk}(\text{PublicInputsChunk}_i, \text{PrivateInputsChunk}_i)
+  \text{ProofTx}_i &= \text{CircuitTx}(\text{PublicInputsTx}_i, \text{PrivateInputsTx}_i)
 \end{aligned}
 $$
 
-Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningfull to separate txs into chunks.
+Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions in parallel.
 
-By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can verify the validity of $$\{\text{Key}\}_{j=1}^k$$ and $$\{\text{KeyPrefix}\}_{j=1}^k$$ by itself.
+By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\{\text{Key}\}_{j=1}^k$$ and $$\{\text{KeyPrefix}\}_{j=1}^k$$ by itself.
 
-Needless to say, $$\text{StateSmtRootPrev}$$ and $$\text{KeyPatriciaRootPrev}$$ which need to be verified, also can be verified by using $$\text{PublicInputsChunk}_i$$ in the circuit.
+Needless to say, $$\text{StateSparseTreeRootPrev}$$ and $$\text{KeysPatriciaTrieRootPrev}$$ which need to be verified, also can be verified by using $$\text{PublicInputsTx}_i$$ in the circuit.
 
 Finally, we can aggregate all proofs with recursive ZKP:
 
 $$
 \begin{aligned}
-  \text{PublicInputsAgg} &= \{\text{StateRootPrev}_1, \text{StateRootNext}_n, \text{TxRoot}\} \\
-  \text{PrivateInputsAgg} &= \left\{ \begin{aligned}
-    & \{\text{StateRootPrev}_i\}_{i=2}^{n} \\
-    & \{\text{StateRootNext}_i\}_{i=1}^{n-1} \\
-    & \{\text{TxsChunk}_i, \text{ProofChunk}_i\}_{i=1}^{n}
+  \text{PublicInputsBlock} &= \{\text{EntireStateRootPrev}, \text{EntireStateRootNext}, \text{TxRoot}\} \\
+  \text{PrivateInputsBlock} &= \left\{ \begin{aligned}
+    & \{\text{TxHash}_i, \text{ProofTx}_i\}_{i=1}^{n} \\
+    & \text{StateSparseTreeRootPrev} \\
+    & \text{StateSparseTreeRootNext} \\
+    & \text{KeysPatriciaTrieRootPrev} \\
+    & \text{KeysPatriciaTrieRootNext} \\
+    & \{\text{AccumDiffsHash}_i\}_{i=1}^{n-1} \\
+    & \text{AccumDiffsFinal} \\
+    & \text{StateNextCommitPath} \\
+    & \text{KeysNextCommitPath}
   \end{aligned} \right\} \\
-  \text{ProofAgg} &= \text{CircuitAgg}(\text{PublicInputsAgg}, \text{PrivateInputsAgg})
+  \text{ProofBlock} &= \text{CircuitBlock}(\text{PublicInputsBlock}, \text{PrivateInputsBlock})
 \end{aligned}
 $$
 
-In this zkVM program, each $$\text{TxChunkHash}_i$$ is calculated internally and used for the public input of the internal ZKP verifications because $$\text{TxRoot}$$ should be not series hash but merkle root of all txs to support the tx inclusion proof.
+In this zkVM program, each $$\text{TxHash}_i$$ is calculated internally and used for the public input of the internal ZKP verifications because $$\text{TxRoot}$$ should be not series hash but merkle root of all txs to support the tx inclusion proof.
+
+The recursive ZKP structure has an systematic anchoring mechanism for the accumulated diffs:
+
+- Each transaction proof uses $$\text{AccumDiffsHashPrev}_i$$ and $$\text{AccumDiffsHashNext}_i$$ as public inputs
+- These hashes are provided from the block's private input $$\{\text{AccumDiffsHash}_i\}_{i=1}^{n-1}$$
+- The final accumulated diffs $$\text{AccumDiffsFinal}$$ is used to verify the last $$\text{AccumDiffsHash}_n$$
+- This creates a chain of verification: $$\text{AccumDiffsHashNext}_i = \text{AccumDiffsHashPrev}_{i+1}$$ for all $$i$$
+- The chain is anchored by $$\text{AccumDiffsFinal}$$, which is used in the state commitment
+
+This anchoring mechanism allows us to:
+
+1. Keep the block's public inputs minimal (no need to include $$\text{AccumDiffsHash}$$)
+1. Verify the correctness of the accumulated diffs chain
+1. Use the final accumulated diffs for state commitment
 
 ## Another topics
 
@@ -318,4 +361,4 @@ InterLiquid SDK allows developers to customize the tx authentication flow.
 
 ## Conclusion
 
-InterLiquid SDK has great theoretical background and has a practical vision to accelerate the fusion of Web2 and Web3.
+InterLiquid SDK has great theoretical background and has a practical vision to realize the interoperable web with Web2 like UX and DX, to allow apps to interact with public DeFi ecosystem with the verifiable properties.
