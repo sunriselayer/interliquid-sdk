@@ -149,8 +149,7 @@ pub struct OctRadSparseTreeNodeLeaf {
 
 pub struct OctRadSparseTreeNodeBranch {
     pub key_hash_fragment: u8,
-    pub child_bitmap: OctRadBitmap,
-    pub children: Vec<OctRadSparseTreeNode>,
+    pub child_hashes: BTreeMap<u8, [u8; HASH_BYTES]>,
 }
 
 pub struct OctRadSparseTreePath(BTreeMap<Vec<u8>, [u8; 32]>);
@@ -190,8 +189,7 @@ pub struct OctRadPatriciaTrieNodeLeaf {
 
 pub struct OctRadPatriciaTrieNodeBranch {
     pub key_fragment: Vec<u8>,
-    pub child_bitmap: OctRadBitmap,
-    pub children: Vec<OctRadPatriciaTrieNode>,
+    pub child_hashes: BTreeMap<u8, [u8; HASH_BYTES]>,
 }
 
 pub struct OctRadPatriciaTriePath(BTreeMap<Vec<u8>, [u8; 32]>);
@@ -420,4 +418,8 @@ InterLiquid SDK allows developers to customize the tx authentication flow.
 
 ## Conclusion
 
-InterLiquid SDK has great theoretical background and has a practical vision to realize the interoperable web with Web2 like UX and DX, to allow apps to interact with public DeFi ecosystem with the verifiable properties.
+The innovative Twin Radix Trees architecture enables key prefix based iteration while maintaining ZK friendliness, which is a significant advancement in blockchain state management. The parallel processing capabilities and divide-and-conquer approach for proof aggregation ensure efficient performance even with complex state transitions.
+
+With its customizable transaction authentication flow and seamless integration with Sunrise, InterLiquid SDK provides a robust foundation for building next-generation financial applications that combine the best of Web2 and Web3 technologies.
+
+InterLiquid SDK has great theoretical background and has a practical vision to realize the interoperable financial system with Web2 like UX and DX, to allow apps to interact with public DeFi ecosystem with the financial enterprise grade verifiability.

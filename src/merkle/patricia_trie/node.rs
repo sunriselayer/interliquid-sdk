@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 use sha2::{Digest, Sha256};
@@ -33,8 +33,7 @@ impl OctRadPatriciaTrieNodeLeaf {
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct OctRadPatriciaTrieNodeBranch {
     pub key_fragment: Vec<u8>,
-    pub child_bitmap: OctRadBitmap,
-    pub children: Vec<OctRadPatriciaTrieNode>,
+    pub child_hashes: BTreeMap<u8, [u8; HASH_BYTES]>,
 }
 
 impl OctRadPatriciaTrieNodeBranch {
