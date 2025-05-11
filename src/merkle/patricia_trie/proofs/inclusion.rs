@@ -1,6 +1,6 @@
 use crate::merkle::{
     consts::HASH_BYTES,
-    patricia_trie::{OctRadPatriciaNodeLeaf, OctRadPatriciaTrieError},
+    patricia_trie::{OctRadPatriciaTrieError, OctRadPatriciaTrieNodeLeaf},
 };
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
@@ -22,12 +22,12 @@ impl OctRadPatriciaInclusionProof {
         path: Vec<OctRadPatriciaPath>,
     ) -> Result<Self, OctRadPatriciaTrieError> {
         if path.is_empty() {
-            let leaf = OctRadPatriciaNodeLeaf::new(key.to_vec());
+            let leaf = OctRadPatriciaTrieNodeLeaf::new(key.to_vec());
             return Ok(Self::new(leaf.hash(), path));
         }
 
         let key_fragment = key_fragment_diff(key, &path)?;
-        let leaf = OctRadPatriciaNodeLeaf::new(key_fragment);
+        let leaf = OctRadPatriciaTrieNodeLeaf::new(key_fragment);
 
         Ok(Self::new(leaf.hash(), path))
     }

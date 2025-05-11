@@ -8,17 +8,17 @@ use crate::merkle::{bitmap::OctRadBitmap, consts::HASH_BYTES};
 use super::OctRadPatriciaTrieError;
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub enum OctRadPatriciaNode {
-    Leaf(OctRadPatriciaNodeLeaf),
-    Branch(OctRadPatriciaNodeBranch),
+pub enum OctRadPatriciaTrieNode {
+    Leaf(OctRadPatriciaTrieNodeLeaf),
+    Branch(OctRadPatriciaTrieNodeBranch),
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub struct OctRadPatriciaNodeLeaf {
+pub struct OctRadPatriciaTrieNodeLeaf {
     pub key_fragment: Vec<u8>,
 }
 
-impl OctRadPatriciaNodeLeaf {
+impl OctRadPatriciaTrieNodeLeaf {
     pub fn new(key_fragment: Vec<u8>) -> Self {
         Self { key_fragment }
     }
@@ -31,17 +31,17 @@ impl OctRadPatriciaNodeLeaf {
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub struct OctRadPatriciaNodeBranch {
+pub struct OctRadPatriciaTrieNodeBranch {
     pub key_fragment: Vec<u8>,
     pub child_bitmap: OctRadBitmap,
-    pub children: Vec<OctRadPatriciaNode>,
+    pub children: Vec<OctRadPatriciaTrieNode>,
 }
 
-impl OctRadPatriciaNodeBranch {
+impl OctRadPatriciaTrieNodeBranch {
     pub fn new(
         key_fragment: Vec<u8>,
         child_bitmap: OctRadBitmap,
-        children: Vec<OctRadPatriciaNode>,
+        children: Vec<OctRadPatriciaTrieNode>,
     ) -> Self {
         Self {
             key_fragment,
@@ -81,18 +81,18 @@ impl OctRadPatriciaNodeBranch {
     }
 }
 
-impl OctRadPatriciaNode {
+impl OctRadPatriciaTrieNode {
     pub fn key_fragment(&self) -> &Vec<u8> {
         match self {
-            OctRadPatriciaNode::Leaf(leaf) => &leaf.key_fragment,
-            OctRadPatriciaNode::Branch(branch) => &branch.key_fragment,
+            OctRadPatriciaTrieNode::Leaf(leaf) => &leaf.key_fragment,
+            OctRadPatriciaTrieNode::Branch(branch) => &branch.key_fragment,
         }
     }
 
     pub fn hash(&self) -> [u8; HASH_BYTES] {
         match self {
-            OctRadPatriciaNode::Leaf(leaf) => leaf.hash(),
-            OctRadPatriciaNode::Branch(branch) => branch.hash(),
+            OctRadPatriciaTrieNode::Leaf(leaf) => leaf.hash(),
+            OctRadPatriciaTrieNode::Branch(branch) => branch.hash(),
         }
     }
 
@@ -140,7 +140,7 @@ impl OctRadPatriciaNode {
                     full_key.push(*byte);
                     node_stack.push((
                         item.parent_byte,
-                        OctRadPatriciaNode::Leaf(OctRadPatriciaNodeLeaf::new(full_key)),
+                        OctRadPatriciaTrieNode::Leaf(OctRadPatriciaTrieNodeLeaf::new(full_key)),
                     ));
                     continue;
                 }
@@ -172,7 +172,7 @@ impl OctRadPatriciaNode {
             }
 
             // Create branch node
-            let branch = OctRadPatriciaNode::Branch(OctRadPatriciaNodeBranch::new(
+            let branch = OctRadPatriciaTrieNode::Branch(OctRadPatriciaTrieNodeBranch::new(
                 item.key_fragment,
                 child_bitmap,
                 children,

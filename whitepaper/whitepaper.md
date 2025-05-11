@@ -178,20 +178,22 @@ This trie works for the key indexing.
 It can be used for proving iter access validity in the state transition.
 
 ```rust
-pub enum OctRadPatriciaNode {
-    Leaf(OctRadPatriciaNodeLeaf),
-    Branch(OctRadPatriciaNodeBranch),
+pub enum OctRadPatriciaTrieNode {
+    Leaf(OctRadPatriciaTrieNodeLeaf),
+    Branch(OctRadPatriciaTrieNodeBranch),
 }
 
-pub struct OctRadPatriciaNodeLeaf {
+pub struct OctRadPatriciaTrieNodeLeaf {
     pub key_fragment: Vec<u8>,
 }
 
-pub struct OctRadPatriciaNodeBranch {
+pub struct OctRadPatriciaTrieNodeBranch {
     pub key_fragment: Vec<u8>,
     pub child_bitmap: OctRadBitmap,
-    pub children: Vec<OctRadPatriciaNode>,
+    pub children: Vec<OctRadPatriciaTrieNode>,
 }
+
+pub struct OctRadPatriciaTriePath(BTreeMap<Vec<u8>, [u8; 32]>);
 ```
 
 The node hash is calculated by the following equation where $$h$$ is the hash function:

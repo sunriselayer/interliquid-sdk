@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use crate::merkle::{
     consts::HASH_BYTES,
-    patricia_trie::{OctRadPatriciaNode, OctRadPatriciaTrieError},
+    patricia_trie::{OctRadPatriciaTrieError, OctRadPatriciaTrieNode},
 };
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
@@ -10,12 +10,12 @@ use super::{inclusion::OctRadPatriciaInclusionProof, key_fragment_diff, OctRadPa
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct OctRadPatriciaRangeCompletenessProof {
-    pub node: OctRadPatriciaNode,
+    pub node: OctRadPatriciaTrieNode,
     pub path: Vec<OctRadPatriciaPath>,
 }
 
 impl OctRadPatriciaRangeCompletenessProof {
-    pub fn new(node: OctRadPatriciaNode, path: Vec<OctRadPatriciaPath>) -> Self {
+    pub fn new(node: OctRadPatriciaTrieNode, path: Vec<OctRadPatriciaPath>) -> Self {
         Self { node, path }
     }
 
@@ -26,7 +26,7 @@ impl OctRadPatriciaRangeCompletenessProof {
     ) -> Result<Self, OctRadPatriciaTrieError> {
         let key_fragment = key_fragment_diff(key_prefix, &path)?;
 
-        let node = OctRadPatriciaNode::from_child_suffixes(&key_fragment, key_suffixes)?;
+        let node = OctRadPatriciaTrieNode::from_child_suffixes(&key_fragment, key_suffixes)?;
 
         Ok(Self::new(node, path))
     }

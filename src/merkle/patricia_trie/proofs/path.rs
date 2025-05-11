@@ -1,7 +1,7 @@
 use crate::merkle::{
     bitmap::OctRadBitmap,
     consts::HASH_BYTES,
-    patricia_trie::{OctRadPatriciaNodeBranch, OctRadPatriciaTrieError},
+    patricia_trie::{OctRadPatriciaTrieError, OctRadPatriciaTrieNodeBranch},
 };
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 use std::{collections::BTreeMap, iter::once};
@@ -38,7 +38,7 @@ impl OctRadPatriciaPath {
                     .map(|(_, hash)| hash),
             );
 
-        let hash = OctRadPatriciaNodeBranch::hash_from_child_hashes(
+        let hash = OctRadPatriciaTrieNodeBranch::hash_from_child_hashes(
             &self.key_fragment,
             &child_bitmap,
             child_hashes,
