@@ -38,7 +38,7 @@ impl OctRadPatriciaPath {
                     .map(|(_, hash)| hash),
             );
 
-        let hash = OctRadPatriciaTrieNodeBranch::hash_from_child_hashes(
+        let hash = OctRadPatriciaTrieNodeBranch::hash_from_child_hashes_iter(
             &self.key_fragment,
             &child_bitmap,
             child_hashes,

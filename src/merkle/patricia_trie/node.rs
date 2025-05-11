@@ -37,32 +37,29 @@ pub struct OctRadPatriciaTrieNodeBranch {
 }
 
 impl OctRadPatriciaTrieNodeBranch {
-    pub fn new(
-        key_fragment: Vec<u8>,
-        child_bitmap: OctRadBitmap,
-        children: Vec<OctRadPatriciaTrieNode>,
-    ) -> Self {
+    pub fn new(key_fragment: Vec<u8>, child_hashes: BTreeMap<u8, [u8; HASH_BYTES]>) -> Self {
         Self {
             key_fragment,
-            child_bitmap,
-            children,
+            child_hashes,
         }
     }
 
     pub fn hash(&self) -> [u8; HASH_BYTES] {
+        let child_bitmap = OctRadBitmap::from_index_set(self.child_hashes.keys().copied());
+
         let mut hasher = Sha256::new();
 
         hasher.update(&self.key_fragment);
-        hasher.update(&self.child_bitmap);
+        hasher.update(&child_bitmap);
 
-        for child in self.children.iter() {
-            hasher.update(&child.hash());
+        for child_hash in self.child_hashes.values() {
+            hasher.update(child_hash);
         }
 
         hasher.finalize().into()
     }
 
-    pub fn hash_from_child_hashes<'a>(
+    pub fn hash_from_child_hashes_iter<'a>(
         key_fragment: &[u8],
         child_bitmap: &OctRadBitmap,
         child_hashes: impl Iterator<Item = &'a [u8; HASH_BYTES]>,
@@ -170,11 +167,13 @@ impl OctRadPatriciaTrieNode {
                 children.push(child);
             }
 
+            // TODO: child_hashes from child_bitmap and children
+            let child_hashes = BTreeMap::new();
+
             // Create branch node
             let branch = OctRadPatriciaTrieNode::Branch(OctRadPatriciaTrieNodeBranch::new(
                 item.key_fragment,
-                child_bitmap,
-                children,
+                child_hashes,
             ));
             node_stack.push((item.parent_byte, branch));
         }

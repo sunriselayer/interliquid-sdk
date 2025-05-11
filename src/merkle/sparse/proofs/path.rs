@@ -30,7 +30,7 @@ impl _OctRadSparseTreePath {
                     .map(|(_, hash)| hash),
             );
 
-        let hash = OctRadSparseTreeNodeBranch::hash_from_child_hashes(
+        let hash = OctRadSparseTreeNodeBranch::hash_from_child_hashes_iter(
             self.key_hash_fragment,
             &child_bitmap,
             child_hashes,
