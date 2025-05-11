@@ -90,14 +90,14 @@ as the public input of the ZKP, it is possible to generate the verifiable validi
 
 $$
 \begin{aligned}
-  \text{PublicInputsStf} &= \{\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}\} \\
-  \text{PrivateInputsStf} &= \left\{ \begin{aligned}
+  \text{PubInputsStf} &= \{\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}\} \\
+  \text{PrivInputsStf} &= \left\{ \begin{aligned}
     & \text{StateForAccess} \\
     & \text{Diffs} \\
     & \text{StateCommitPath} \\
     & \text{Txs}
   \end{aligned} \right\} \\
-  \text{ProofStf} &= \text{CircuitStf}(\text{PublicInputsStf}, \text{PrivateInputsStf})
+  \text{ProofStf} &= \text{CircuitStf}(\text{PubInputsStf}, \text{PrivInputsStf})
 \end{aligned}
 $$
 
@@ -163,9 +163,9 @@ To prove the validity of get access, it is needed to prove the inclusion of the 
 $$
 \begin{aligned}
   \text{KeysHash} &= h(\text{Key}_1 || \dots || \text{Key}_k) \\
-  \text{PublicInputsGet} &= [\text{StateSparseTreeRootPrev}, \text{KeysHash}] \\
-  \text{PrivateInputsGet} &= [\{\text{Key}_j\}_{j=1}^{k}, \text{ReadProofPath}] \\
-  \text{ProofGet} &= \text{CircuitGet}(\text{PublicInputsGet}, \text{PrivateInputsGet})
+  \text{PubInputsGet} &= [\text{StateSparseTreeRootPrev}, \text{KeysHash}] \\
+  \text{PrivInputsGet} &= [\{\text{Key}_j\}_{j=1}^{k}, \text{ReadProofPath}] \\
+  \text{ProofGet} &= \text{CircuitGet}(\text{PubInputsGet}, \text{PrivInputsGet})
 \end{aligned}
 $$
 
@@ -216,9 +216,9 @@ To prove the validity of iter access, it is needed to re-construct the node hash
 $$
 \begin{aligned}
   \text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \dots || \text{KeyPrefix}_k) \\
-  \text{PublicInputsIter} &= [\text{KeysPatriciaTrieRootPrev}, \text{KeyPrefixesHash}] \\
-  \text{PrivateInputsIter} &= [\{\text{KeyPrefix}_j\}_{j=1}^{k}, \text{IterProofPath}] \\
-  \text{ProofIter} &= \text{CircuitIter}(\text{PublicInputsIter}, \text{PrivateInputsIter})
+  \text{PubInputsIter} &= [\text{KeysPatriciaTrieRootPrev}, \text{KeyPrefixesHash}] \\
+  \text{PrivInputsIter} &= [\{\text{KeyPrefix}_j\}_{j=1}^{k}, \text{IterProofPath}] \\
+  \text{ProofIter} &= \text{CircuitIter}(\text{PubInputsIter}, \text{PrivInputsIter})
 \end{aligned}
 $$
 
@@ -248,13 +248,13 @@ Then we can generate the proof in parallel for each transaction with one circuit
 $$
 \begin{aligned}
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
-  \text{PublicInputsTx}_i &= \left\{\begin{aligned}
+  \text{PubInputsTx}_i &= \left\{\begin{aligned}
     & \text{TxHash}_i \\
     & \text{AccumDiffsHashPrev}_i \\
     & \text{AccumDiffsHashNext}_i \\
     & \text{EntireStateRoot}
   \end{aligned} \right\} \\
-  \text{PrivateInputsTx}_i &= \left\{ \begin{aligned}
+  \text{PrivInputsTx}_i &= \left\{ \begin{aligned}
     & \text{StateSparseTreeRoot} \\
     & \text{KeysPatriciaTrieRoot} \\
     & \text{StateForAccess}_i \\
@@ -263,7 +263,7 @@ $$
     & \text{IterProofPath}_i \\
     & \text{Tx}_i
   \end{aligned} \right\} \\
-  \text{ProofTx}_i &= \text{CircuitTx}(\text{PublicInputsTx}_i, \text{PrivateInputsTx}_i)
+  \text{ProofTx}_i &= \text{CircuitTx}(\text{PubInputsTx}_i, \text{PrivInputsTx}_i)
 \end{aligned}
 $$
 
@@ -271,7 +271,7 @@ Not only for the parallelization but also the fact that the proof of ZK-STARK re
 
 By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\{\text{Key}\}_{j=1}^k$$ and $$\{\text{KeyPrefix}\}_{j=1}^k$$ by itself.
 
-Needless to say, $$\text{StateSparseTreeRootPrev}$$ and $$\text{KeysPatriciaTrieRootPrev}$$ which need to be verified, also can be verified by using $$\text{PublicInputsTx}_i$$ in the circuit.
+Needless to say, $$\text{StateSparseTreeRootPrev}$$ and $$\text{KeysPatriciaTrieRootPrev}$$ which need to be verified, also can be verified by using $$\text{PubInputsTx}_i$$ in the circuit.
 
 ### Divide and Conquer for Proof Aggregation
 
@@ -286,20 +286,20 @@ The aggregation circuit for two transaction proofs is defined as:
 $$
 \begin{aligned}
   \text{AccumDiffsHashMid}_{i,i+1} &= \text{AccumDiffsHashNext}_{i} = \text{AccumDiffsHashPrev}_{i+1}\\
-  \text{PublicInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
+  \text{PubInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
     & \text{TxRoot}_{i,i+1} \\
     & \text{AccumDiffsHashPrev}_i \\
     & \text{AccumDiffsHashNext}_{i+1} \\
     & \text{EntireStateRoot}
   \end{aligned} \right\} \\
-  \text{PrivateInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
+  \text{PrivInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
     & \text{TxHash}_i \\
     & \text{TxHash}_{i+1} \\
     & \text{AccumDiffsHashMid}_{i,i+1} \\
     & \text{ProofTx}_i \\
     & \text{ProofTx}_{i+1}
   \end{aligned} \right\} \\
-  \text{ProofTxAgg}_{i,i+1} &= \text{CircuitTxAgg}(\text{PublicInputsTxAgg}_{i,i+1}, \text{PrivateInputsTxAgg}_{i,i+1})
+  \text{ProofTxAgg}_{i,i+1} &= \text{CircuitTxAgg}(\text{PubInputsTxAgg}_{i,i+1}, \text{PrivInputsTxAgg}_{i,i+1})
 \end{aligned}
 $$
 
@@ -310,20 +310,20 @@ $$
   q &= \frac{p+s-1}{2} \\
   r &= \frac{p+s+1}{2} \\
   \text{AccumDiffsHashMid}_{\{p:s\}} &= \text{AccumDiffsHashNext}_q = \text{AccumDiffsHashPrev}_r\\
-  \text{PublicInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
+  \text{PubInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
     & \text{TxRoot}_{\{p:s\}} \\
     & \text{AccumDiffsHashPrev}_p \\
     & \text{AccumDiffsHashNext}_s \\
     & \text{EntireStateRoot}
   \end{aligned} \right\} \\
-  \text{PrivateInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
+  \text{PrivInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
     & \text{TxRoot}_{\{p:q\}} \\
     & \text{TxRoot}_{\{r:s\}} \\
     & \text{AccumDiffsHashMid}_{\{p:s\}} \\
     & \text{ProofTxAgg}_{\{p:q\}} \\
     & \text{ProofTxAgg}_{\{r:s\}}
   \end{aligned} \right\} \\
-  \text{ProofTxAgg}_{\{p:s\}} &= \text{CircuitTxAgg}(\text{PublicInputsTxAgg}_{\{p:s\}}, \text{PrivateInputsTxAgg}_{\{p:s\}})
+  \text{ProofTxAgg}_{\{p:s\}} &= \text{CircuitTxAgg}(\text{PubInputsTxAgg}_{\{p:s\}}, \text{PrivInputsTxAgg}_{\{p:s\}})
 \end{aligned}
 $$
 
@@ -338,26 +338,28 @@ $$
   \text{TxRoot} &= \text{TxRoot}_{\{1:n\}} \\
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
   \text{AccumDiffsHashNext}_n &= h(\text{AccumDiffs}_n) \\
-  \text{PublicInputsBlock} &= \left\{\begin{aligned}
+  \text{PubInputsBlock} &= \left\{\begin{aligned}
     & \text{EntireStateRootPrev} \\
     & \text{EntireStateRootNext} \\
     & \text{TxRoot}
   \end{aligned} \right\} \\
-  \text{PrivateInputsBlock} &= \left\{ \begin{aligned}
+  \text{PrivInputsBlock} &= \left\{ \begin{aligned}
     & \text{ProofTxAgg}_{\{1:n\}} \\
     & \text{StateSparseTreeRootPrev} \\
     & \text{KeysPatriciaTrieRootPrev} \\
     & \text{AccumDiffs}_n \\
-    & \text{StateNextCommitPath} \\
-    & \text{KeysNextCommitPath}
+    & \text{StateCommitPath} \\
+    & \text{KeysCommitPath}
   \end{aligned} \right\} \\
-  \text{ProofBlock} &= \text{CircuitBlock}(\text{PublicInputsBlock}, \text{PrivateInputsBlock})
+  \text{ProofBlock} &= \text{CircuitBlock}(\text{PubInputsBlock}, \text{PrivInputsBlock})
 \end{aligned}
 $$
 
 Because the accumulated diffs are anchored by the $$\text{EntireStateRootNext}$$, we can omit the accumulated diffs from the public inputs.
 
 By pipelining the aggregation process, we can significantly reduce the overall proof generation time.
+
+In actual implementation, we will also parallelize the proof of state commitment and key commitment. The inputs of the circuit for block proof will be changed slightly, but the essence of the approach is the same.
 
 ## Another topics
 
