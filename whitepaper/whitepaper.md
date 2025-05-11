@@ -101,7 +101,7 @@ $$
 \end{aligned}
 $$
 
-Hereafter the relation between $$\text{ProofXX}$$ and $$\text{PubInputsXX}$$ and $$\text{PrivInputsXX}$$ is omitted.
+Hereafter the relation between $$\text{ProofXXX}$$ and $$\text{PubInputsXXX}$$ and $$\text{PrivInputsXXX}$$ is omitted.
 
 ### Security assumptions
 
