@@ -110,7 +110,7 @@ To prevent this, we also need to prove that the given state is correct.
 Proving it only for get access (only for one designated key) is very easy.
 Merkle inclusion proof with the given state root is enough.
 
-However, proving it for iter access (all keys which match the designated key prefix) is not so easy.
+However, proving it for iter access (all keys which match the designated key prefix) requires a smart design.
 *Twin Radix Trees* enables it while keeping the ZK friendliness.
 
 ### Twin Radix Trees
@@ -135,33 +135,23 @@ It can be used for proving get access validity in the state transition, and also
 The leaf index is determined by the key hash, and the leaf value is the state hash.
 
 ```rust
-pub struct OctRadSparseTreePath(BTreeMap<Vec<u8>, [u8; 32]>);
-
-impl OctRadSparseTreePath {
-    pub fn new(path: BTreeMap<Vec<u8>, [u8; 32]>) -> Self {
-        Self(path)
-    }
-
-    pub fn root(&self, remainder_node_hashes: &BTreeMap<Vec<u8>, [u8; 32]>) -> [u8; 32] {
-        todo!()
-    }
-
-    pub fn inclusion_proof(
-        &self,
-        node_hashes_to_prove: &BTreeMap<Vec<u8>, [u8; 32]>,
-        root: &[u8; 32],
-    ) -> Result<(), OctRadSparseTreeError> {
-        todo!()
-    }
-
-    pub fn non_inclusion_proof(
-        &self,
-        key_hash_dead_end_lens: &BTreeMap<Vec<u8>, u8>,
-        root: &[u8; 32],
-    ) -> Result<(), OctRadSparseTreeError> {
-        todo!()
-    }
+pub enum OctRadSparseTreeNode {
+    Leaf(OctRadSparseTreeNodeLeaf),
+    Branch(OctRadSparseTreeNodeBranch),
 }
+
+pub struct OctRadSparseTreeNodeLeaf {
+    pub key_hash_fragment: u8,
+    pub value: Vec<u8>,
+}
+
+pub struct OctRadSparseTreeNodeBranch {
+    pub key_hash_fragment: u8,
+    pub child_bitmap: OctRadBitmap,
+    pub children: Vec<OctRadSparseTreeNode>,
+}
+
+pub struct OctRadSparseTreePath(BTreeMap<Vec<u8>, [u8; 32]>);
 ```
 
 Thanks to the property of the hash function, the attack vector of increasing the inclusion proof size of the specific key is also reduced.
@@ -188,32 +178,19 @@ This trie works for the key indexing.
 It can be used for proving iter access validity in the state transition.
 
 ```rust
-pub struct OctRadPatriciaTriePath(BTreeMap<Vec<u8>, [u8; 32]>);
+pub enum OctRadPatriciaNode {
+    Leaf(OctRadPatriciaNodeLeaf),
+    Branch(OctRadPatriciaNodeBranch),
+}
 
-impl OctRadPatriciaTriePath {
-    pub fn new(path: BTreeMap<Vec<u8>, [u8; 32]>) -> Self {
-        Self(path)
-    }
+pub struct OctRadPatriciaNodeLeaf {
+    pub key_fragment: Vec<u8>,
+}
 
-    pub fn root(&self, remainder_node_hashes: &BTreeMap<Vec<u8>, [u8; 32]>) -> [u8; 32] {
-        todo!()
-    }
-
-    pub fn inclusion_proof(
-        &self,
-        node_hashes_to_prove: &BTreeMap<Vec<u8>, [u8; 32]>,
-        root: &[u8; 32],
-    ) -> Result<(), OctRadPatriciaTrieError> {
-        todo!()
-    }
-
-    pub fn range_completeness_proof(
-        &self,
-        key_suffixes_for_prefix: &BTreeMap<Vec<u8>, Vec<u8>>,
-        root: &[u8; 32],
-    ) -> Result<(), OctRadPatriciaTrieError> {
-        todo!()
-    }
+pub struct OctRadPatriciaNodeBranch {
+    pub key_fragment: Vec<u8>,
+    pub child_bitmap: OctRadBitmap,
+    pub children: Vec<OctRadPatriciaNode>,
 }
 ```
 
@@ -232,12 +209,11 @@ $$
 \end{aligned}
 $$
 
-To prove the validity of iter access, it is needed to re-construct the $$\text{KeyPatriciaNodeHash}$$ of the designated key prefix, with all iterated keys.
+To prove the validity of iter access, it is needed to re-construct the node hash of the designated key prefix with all iterated keys, and prove its inclusion in the tree.
 
 $$
 \begin{aligned}
   \text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \dots || \text{KeyPrefix}_k) \\
-  \text{KeyPatriciaNodes} &= \{\text{KeyPatriciaNode}_p\}_{p=1}^{q} \\
   \text{PublicInputsIter} &= [\text{KeysPatriciaTrieRootPrev}, \text{KeyPrefixesHash}] \\
   \text{PrivateInputsIter} &= [\{\text{KeyPrefix}_j\}_{j=1}^{k}, \text{IterProofPath}] \\
   \text{ProofIter} &= \text{CircuitIter}(\text{PublicInputsIter}, \text{PrivateInputsIter})
