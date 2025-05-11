@@ -247,7 +247,13 @@ Then we can generate the proof in parallel for each transaction with one circuit
 
 $$
 \begin{aligned}
-  \text{PublicInputsTx}_i &= \{\text{TxHash}_i, \text{AccumDiffsHashPrev}_i, \text{AccumDiffsHashNext}_i, \text{EntireStateRoot} \} \\
+  \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
+  \text{PublicInputsTx}_i &= \left\{\begin{aligned}
+    & \text{TxHash}_i \\
+    & \text{AccumDiffsHashPrev}_i \\
+    & \text{AccumDiffsHashNext}_i \\
+    & \text{EntireStateRoot}
+  \end{aligned} \right\} \\
   \text{PrivateInputsTx}_i &= \left\{ \begin{aligned}
     & \text{StateSparseTreeRoot} \\
     & \text{KeysPatriciaTrieRoot} \\
@@ -267,40 +273,6 @@ By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{K
 
 Needless to say, $$\text{StateSparseTreeRootPrev}$$ and $$\text{KeysPatriciaTrieRootPrev}$$ which need to be verified, also can be verified by using $$\text{PublicInputsTx}_i$$ in the circuit.
 
-Finally, we can aggregate all proofs with recursive ZKP:
-
-$$
-\begin{aligned}
-  \text{PublicInputsBlock} &= \{\text{EntireStateRootPrev}, \text{EntireStateRootNext}, \text{TxRoot}\} \\
-  \text{PrivateInputsBlock} &= \left\{ \begin{aligned}
-    & \{\text{TxHash}_i, \text{ProofTx}_i\}_{i=1}^{n} \\
-    & \text{StateSparseTreeRootPrev} \\
-    & \text{KeysPatriciaTrieRootPrev} \\
-    & \{\text{AccumDiffsHash}_i\}_{i=1}^{n-1} \\
-    & \text{AccumDiffsFinal} \\
-    & \text{StateNextCommitPath} \\
-    & \text{KeysNextCommitPath}
-  \end{aligned} \right\} \\
-  \text{ProofBlock} &= \text{CircuitBlock}(\text{PublicInputsBlock}, \text{PrivateInputsBlock})
-\end{aligned}
-$$
-
-In this zkVM program, each $$\text{TxHash}_i$$ is calculated internally and used for the public input of the internal ZKP verifications because $$\text{TxRoot}$$ should be not series hash but merkle root of all txs to support the tx inclusion proof.
-
-The recursive ZKP structure has an systematic anchoring mechanism for the accumulated diffs:
-
-- Each transaction proof uses $$\text{AccumDiffsHashPrev}_i$$ and $$\text{AccumDiffsHashNext}_i$$ as public inputs
-- These hashes are provided from the block's private input $$\{\text{AccumDiffsHash}_i\}_{i=1}^{n-1}$$
-- The final accumulated diffs $$\text{AccumDiffsFinal}$$ is used to verify the last $$\text{AccumDiffsHash}_n$$
-- This creates a chain of verification: $$\text{AccumDiffsHashNext}_i = \text{AccumDiffsHashPrev}_{i+1}$$ for all $$i$$
-- The chain is anchored by $$\text{AccumDiffsFinal}$$, which is used in the state commitment
-
-This anchoring mechanism allows us to:
-
-1. Keep the block's public inputs minimal (no need to include $$\text{AccumDiffsHash}$$)
-1. Verify the correctness of the accumulated diffs chain
-1. Use the final accumulated diffs for state commitment
-
 ### Divide and Conquer for Proof Aggregation
 
 To further optimize the proof generation process, we can employ a divide-and-conquer approach for proof aggregation:
@@ -313,14 +285,79 @@ The aggregation circuit for two transaction proofs is defined as:
 
 $$
 \begin{aligned}
-  \text{AccumDiffMid}_{i,i+1} &= \text{AccumDiffNext}_{i} = \text{AccumDiffPrev}_{i+1}\\
-  \text{PublicInputsTxAgg}_{i,i+1} &= \{\text{TxRoot}, \text{AccumDiffPrev}_i, \text{AccumDiffNext}_{i+1}, \text{EntireStateRoot}\} \\
-  \text{PrivateInputsTxAgg}_{i,i+1} &= \{\text{TxHash}_i, \text{TxHash}_{i+1}, \text{AccumDiffMid}_{i,i+1}\} \\
+  \text{AccumDiffsHashMid}_{i,i+1} &= \text{AccumDiffsHashNext}_{i} = \text{AccumDiffsHashPrev}_{i+1}\\
+  \text{PublicInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
+    & \text{TxRoot}_{i,i+1} \\
+    & \text{AccumDiffsHashPrev}_i \\
+    & \text{AccumDiffsHashNext}_{i+1} \\
+    & \text{EntireStateRoot}
+  \end{aligned} \right\} \\
+  \text{PrivateInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
+    & \text{TxHash}_i \\
+    & \text{TxHash}_{i+1} \\
+    & \text{AccumDiffsHashMid}_{i,i+1} \\
+    & \text{ProofTx}_i \\
+    & \text{ProofTx}_{i+1}
+  \end{aligned} \right\} \\
   \text{ProofTxAgg}_{i,i+1} &= \text{CircuitTxAgg}(\text{PublicInputsTxAgg}_{i,i+1}, \text{PrivateInputsTxAgg}_{i,i+1})
 \end{aligned}
 $$
 
+Because of the recursive similarity, the same circuit can be used for recursive aggregation. Here, we use the notation $$\{p:s\}$$ to represent the range of transactions from $$p$$ to $$s$$, and $$q$$ and $$r$$ are the midpoints that divide this range into two sub-ranges:
+
+$$
+\begin{aligned}
+  q &= \frac{p+s-1}{2} \\
+  r &= \frac{p+s+1}{2} \\
+  \text{AccumDiffsHashMid}_{\{p:s\}} &= \text{AccumDiffsHashNext}_q = \text{AccumDiffsHashPrev}_r\\
+  \text{PublicInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
+    & \text{TxRoot}_{\{p:s\}} \\
+    & \text{AccumDiffsHashPrev}_p \\
+    & \text{AccumDiffsHashNext}_s \\
+    & \text{EntireStateRoot}
+  \end{aligned} \right\} \\
+  \text{PrivateInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
+    & \text{TxRoot}_{\{p:q\}} \\
+    & \text{TxRoot}_{\{r:s\}} \\
+    & \text{AccumDiffsHashMid}_{\{p:s\}} \\
+    & \text{ProofTxAgg}_{\{p:q\}} \\
+    & \text{ProofTxAgg}_{\{r:s\}}
+  \end{aligned} \right\} \\
+  \text{ProofTxAgg}_{\{p:s\}} &= \text{CircuitTxAgg}(\text{PublicInputsTxAgg}_{\{p:s\}}, \text{PrivateInputsTxAgg}_{\{p:s\}})
+\end{aligned}
+$$
+
 This approach can be further optimized by pipelining the aggregation process, starting the next aggregation as soon as adjacent proofs are available.
+
+### Block Proof Structure
+
+Based on the divide-and-conquer approach, we can construct the block proof by recursively aggregating transaction proofs. The final block proof is defined as:
+
+$$
+\begin{aligned}
+  \text{TxRoot} &= \text{TxRoot}_{\{1:n\}} \\
+  \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
+  \text{AccumDiffsHashNext}_n &= h(\text{AccumDiffs}_n) \\
+  \text{PublicInputsBlock} &= \left\{\begin{aligned}
+    & \text{EntireStateRootPrev} \\
+    & \text{EntireStateRootNext} \\
+    & \text{TxRoot}
+  \end{aligned} \right\} \\
+  \text{PrivateInputsBlock} &= \left\{ \begin{aligned}
+    & \text{ProofTxAgg}_{\{1:n\}} \\
+    & \text{StateSparseTreeRootPrev} \\
+    & \text{KeysPatriciaTrieRootPrev} \\
+    & \text{AccumDiffs}_n \\
+    & \text{StateNextCommitPath} \\
+    & \text{KeysNextCommitPath}
+  \end{aligned} \right\} \\
+  \text{ProofBlock} &= \text{CircuitBlock}(\text{PublicInputsBlock}, \text{PrivateInputsBlock})
+\end{aligned}
+$$
+
+Because the accumulated diffs are anchored by the $$\text{EntireStateRootNext}$$, we can omit the accumulated diffs from the public inputs.
+
+By pipelining the aggregation process, we can significantly reduce the overall proof generation time.
 
 ## Another topics
 
