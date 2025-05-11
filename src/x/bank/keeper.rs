@@ -5,7 +5,7 @@ use super::keys::{BALANCES, BANK};
 use crate::{
     core::Context,
     types::{Address, InterLiquidSdkError, Tokens, TokensI, U256},
-    utils::{IndexedMap, PrefixBound, PrefixBoundTupleOne},
+    utils::{IndexedMap, KeyPrefix, KeyPrefixTupleOne},
 };
 
 pub trait BankKeeperI<C: Context> {
@@ -106,8 +106,10 @@ impl<C: Context> BankKeeperI<C> for BankKeeper<C> {
     ) -> Result<Tokens, InterLiquidSdkError> {
         let mut tokens = Tokens::new();
 
-        let bound = PrefixBoundTupleOne::<Address, String>::new(address);
-        for result in self.balances.iter(ctx.state_manager(), bound.exact()) {
+        for result in self.balances.iter(
+            ctx.state_manager(),
+            KeyPrefixTupleOne::<Address, String>::new(address),
+        ) {
             let ((_address, denom), amount) = result?;
             tokens.insert(denom, amount);
         }

@@ -52,14 +52,19 @@ impl CompressedDiffs {
         Self { diffs }
     }
 
-    pub fn from_logs(logs: &[StateLog]) -> Result<Self, InterLiquidSdkError> {
+    pub fn from_logs<'a>(
+        logs: impl Iterator<Item = &'a StateLog>,
+    ) -> Result<Self, InterLiquidSdkError> {
         let mut diffs = Self::default();
         diffs.apply_logs(logs)?;
 
         Ok(diffs)
     }
 
-    pub fn apply_logs(&mut self, logs: &[StateLog]) -> Result<(), InterLiquidSdkError> {
+    pub fn apply_logs<'a>(
+        &mut self,
+        logs: impl Iterator<Item = &'a StateLog>,
+    ) -> Result<(), InterLiquidSdkError> {
         for log in logs {
             match log {
                 StateLog::Diff(diff) => {
@@ -75,5 +80,13 @@ impl CompressedDiffs {
         }
 
         Ok(())
+    }
+
+    pub fn map(&self) -> &BTreeMap<Vec<u8>, ValueDiff> {
+        &self.diffs
+    }
+
+    pub fn map_mut(&mut self) -> &mut BTreeMap<Vec<u8>, ValueDiff> {
+        &mut self.diffs
     }
 }

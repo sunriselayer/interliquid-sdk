@@ -1,7 +1,5 @@
 use crate::types::InterLiquidSdkError;
 
-use super::range::ObjectSafeRangeBounds;
-
 pub trait StateManager: 'static {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError>;
     fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError>;
@@ -10,6 +8,6 @@ pub trait StateManager: 'static {
 
     fn iter<'a>(
         &'a mut self,
-        range: ObjectSafeRangeBounds<Vec<u8>>,
+        key_prefix: Vec<u8>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a>;
 }

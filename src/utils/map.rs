@@ -4,7 +4,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::{
     key::{join_keys, KeyDeclaration},
-    IntoObjectSafeRangeBounds, PrefixBound,
+    KeyPrefix,
 };
 use crate::{state::StateManager, types::InterLiquidSdkError};
 
@@ -58,12 +58,12 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> Map<K, V> {
         state.del(&entire_key)
     }
 
-    pub fn iter<'a, B: PrefixBound>(
+    pub fn iter<'a, B: KeyPrefix>(
         &'a self,
         state: &'a mut dyn StateManager,
-        range: impl IntoObjectSafeRangeBounds<B>,
+        key_prefix: B,
     ) -> Box<dyn Iterator<Item = Result<(B::KeyToExtract, V), InterLiquidSdkError>> + 'a> {
-        let iter = state.iter(range.into_object_safe_range_bounds());
+        let iter = state.iter(key_prefix.to_prefix_bytes());
 
         Box::new(iter.map(|result| {
             let (mut k, v) = result?;

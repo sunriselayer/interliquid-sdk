@@ -23,14 +23,14 @@ impl TxExecutionSnapshot {
         txs: &[TX],
     ) -> Result<Vec<Self>, InterLiquidSdkError> {
         let mut logs = Vec::new();
-        let mut accumulated_diffs = CompressedDiffs::from_logs(&logs);
+        let mut accumulated_diffs = CompressedDiffs::from_logs(logs.iter())?;
 
         let snapshots = txs
             .iter()
             .map(|tx| {
                 app.execute_tx(ctx, tx)?;
                 let mut logs = Vec::new();
-                let accumulated_diffs = CompressedDiffs::from_logs(&logs)?;
+                let accumulated_diffs = CompressedDiffs::from_logs(logs.iter())?;
 
                 Ok(Self::new(logs))
             })

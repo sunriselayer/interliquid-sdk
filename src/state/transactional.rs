@@ -1,51 +1,60 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use crate::{state::StateManager, types::InterLiquidSdkError};
 
 use super::{
     log::{StateLog, StateLogIter, StateLogRead},
-    range::ObjectSafeRangeBounds,
+    CompressedDiffs, StateLogDiff, ValueDiff,
 };
 
 pub struct TransactionalState<S: StateManager> {
     pub state: S,
-    pub set: BTreeMap<Vec<u8>, Vec<u8>>,
-    pub del: BTreeSet<Vec<u8>>,
     pub logs: Vec<StateLog>,
+    pub diffs: CompressedDiffs,
 }
 
 impl<S: StateManager> TransactionalState<S> {
     pub fn new(state: S) -> Self {
         Self {
             state,
-            set: BTreeMap::new(),
-            del: BTreeSet::new(),
             logs: Vec::new(),
+            diffs: CompressedDiffs::default(),
+        }
+    }
+
+    pub fn from_diffs(state: S, diffs: CompressedDiffs) -> Self {
+        Self {
+            state,
+            logs: Vec::new(),
+            diffs,
         }
     }
 
     pub fn commit(&mut self) -> Result<(), InterLiquidSdkError> {
-        for key in self.set.keys() {
-            self.state.set(key, self.set.get(key).unwrap())?;
-        }
-
-        for key in self.del.iter() {
-            self.state.del(key)?;
+        for (key, diff) in self.diffs.map() {
+            match &diff.after {
+                Some(value) => self.state.set(key, value)?,
+                None => self.state.del(key)?,
+            }
         }
 
         Ok(())
+    }
+
+    fn get_without_logging(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
+        let val = if let Some(diff) = self.diffs.map().get(key) {
+            diff.after.clone()
+        } else {
+            self.state.get(key)?
+        };
+
+        Ok(val)
     }
 }
 
 impl<S: StateManager> StateManager for TransactionalState<S> {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
-        let val = if self.del.contains(key) {
-            None
-        } else if let Some(value) = self.set.get(key) {
-            Some(value.clone())
-        } else {
-            self.state.get(key)?
-        };
+        let val = self.get_without_logging(key)?;
 
         self.logs.push(StateLog::Read(StateLogRead {
             key: key.to_vec(),
@@ -56,41 +65,55 @@ impl<S: StateManager> StateManager for TransactionalState<S> {
     }
 
     fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError> {
-        self.del.remove(key);
-        self.set.insert(key.to_vec(), value.to_vec());
+        let before = self.get_without_logging(key)?;
+        let log = StateLog::Diff(StateLogDiff {
+            key: key.to_vec(),
+            diff: ValueDiff {
+                before,
+                after: Some(value.to_vec()),
+            },
+        });
+
+        self.diffs.apply_logs([&log].into_iter())?;
+        self.logs.push(log);
 
         Ok(())
     }
 
     fn del(&mut self, key: &[u8]) -> Result<(), InterLiquidSdkError> {
-        self.set.remove(key);
+        let before = self.get_without_logging(key)?;
+        let log = StateLog::Diff(StateLogDiff {
+            key: key.to_vec(),
+            diff: ValueDiff {
+                before,
+                after: None,
+            },
+        });
 
-        self.del.insert(key.to_vec());
+        self.diffs.apply_logs([&log].into_iter())?;
+        self.logs.push(log);
 
         Ok(())
     }
 
     fn iter<'a>(
         &'a mut self,
-        range: ObjectSafeRangeBounds<Vec<u8>>,
+        key_prefix: Vec<u8>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
-        let iter = self.state.iter(range).filter_map(|result| {
+        let iter = self.state.iter(key_prefix).filter_map(|result| {
             let (key, value) = match result {
                 Ok((key, value)) => (key, value),
                 Err(e) => return Some(Err(e)),
             };
 
-            if self.del.contains(&key) {
-                return None;
+            if let Some(diff) = self.diffs.map().get(&key) {
+                match &diff.after {
+                    Some(value) => Some(Ok((key, value.clone()))),
+                    None => None,
+                }
+            } else {
+                Some(Ok((key, value)))
             }
-
-            if self.set.contains_key(&key) {
-                let value = self.set.get(&key).unwrap().clone();
-
-                return Some(Ok((key, value)));
-            }
-
-            Some(Ok((key, value)))
         });
 
         let record_index = self.logs.len();
@@ -103,6 +126,7 @@ impl<S: StateManager> StateManager for TransactionalState<S> {
         }
     }
 }
+
 pub struct IterRecord {
     pub keys: BTreeSet<Vec<u8>>,
 }
@@ -141,5 +165,13 @@ impl<'a> Iterator for TransactionalStateIterator<'a> {
         }
 
         item
+    }
+}
+
+// This is needed to enforce that all keys are recorded.
+// This makes the proof of range completeness proof easier.
+impl<'a> Drop for TransactionalStateIterator<'a> {
+    fn drop(&mut self) {
+        while let Some(_) = self.next() {}
     }
 }

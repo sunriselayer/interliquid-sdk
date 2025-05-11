@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::types::InterLiquidSdkError;
 
-use super::{manager::StateManager, range::ObjectSafeRangeBounds};
+use super::manager::StateManager;
 
 pub struct RelatedState {
     pub map: BTreeMap<Vec<u8>, Vec<u8>>,
@@ -39,14 +39,25 @@ impl StateManager for RelatedState {
 
     fn iter<'a>(
         &'a mut self,
-        range: ObjectSafeRangeBounds<Vec<u8>>,
+        key_prefix: Vec<u8>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
-        let iter = self.map.range(range);
+        if key_prefix.len() == 0 {
+            Box::new(self.map.iter().map(|(k, v)| Ok((k.clone(), v.clone()))))
+        } else if key_prefix.iter().all(|&b| b == 0xFF) {
+            Box::new(
+                self.map
+                    .range(key_prefix..)
+                    .map(|(k, v)| Ok((k.clone(), v.clone()))),
+            )
+        } else {
+            let mut key_prefix_next = key_prefix.clone();
+            *key_prefix_next.last_mut().unwrap() += 1; // len > 0
 
-        Box::new(iter.map(|result| {
-            let (key, value) = result;
-
-            Ok((key.clone(), value.clone()))
-        }))
+            Box::new(
+                self.map
+                    .range(key_prefix..key_prefix_next)
+                    .map(|(k, v)| Ok((k.clone(), v.clone()))),
+            )
+        }
     }
 }
