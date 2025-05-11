@@ -5,12 +5,12 @@ use borsh_derive::{BorshDeserialize, BorshSerialize};
 use std::{collections::BTreeMap, iter::once};
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub struct OctRadSparseTreePath {
+pub struct _OctRadSparseTreePath {
     pub key_hash_fragment: u8,
     pub child_hashes: BTreeMap<u8, [u8; 32]>,
 }
 
-impl OctRadSparseTreePath {
+impl _OctRadSparseTreePath {
     pub fn hash(
         &self,
         calculated_child_index_among_siblings: u8,

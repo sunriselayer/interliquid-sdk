@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::state::CompressedDiffs;
+use crate::{
+    merkle::{OctRadPatriciaTriePath, OctRadSparseTreePath},
+    state::CompressedDiffs,
+};
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct PublicInputTx {
@@ -17,7 +20,6 @@ pub struct PrivateInputTx {
     pub tx: Vec<u8>,
     pub state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
     pub accum_diffs_prev: CompressedDiffs,
-    pub read_found_inclusion_proof: BTreeMap<Vec<u8>, Vec<u8>>,
-    pub read_notfound_noninclusion_proof: BTreeMap<Vec<u8>, Vec<u8>>,
-    pub iter_completeness_proof: BTreeMap<Vec<u8>, Vec<u8>>,
+    pub read_proof_path: OctRadSparseTreePath,
+    pub iter_proof_path: OctRadPatriciaTriePath,
 }

@@ -1,23 +1,23 @@
 use crate::merkle::{consts::HASH_BYTES, OctRadSparseTreeError, OctRadSparseTreeNodeLeaf};
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use super::OctRadSparseTreePath;
+use super::_OctRadSparseTreePath;
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct OctRadSparseTreeInclusionProof {
     pub node_hash: [u8; HASH_BYTES],
-    pub path: Vec<OctRadSparseTreePath>,
+    pub path: Vec<_OctRadSparseTreePath>,
 }
 
 impl OctRadSparseTreeInclusionProof {
-    pub fn new(node_hash: [u8; HASH_BYTES], path: Vec<OctRadSparseTreePath>) -> Self {
+    pub fn new(node_hash: [u8; HASH_BYTES], path: Vec<_OctRadSparseTreePath>) -> Self {
         Self { node_hash, path }
     }
 
     pub fn from_leaf(
         key_hash_fragment: u8,
         value: Vec<u8>,
-        path: Vec<OctRadSparseTreePath>,
+        path: Vec<_OctRadSparseTreePath>,
     ) -> Result<Self, OctRadSparseTreeError> {
         let leaf = OctRadSparseTreeNodeLeaf::new(key_hash_fragment, value);
 
