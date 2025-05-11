@@ -101,6 +101,8 @@ $$
 \end{aligned}
 $$
 
+Hereafter the relation between $$\text{ProofXX}$$ and $$\text{PubInputsXX}$$ and $$\text{PrivInputsXX}$$ is omitted.
+
 ### Security assumptions
 
 Here, it is said that we give the state to zkVM beforehand.
@@ -163,9 +165,8 @@ To prove the validity of get access, it is needed to prove the inclusion of the 
 $$
 \begin{aligned}
   \text{KeysHash} &= h(\text{Key}_1 || \dots || \text{Key}_k) \\
-  \text{PubInputsGet} &= [\text{StateSparseTreeRootPrev}, \text{KeysHash}] \\
-  \text{PrivInputsGet} &= [\{\text{Key}_j\}_{j=1}^{k}, \text{ReadProofPath}] \\
-  \text{ProofGet} &= \text{CircuitGet}(\text{PubInputsGet}, \text{PrivInputsGet})
+  \text{PubInputsRead} &= [\text{StateSparseTreeRootPrev}, \text{KeysHash}] \\
+  \text{PrivInputsRead} &= [\{\text{Key}_j\}_{j=1}^{k}, \text{ReadProofPath}]
 \end{aligned}
 $$
 
@@ -217,8 +218,7 @@ $$
 \begin{aligned}
   \text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \dots || \text{KeyPrefix}_k) \\
   \text{PubInputsIter} &= [\text{KeysPatriciaTrieRootPrev}, \text{KeyPrefixesHash}] \\
-  \text{PrivInputsIter} &= [\{\text{KeyPrefix}_j\}_{j=1}^{k}, \text{IterProofPath}] \\
-  \text{ProofIter} &= \text{CircuitIter}(\text{PubInputsIter}, \text{PrivInputsIter})
+  \text{PrivInputsIter} &= [\{\text{KeyPrefix}_j\}_{j=1}^{k}, \text{IterProofPath}]
 \end{aligned}
 $$
 
@@ -262,8 +262,7 @@ $$
     & \text{ReadProofPath}_i \\
     & \text{IterProofPath}_i \\
     & \text{Tx}_i
-  \end{aligned} \right\} \\
-  \text{ProofTx}_i &= \text{CircuitTx}(\text{PubInputsTx}_i, \text{PrivInputsTx}_i)
+  \end{aligned} \right\}
 \end{aligned}
 $$
 
@@ -298,8 +297,7 @@ $$
     & \text{AccumDiffsHashMid}_{i,i+1} \\
     & \text{ProofTx}_i \\
     & \text{ProofTx}_{i+1}
-  \end{aligned} \right\} \\
-  \text{ProofTxAgg}_{i,i+1} &= \text{CircuitTxAgg}(\text{PubInputsTxAgg}_{i,i+1}, \text{PrivInputsTxAgg}_{i,i+1})
+  \end{aligned} \right\}
 \end{aligned}
 $$
 
@@ -322,8 +320,7 @@ $$
     & \text{AccumDiffsHashMid}_{\{p:s\}} \\
     & \text{ProofTxAgg}_{\{p:q\}} \\
     & \text{ProofTxAgg}_{\{r:s\}}
-  \end{aligned} \right\} \\
-  \text{ProofTxAgg}_{\{p:s\}} &= \text{CircuitTxAgg}(\text{PubInputsTxAgg}_{\{p:s\}}, \text{PrivInputsTxAgg}_{\{p:s\}})
+  \end{aligned} \right\}
 \end{aligned}
 $$
 
@@ -331,35 +328,61 @@ This approach can be further optimized by pipelining the aggregation process, st
 
 ### Block Proof Structure
 
-Based on the divide-and-conquer approach, we can construct the block proof by recursively aggregating transaction proofs. The final block proof is defined as:
+Based on the divide-and-conquer approach, we can construct the block proof by recursively aggregating transaction proofs.
+Before provind the block, we also divide the circuit of state commitment and keys commitment.
+
+$$
+\begin{aligned}
+  \text{PubInputsCommitState} &= \left\{\begin{aligned}
+    & \text{StateSparseTreeRootPrev} \\
+    & \text{StateSparseTreeRootNext} \\
+    & \text{AccumDiffsHash}_n
+  \end{aligned} \right\} \\
+  \text{PrivInputsCommitState} &= \left\{ \begin{aligned}
+    & \text{AccumDiffs}_n \\
+    & \text{StateCommitPath}
+  \end{aligned} \right\} \\
+  \\
+  \text{PubInputsCommitKeys} &= \left\{\begin{aligned}
+    & \text{KeysPatriciaTrieRootPrev} \\
+    & \text{KeysPatriciaTrieRootNext} \\
+    & \text{AccumDiffsHash}_n
+  \end{aligned} \right\} \\
+  \text{PrivInputsCommitKeys} &= \left\{ \begin{aligned}
+    & \text{AccumDiffs}_n \\
+    & \text{KeysCommitPath}
+  \end{aligned} \right\}
+\end{aligned}
+$$
+
+Finally we can construct the block proof by aggregating the state commitment proof, keys commitment proof, and the transaction proofs.
 
 $$
 \begin{aligned}
   \text{TxRoot} &= \text{TxRoot}_{\{1:n\}} \\
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
-  \text{AccumDiffsHashNext}_n &= h(\text{AccumDiffs}_n) \\
+  \text{AccumDiffsHashNext}_n &= \text{AccumDiffsHash}_n \\
   \text{PubInputsBlock} &= \left\{\begin{aligned}
     & \text{EntireStateRootPrev} \\
     & \text{EntireStateRootNext} \\
     & \text{TxRoot}
   \end{aligned} \right\} \\
   \text{PrivInputsBlock} &= \left\{ \begin{aligned}
-    & \text{ProofTxAgg}_{\{1:n\}} \\
     & \text{StateSparseTreeRootPrev} \\
+    & \text{StateSparseTreeRootNext} \\
     & \text{KeysPatriciaTrieRootPrev} \\
-    & \text{AccumDiffs}_n \\
-    & \text{StateCommitPath} \\
-    & \text{KeysCommitPath}
-  \end{aligned} \right\} \\
-  \text{ProofBlock} &= \text{CircuitBlock}(\text{PubInputsBlock}, \text{PrivInputsBlock})
+    & \text{KeysPatriciaTrieRootNext} \\
+    & \text{AccumDiffsHash}_n \\
+    & \text{ProofTxAgg}_{\{1:n\}} \\
+    & \text{ProofCommitState} \\
+    & \text{ProofCommitKeys}
+  \end{aligned} \right\}
 \end{aligned}
 $$
 
 Because the accumulated diffs are anchored by the $$\text{EntireStateRootNext}$$, we can omit the accumulated diffs from the public inputs.
 
 By pipelining the aggregation process, we can significantly reduce the overall proof generation time.
-
-In actual implementation, we will also parallelize the proof of state commitment and key commitment. The inputs of the circuit for block proof will be changed slightly, but the essence of the approach is the same.
 
 ## Another topics
 
