@@ -19,7 +19,7 @@ impl OctRadSparseTreeInclusionProof {
         value: Vec<u8>,
         path: Vec<_OctRadSparseTreePath>,
     ) -> Result<Self, OctRadSparseTreeError> {
-        let leaf = OctRadSparseTreeNodeLeaf::new(key_hash_fragment, value);
+        let leaf = OctRadSparseTreeNodeLeaf::new(vec![key_hash_fragment]);
 
         Ok(Self::new(leaf.hash(), path))
     }

@@ -40,7 +40,6 @@ impl OctRadPatriciaPath {
 
         let hash = OctRadPatriciaTrieNodeBranch::hash_from_child_hashes(
             &self.key_fragment,
-            &child_bitmap,
             child_hashes,
         );
 

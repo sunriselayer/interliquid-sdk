@@ -1,0 +1,9 @@
+[package]
+name = "interliquid-sdk-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+interliquid-sdk = { path = ".." }
+tokio = { version = "1.0", features = ["full"] }
+borsh = { version = "0.10.3", features = ["derive"] } 

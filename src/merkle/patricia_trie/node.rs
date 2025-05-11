@@ -39,24 +39,20 @@ pub struct OctRadPatriciaTrieNodeBranch {
 impl OctRadPatriciaTrieNodeBranch {
     pub fn new(
         key_fragment: Vec<u8>,
-        child_bitmap: OctRadBitmap,
-        children: Vec<OctRadPatriciaTrieNode>,
+        child_hashes: BTreeMap<u8, [u8; HASH_BYTES]>,
     ) -> Self {
         Self {
             key_fragment,
-            child_bitmap,
-            children,
+            child_hashes,
         }
     }
 
     pub fn hash(&self) -> [u8; HASH_BYTES] {
         let mut hasher = Sha256::new();
-
         hasher.update(&self.key_fragment);
-        hasher.update(&self.child_bitmap);
-
-        for child in self.children.iter() {
-            hasher.update(&child.hash());
+        
+        for (_, hash) in self.child_hashes.iter() {
+            hasher.update(hash);
         }
 
         hasher.finalize().into()
@@ -64,13 +60,10 @@ impl OctRadPatriciaTrieNodeBranch {
 
     pub fn hash_from_child_hashes<'a>(
         key_fragment: &[u8],
-        child_bitmap: &OctRadBitmap,
         child_hashes: impl Iterator<Item = &'a [u8; HASH_BYTES]>,
     ) -> [u8; HASH_BYTES] {
         let mut hasher = Sha256::new();
-
         hasher.update(key_fragment);
-        hasher.update(child_bitmap);
 
         for child_hash in child_hashes {
             hasher.update(child_hash);
@@ -146,12 +139,10 @@ impl OctRadPatriciaTrieNode {
             }
 
             // Create child nodes
-            let mut children = Vec::new();
-            let mut child_bitmap = OctRadBitmap::default();
+            let mut child_hashes = BTreeMap::new();
 
             // Push children to stack in reverse order to maintain correct order
             for (byte, suffixes) in children_map.into_iter().rev() {
-                child_bitmap.set(byte, true);
                 let mut child_key = item.key_fragment.clone();
                 child_key.push(byte);
                 stack.push(StackItem {
@@ -166,15 +157,14 @@ impl OctRadPatriciaTrieNode {
                 .last()
                 .map_or(false, |(b, _)| *b == item.parent_byte)
             {
-                let (_, child) = node_stack.pop().unwrap();
-                children.push(child);
+                let (byte, child) = node_stack.pop().unwrap();
+                child_hashes.insert(byte.unwrap(), child.hash());
             }
 
             // Create branch node
             let branch = OctRadPatriciaTrieNode::Branch(OctRadPatriciaTrieNodeBranch::new(
                 item.key_fragment,
-                child_bitmap,
-                children,
+                child_hashes,
             ));
             node_stack.push((item.parent_byte, branch));
         }

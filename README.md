@@ -205,3 +205,38 @@ match result {
 ```
 
 For more technical details, refer to the [Whitepaper](whitepaper/whitepaper.md).
+
+## 🧑‍💻 Example: Basic Usage
+
+A minimal working example is provided in [`examples/basic_usage.rs`](examples/basic_usage.rs).
+This example demonstrates how to set up a dummy context, state manager, and transaction, and how to execute a transaction using the SDK's core `App` interface.
+
+**Purpose:**
+- Show the minimal boilerplate needed to use the SDK's core traits and types.
+- Illustrate how to implement the required traits (`Context`, `StateManager`, `Tx`) for custom logic or testing.
+- Provide a template for integrating your own state management and transaction types.
+
+**How to run:**
+```sh
+cargo run --example basic_usage
+```
+
+**Example code:**
+```rust
+use interliquid_sdk::core::{App, Context, MsgRegistry};
+use interliquid_sdk::state::StateManager;
+use interliquid_sdk::tx::Tx;
+use interliquid_sdk::types::InterLiquidSdkError;
+use borsh_derive::BorshDeserialize;
+
+// Dummy context, state manager, and transaction implementations...
+// (see examples/basic_usage.rs for full code)
+
+fn main() {
+    let mut app = App::<DummyContext, DummyTx>::new();
+    let mut ctx = DummyContext::new();
+    let tx = DummyTx;
+    let result = app.execute_tx(&mut ctx, &tx);
+    println!("Result: {:?}", result);
+}
+```
