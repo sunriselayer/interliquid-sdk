@@ -179,29 +179,34 @@ PrivateInputsAgg = [{StateRootPrev_i}_{i=2}^n, {StateRootNext_i}_{i=1}^{n-1}, {P
 
 ### Usage Example
 
+Here's a simple example showing how to use the SDK for token transfers:
+
 ```rust
-use interliquid_sdk::core::InterLiquid;
-use interliquid_sdk::state::StateManager;
-use interliquid_sdk::tx::TransactionProcessor;
+use interliquid_sdk::{
+    core::{MsgRegistry, SdkContext},
+    types::{Address, Tokens, U256},
+    x::bank::BankKeeper,
+};
 
-// Initialize components
-let sdk = InterLiquid::new();
-let state_manager = StateManager::new();
-let tx_processor = TransactionProcessor::new();
+// Initialize SDK context and keeper
+let state_manager = Box::new(MemoryStateManager::new());
+let mut ctx = SdkContext::new("test-chain", 1, 0, state_manager, MsgRegistry::new());
+let bank_keeper = BankKeeper::new();
 
-// Process transactions
-let txs = vec![/* your transactions */];
-let result = sdk.process_transactions(txs, &state_manager, &tx_processor);
+// Create addresses and transfer tokens
+let alice = Address::from([1; 32]);
+let bob = Address::from([2; 32]);
 
-// Handle result
-match result {
-    Ok(block) => {
-        println!("Block processed successfully: {:?}", block);
-    }
-    Err(e) => {
-        println!("Error processing block: {:?}", e);
-    }
-}
+// Send 100 USDC from Alice to Bob
+let mut tokens = Tokens::new();
+tokens.insert("usdc".to_string(), U256::from(100u64));
+bank_keeper.send(&mut ctx, &alice, &bob, &tokens)?;
+
+// Check balances
+let alice_balance = bank_keeper.get_balance(&mut ctx, &alice, "usdc")?;
+let bob_balance = bank_keeper.get_balance(&mut ctx, &bob, "usdc")?;
 ```
+
+For a complete working example, see [examples/basic_usage.rs](examples/basic_usage.rs).
 
 For more technical details, refer to the [Whitepaper](whitepaper/whitepaper.md).
