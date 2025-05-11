@@ -297,9 +297,7 @@ $$
   \text{PrivateInputsBlock} &= \left\{ \begin{aligned}
     & \{\text{TxHash}_i, \text{ProofTx}_i\}_{i=1}^{n} \\
     & \text{StateSparseTreeRootPrev} \\
-    & \text{StateSparseTreeRootNext} \\
     & \text{KeysPatriciaTrieRootPrev} \\
-    & \text{KeysPatriciaTrieRootNext} \\
     & \{\text{AccumDiffsHash}_i\}_{i=1}^{n-1} \\
     & \text{AccumDiffsFinal} \\
     & \text{StateNextCommitPath} \\

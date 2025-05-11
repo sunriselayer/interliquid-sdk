@@ -16,9 +16,7 @@ pub struct PublicInputBlock {
 pub struct PrivateInputBlock {
     pub tx_hashes: Vec<[u8; 32]>,
     pub state_sparse_tree_root_prev: [u8; 32],
-    pub state_sparse_tree_root_next: [u8; 32],
     pub keys_patricia_trie_root_prev: [u8; 32],
-    pub keys_patricia_trie_root_next: [u8; 32],
     pub accum_diffs_hashes: Vec<[u8; 32]>,
     pub accum_diffs_final: CompressedDiffs,
     pub tx_proofs: Vec<Vec<u8>>,
