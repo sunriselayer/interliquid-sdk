@@ -247,7 +247,7 @@ Then we can generate the proof in parallel for each transaction with one circuit
 
 $$
 \begin{aligned}
-  \text{PublicInputsTx}_i &= \{\text{TxHash}_i, \text{EntireStateRoot}, \text{AccumDiffsHashPrev}_i, \text{AccumDiffsHashNext}_i \} \\
+  \text{PublicInputsTx}_i &= \{\text{TxHash}_i, \text{AccumDiffsHashPrev}_i, \text{AccumDiffsHashNext}_i, \text{EntireStateRoot} \} \\
   \text{PrivateInputsTx}_i &= \left\{ \begin{aligned}
     & \text{StateSparseTreeRoot} \\
     & \text{KeysPatriciaTrieRoot} \\
@@ -300,6 +300,27 @@ This anchoring mechanism allows us to:
 1. Keep the block's public inputs minimal (no need to include $$\text{AccumDiffsHash}$$)
 1. Verify the correctness of the accumulated diffs chain
 1. Use the final accumulated diffs for state commitment
+
+### Divide and Conquer for Proof Aggregation
+
+To further optimize the proof generation process, we can employ a divide-and-conquer approach for proof aggregation:
+
+1. Aggregate proofs of adjacent transactions in pairs
+1. Recursively aggregate the resulting proofs
+1. This reduces the overall proof generation complexity from $$\mathcal{O}(N)$$ to $$\mathcal{O}(\log{N})$$
+
+The aggregation circuit for two transaction proofs is defined as:
+
+$$
+\begin{aligned}
+  \text{AccumDiffMid}_{i,i+1} &= \text{AccumDiffNext}_{i} = \text{AccumDiffPrev}_{i+1}\\
+  \text{PublicInputsTxAgg}_{i,i+1} &= \{\text{TxRoot}, \text{AccumDiffPrev}_i, \text{AccumDiffNext}_{i+1}, \text{EntireStateRoot}\} \\
+  \text{PrivateInputsTxAgg}_{i,i+1} &= \{\text{TxHash}_i, \text{TxHash}_{i+1}, \text{AccumDiffMid}_{i,i+1}\} \\
+  \text{ProofTxAgg}_{i,i+1} &= \text{CircuitTxAgg}(\text{PublicInputsTxAgg}_{i,i+1}, \text{PrivateInputsTxAgg}_{i,i+1})
+\end{aligned}
+$$
+
+This approach can be further optimized by pipelining the aggregation process, starting the next aggregation as soon as adjacent proofs are available.
 
 ## Another topics
 
