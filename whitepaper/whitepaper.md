@@ -329,7 +329,7 @@ This approach can be further optimized by pipelining the aggregation process, st
 ### Block Proof Structure
 
 Based on the divide-and-conquer approach, we can construct the block proof by recursively aggregating transaction proofs.
-Before provind the block, we also divide the circuit of state commitment and keys commitment.
+Before proving the block, we also divide the circuit of state commitment and keys commitment. Of course these two circuits can be parallelized.
 
 $$
 \begin{aligned}
