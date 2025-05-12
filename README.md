@@ -183,28 +183,48 @@ Here's a simple example showing how to use the SDK for token transfers:
 
 ```rust
 use interliquid_sdk::{
-    core::{MsgRegistry, SdkContext},
+    core::{MsgRegistry, SdkContext, Context, msg_handler},
     types::{Address, Tokens, U256},
-    x::bank::BankKeeper,
+    x::bank::{BankKeeper, msg_send::MsgSend},
 };
+use borsh::{BorshSerialize, BorshDeserialize};
+use borsh_derive::{BorshSerialize, BorshDeserialize};
 
-// Initialize SDK context and keeper
+// Define your application
+struct MyApp<C: Context> {
+    bank_keeper: BankKeeper<C>,
+}
+
+impl<C: Context> MyApp<C> {
+    fn new() -> Self {
+        Self {
+            bank_keeper: BankKeeper::new(),
+        }
+    }
+}
+
+// Implement message handler for your app
+impl<C: Context> msg_handler::MsgHandler for MyApp<C> {
+    fn handle_msg(&mut self, ctx: &mut C, msg: &[u8]) -> Result<(), InterLiquidSdkError> {
+        let msg_send = MsgSend::try_from_slice(msg)?;
+        self.bank_keeper.msg_send(ctx, &msg_send)
+    }
+}
+
+// Initialize and run your application
 let state_manager = Box::new(MemoryStateManager::new());
 let mut ctx = SdkContext::new("test-chain", 1, 0, state_manager, MsgRegistry::new());
-let bank_keeper = BankKeeper::new();
+let mut app = MyApp::new();
 
-// Create addresses and transfer tokens
-let alice = Address::from([1; 32]);
-let bob = Address::from([2; 32]);
-
-// Send 100 USDC from Alice to Bob
-let mut tokens = Tokens::new();
-tokens.insert("usdc".to_string(), U256::from(100u64));
-bank_keeper.send(&mut ctx, &alice, &bob, &tokens)?;
-
-// Check balances
-let alice_balance = bank_keeper.get_balance(&mut ctx, &alice, "usdc")?;
-let bob_balance = bank_keeper.get_balance(&mut ctx, &bob, "usdc")?;
+// Create and send a message
+let msg = MsgSend {
+    from: alice,
+    to: bob,
+    amount: tokens,
+};
+let mut msg_bytes = Vec::new();
+msg.serialize(&mut msg_bytes)?;
+app.handle_msg(&mut ctx, &msg_bytes)?;
 ```
 
 For a complete working example, see [examples/basic_usage.rs](examples/basic_usage.rs).
