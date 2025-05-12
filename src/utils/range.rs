@@ -4,7 +4,7 @@ use borsh::BorshDeserialize;
 
 use super::KeyDeclaration;
 
-pub trait KeyPrefix: Clone + Sized {
+pub trait KeyPrefix: Clone + Sized + Send {
     type KeyToExtract: KeyDeclaration;
 
     fn to_prefix_bytes(&self) -> Vec<u8>;

@@ -13,11 +13,11 @@ pub struct App<C: Context, TX: Tx> {
     tx_post_handlers: Vec<Box<dyn TxPostHandler<C, TX>>>,
     msg_registry: MsgRegistry,
     msg_handler_registry: MsgHandlerRegistry<C>,
-    phantom: PhantomData<(C, TX)>,
+    phantom: PhantomData<TX>,
 }
 
 impl<C: Context, TX: Tx> App<C, TX> {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             modules: Vec::new(),
             tx_ante_handlers: Vec::new(),
@@ -28,7 +28,7 @@ impl<C: Context, TX: Tx> App<C, TX> {
         }
     }
 
-    pub fn load(
+    fn load(
         &'static mut self,
         modules: Vec<Box<dyn Module<C>>>,
         tx_ante_handlers: Vec<Box<dyn TxAnteHandler<C, TX>>>,
@@ -48,8 +48,8 @@ impl<C: Context, TX: Tx> App<C, TX> {
         Ok(())
     }
 
-    pub fn execute_tx(&mut self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError> {
-        for handler in self.tx_ante_handlers.iter_mut() {
+    pub fn execute_tx(&self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError> {
+        for handler in self.tx_ante_handlers.iter() {
             handler.handle(ctx, tx)?;
         }
 
@@ -66,20 +66,10 @@ impl<C: Context, TX: Tx> App<C, TX> {
             handler(ctx, &msg)?;
         }
 
-        for handler in self.tx_post_handlers.iter_mut() {
+        for handler in self.tx_post_handlers.iter() {
             handler.handle(ctx, tx)?;
         }
 
         Ok(())
-    }
-}
-
-pub trait AppI<C: Context, TX: Tx> {
-    fn execute_tx(&mut self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError>;
-}
-
-impl<C: Context, TX: Tx> AppI<C, TX> for App<C, TX> {
-    fn execute_tx(&mut self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError> {
-        self.execute_tx(ctx, tx)
     }
 }

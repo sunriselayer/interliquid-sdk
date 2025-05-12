@@ -5,10 +5,10 @@ use super::keys::{BALANCES, BANK};
 use crate::{
     core::Context,
     types::{Address, InterLiquidSdkError, Tokens, TokensI, U256},
-    utils::{IndexedMap, KeyPrefix, KeyPrefixTupleOne},
+    utils::{IndexedMap, KeyPrefixTupleOne},
 };
 
-pub trait BankKeeperI<C: Context> {
+pub trait BankKeeperI<C: Context>: Send {
     fn get_balance(
         &self,
         ctx: &mut C,

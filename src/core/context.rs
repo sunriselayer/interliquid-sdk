@@ -2,7 +2,7 @@ use crate::state::StateManager;
 
 use super::MsgRegistry;
 
-pub trait Context: 'static {
+pub trait Context: Send + Sync + 'static {
     fn chain_id(&self) -> &str;
     fn block_height(&self) -> u64;
     fn block_time_seconds(&self) -> u64;

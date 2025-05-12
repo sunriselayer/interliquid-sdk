@@ -1,16 +1,14 @@
 use std::marker::PhantomData;
 
-use borsh::{BorshDeserialize, BorshSerialize};
-
-use super::key::join_keys;
+use super::{key::join_keys, Value};
 use crate::{state::StateManager, types::InterLiquidSdkError};
 
-pub struct Item<V: BorshSerialize + BorshDeserialize> {
+pub struct Item<V: Value> {
     key: Vec<u8>,
     phantom: PhantomData<V>,
 }
 
-impl<V: BorshSerialize + BorshDeserialize> Item<V> {
+impl<V: Value> Item<V> {
     pub fn new<'a, P: IntoIterator<Item = &'a [u8]>>(key: P) -> Self {
         Self {
             key: join_keys(key),

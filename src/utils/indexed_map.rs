@@ -1,19 +1,19 @@
 use std::{collections::BTreeMap, marker::PhantomData};
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshSerialize;
 
 use super::{
     key::{join_keys, KeyDeclaration},
-    KeyPrefix, Map,
+    KeyPrefix, Map, Value,
 };
 use crate::{state::StateManager, types::InterLiquidSdkError};
 
-pub struct IndexedMap<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> {
+pub struct IndexedMap<K: KeyDeclaration, V: Value> {
     map: Map<K, V>,
     indexers: BTreeMap<String, Box<dyn IndexerI<K, V>>>,
 }
 
-impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
+impl<K: KeyDeclaration, V: Value> IndexedMap<K, V> {
     pub fn new<'a, P: IntoIterator<Item = &'a [u8]>>(prefix: P) -> Self {
         Self {
             map: Map::new(prefix),
@@ -89,7 +89,7 @@ impl<K: KeyDeclaration, V: BorshSerialize + BorshDeserialize> IndexedMap<K, V> {
     }
 }
 
-trait IndexerI<PK: KeyDeclaration, V: BorshSerialize + BorshDeserialize> {
+trait IndexerI<PK: KeyDeclaration, V: Value>: Send + Sync {
     fn _get(
         &self,
         state: &mut dyn StateManager,
@@ -110,19 +110,16 @@ trait IndexerI<PK: KeyDeclaration, V: BorshSerialize + BorshDeserialize> {
     fn key_bytes_mapping(&self, value: &V) -> Result<Vec<u8>, InterLiquidSdkError>;
 }
 
-pub struct Indexer<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: BorshSerialize + BorshDeserialize>
-{
+pub struct Indexer<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> {
     prefix: Vec<u8>,
-    key_mapping: Box<dyn Fn(&V) -> IK::KeyReference<'a>>,
+    key_mapping: Box<dyn Fn(&V) -> IK::KeyReference<'a> + Send + Sync>,
     phantom: PhantomData<PK>,
 }
 
-impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: BorshSerialize + BorshDeserialize>
-    Indexer<'a, IK, PK, V>
-{
+impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> Indexer<'a, IK, PK, V> {
     pub fn new(
         prefix: Vec<u8>,
-        key_mapping: impl Fn(&V) -> IK::KeyReference<'a> + 'static,
+        key_mapping: impl Fn(&V) -> IK::KeyReference<'a> + Send + Sync + 'static,
     ) -> Self {
         Self {
             prefix,
@@ -156,8 +153,8 @@ impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: BorshSerialize + BorshDeseri
     }
 }
 
-impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: BorshSerialize + BorshDeserialize>
-    IndexerI<PK, V> for Indexer<'a, IK, PK, V>
+impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> IndexerI<PK, V>
+    for Indexer<'a, IK, PK, V>
 {
     fn _get(
         &self,

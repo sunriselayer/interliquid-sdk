@@ -1,7 +1,7 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::{
-    core::{AppI, Context},
+    core::{App, Context},
     state::{CompressedDiffs, StateLog},
     tx::Tx,
     types::InterLiquidSdkError,
@@ -18,7 +18,7 @@ impl TxExecutionSnapshot {
     }
 
     pub fn from_app<C: Context, TX: Tx>(
-        app: &mut impl AppI<C, TX>,
+        app: &mut App<C, TX>,
         ctx: &mut C,
         txs: &[TX],
     ) -> Result<Vec<Self>, InterLiquidSdkError> {

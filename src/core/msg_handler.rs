@@ -8,8 +8,10 @@ use crate::{
 use super::Context;
 
 pub struct MsgHandlerRegistry<C: Context> {
-    handlers:
-        BTreeMap<&'static str, Box<dyn Fn(&mut C, &dyn Any) -> Result<(), InterLiquidSdkError>>>,
+    handlers: BTreeMap<
+        &'static str,
+        Box<dyn Fn(&mut C, &dyn Any) -> Result<(), InterLiquidSdkError> + Send + Sync>,
+    >,
 }
 
 impl<C: Context> MsgHandlerRegistry<C> {
@@ -21,7 +23,7 @@ impl<C: Context> MsgHandlerRegistry<C> {
 
     pub fn register<T: Msg + NamedSerializableType>(
         &mut self,
-        handler: Box<dyn Fn(&mut C, &T) -> Result<(), InterLiquidSdkError>>,
+        handler: Box<dyn Fn(&mut C, &T) -> Result<(), InterLiquidSdkError> + Send + Sync>,
     ) {
         let name = T::type_name();
 
@@ -37,7 +39,8 @@ impl<C: Context> MsgHandlerRegistry<C> {
     pub fn get(
         &self,
         name: &str,
-    ) -> Option<&Box<dyn Fn(&mut C, &dyn Any) -> Result<(), InterLiquidSdkError>>> {
+    ) -> Option<&Box<dyn Fn(&mut C, &dyn Any) -> Result<(), InterLiquidSdkError> + Send + Sync>>
+    {
         self.handlers.get(name)
     }
 }

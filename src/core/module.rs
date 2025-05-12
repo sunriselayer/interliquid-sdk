@@ -1,6 +1,6 @@
 use super::{msg_registry::MsgRegistry, Context, MsgHandlerRegistry};
 
-pub trait Module<C: Context> {
+pub trait Module<C: Context>: Send + Sync {
     fn register_msgs(
         &'static self,
         msg_registry: &mut MsgRegistry,

@@ -2,10 +2,10 @@ use crate::{core::Context, types::InterLiquidSdkError};
 
 use super::Tx;
 
-pub trait TxAnteHandler<C: Context, TX: Tx> {
+pub trait TxAnteHandler<C: Context, TX: Tx>: Send + Sync {
     fn handle(&self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError>;
 }
 
-pub trait TxPostHandler<C: Context, TX: Tx> {
+pub trait TxPostHandler<C: Context, TX: Tx>: Send + Sync {
     fn handle(&self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError>;
 }

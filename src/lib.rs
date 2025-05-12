@@ -1,6 +1,7 @@
 pub mod block;
 pub mod core;
 pub mod merkle;
+pub mod runner;
 pub mod state;
 pub mod tx;
 pub mod types;
