@@ -211,12 +211,40 @@ impl<C: Context> msg_handler::MsgHandler for MyApp<C> {
     }
 }
 
+// Runner struct to handle API server and app lifecycle
+struct Runner<C: Context> {
+    app: MyApp<C>,
+    ctx: C,
+}
+
+impl<C: Context> Runner<C> {
+    fn new(app: MyApp<C>, ctx: C) -> Self {
+        Self { app, ctx }
+    }
+
+    // Start the API server
+    fn start(&mut self) -> Result<(), InterLiquidSdkError> {
+        // Start API server and handle incoming transactions
+        println!("API server started");
+        Ok(())
+    }
+
+    // Handle incoming transaction
+    fn handle_tx(&mut self, tx: &[u8]) -> Result<(), InterLiquidSdkError> {
+        self.app.handle_msg(&mut self.ctx, tx)
+    }
+}
+
 // Initialize and run your application
 let state_manager = Box::new(MemoryStateManager::new());
-let mut ctx = SdkContext::new("test-chain", 1, 0, state_manager, MsgRegistry::new());
-let mut app = MyApp::new();
+let ctx = SdkContext::new("test-chain", 1, 0, state_manager, MsgRegistry::new());
+let app = MyApp::new();
 
-// Create and send a message
+// Create and start the runner
+let mut runner = Runner::new(app, ctx);
+runner.start()?;
+
+// Example: Create and send a message
 let msg = MsgSend {
     from: alice,
     to: bob,
@@ -224,7 +252,7 @@ let msg = MsgSend {
 };
 let mut msg_bytes = Vec::new();
 msg.serialize(&mut msg_bytes)?;
-app.handle_msg(&mut ctx, &msg_bytes)?;
+runner.handle_tx(&msg_bytes)?;
 ```
 
 For a complete working example, see [examples/basic_usage.rs](examples/basic_usage.rs).

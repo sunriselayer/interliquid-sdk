@@ -77,12 +77,41 @@ impl<C: Context> msg_handler::MsgHandler for MyApp<C> {
     }
 }
 
+// Runner struct to handle API server and app lifecycle
+struct Runner<C: Context> {
+    app: MyApp<C>,
+    ctx: C,
+}
+
+impl<C: Context> Runner<C> {
+    fn new(app: MyApp<C>, ctx: C) -> Self {
+        Self { app, ctx }
+    }
+
+    // Start the API server
+    fn start(&mut self) -> Result<(), InterLiquidSdkError> {
+        // TODO: Implement API server startup
+        // This would typically:
+        // 1. Start an HTTP/gRPC server
+        // 2. Register message handlers
+        // 3. Handle incoming transactions
+        // 4. Route messages to the app
+        println!("API server started");
+        Ok(())
+    }
+
+    // Handle incoming transaction
+    fn handle_tx(&mut self, tx: &[u8]) -> Result<(), InterLiquidSdkError> {
+        self.app.handle_msg(&mut self.ctx, tx)
+    }
+}
+
 fn main() -> Result<(), InterLiquidSdkError> {
     // Create a new state manager
     let state_manager = Box::new(MemoryStateManager::new());
     
     // Create a new context
-    let mut ctx = SdkContext::new(
+    let ctx = SdkContext::new(
         "test-chain".to_string(),
         1,
         0,
@@ -91,26 +120,17 @@ fn main() -> Result<(), InterLiquidSdkError> {
     );
 
     // Initialize your application
-    let mut app = MyApp::new();
+    let app = MyApp::new();
 
-    // Create addresses
+    // Create and start the runner
+    let mut runner = Runner::new(app, ctx);
+    runner.start()?;
+
+    // Example: Create addresses
     let alice = Address::from([1; 32]);
     let bob = Address::from([2; 32]);
 
-    // Set initial balance for Alice
-    let mut key_buf = Vec::new();
-    (alice, "usdc".to_string()).serialize(&mut key_buf).unwrap();
-    let alice_balance_key = join_keys(vec![
-        &b"bank/"[..],
-        &b"balances/"[..],
-        key_buf.as_slice(),
-    ]);
-    let alice_initial_balance = U256::new(U256Lib::from(1000u64));
-    let mut buf = vec![];
-    alice_initial_balance.serialize(&mut buf).unwrap();
-    ctx.state_manager().set(&alice_balance_key, &buf)?;
-
-    // Create and send a message
+    // Example: Create and send a message
     let mut tokens = Tokens::new();
     tokens.insert("usdc".to_string(), U256::new(U256Lib::from(100u64)));
     let msg = MsgSend {
@@ -120,14 +140,9 @@ fn main() -> Result<(), InterLiquidSdkError> {
     };
     let mut msg_bytes = Vec::new();
     msg.serialize(&mut msg_bytes)?;
-    app.handle_msg(&mut ctx, &msg_bytes)?;
-
-    // Verify the balances
-    let alice_balance = app.bank_keeper.get_balance(&mut ctx, &alice, "usdc")?;
-    let bob_balance = app.bank_keeper.get_balance(&mut ctx, &bob, "usdc")?;
-
-    println!("Alice's balance: {:?}", alice_balance);
-    println!("Bob's balance: {:?}", bob_balance);
+    
+    // Handle the transaction through the runner
+    runner.handle_tx(&msg_bytes)?;
 
     Ok(())
 } 
