@@ -1,22 +1,14 @@
-use std::sync::Arc;
-
-use tokio::sync::{broadcast::Sender, Mutex};
-
 use crate::{core::App, state::StateManager, tx::Tx, types::InterLiquidSdkError};
 
-use super::{message::RunnerMessage, savedata::SaveData, state::RunnerState};
-pub struct Runner<TX: Tx, S: StateManager + 'static> {
-    pub(super) app: Arc<App<TX>>,
-    pub(super) state: Arc<Mutex<RunnerState<S>>>,
-    pub(super) message: Sender<RunnerMessage>,
+use super::{savedata::SaveData, state::RunnerState};
+pub struct Runner<TX: Tx, S: StateManager> {
+    pub(super) state: RunnerState<TX, S>,
 }
 
-impl<TX: Tx, S: StateManager + 'static> Runner<TX, S> {
+impl<TX: Tx, S: StateManager> Runner<TX, S> {
     pub fn new(app: App<TX>, savedata: SaveData, state_manager: S) -> Self {
         Self {
-            app: Arc::new(app),
-            state: Arc::new(Mutex::new(RunnerState::new(savedata, state_manager))),
-            message: Sender::new(16),
+            state: RunnerState::new(app, savedata, state_manager),
         }
     }
 

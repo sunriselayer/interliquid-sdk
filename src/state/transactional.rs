@@ -1,20 +1,20 @@
 use std::collections::BTreeSet;
 
-use crate::{state::StateManager, types::InterLiquidSdkError};
+use crate::{state::TracableStateManager, types::InterLiquidSdkError};
 
 use super::{
     log::{StateLog, StateLogIter, StateLogRead},
-    CompressedDiffs, StateLogDiff, ValueDiff,
+    CompressedDiffs, StateLogDiff, StateManager, ValueDiff,
 };
 
 pub struct TransactionalStateManager<'s, S: StateManager> {
-    pub state_manager: &'s mut S,
+    pub state_manager: &'s S,
     pub logs: Vec<StateLog>,
     pub diffs: CompressedDiffs,
 }
 
 impl<'s, S: StateManager> TransactionalStateManager<'s, S> {
-    pub fn new(state_manager: &'s mut S) -> Self {
+    pub fn new(state_manager: &'s S) -> Self {
         Self {
             state_manager,
             logs: Vec::new(),
@@ -22,7 +22,7 @@ impl<'s, S: StateManager> TransactionalStateManager<'s, S> {
         }
     }
 
-    pub fn from_diffs(state_manager: &'s mut S, diffs: CompressedDiffs) -> Self {
+    pub fn from_diffs(state_manager: &'s S, diffs: CompressedDiffs) -> Self {
         Self {
             state_manager,
             logs: Vec::new(),
@@ -30,18 +30,7 @@ impl<'s, S: StateManager> TransactionalStateManager<'s, S> {
         }
     }
 
-    pub fn commit(&mut self) -> Result<(), InterLiquidSdkError> {
-        for (key, diff) in self.diffs.map() {
-            match &diff.after {
-                Some(value) => self.state_manager.set(key, value)?,
-                None => self.state_manager.del(key)?,
-            }
-        }
-
-        Ok(())
-    }
-
-    fn get_without_logging(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
+    fn get_without_logging(&self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
         let val = if let Some(diff) = self.diffs.map().get(key) {
             diff.after.clone()
         } else {
@@ -50,9 +39,20 @@ impl<'s, S: StateManager> TransactionalStateManager<'s, S> {
 
         Ok(val)
     }
+
+    pub fn commit(&self, state_manager: &mut S) -> Result<(), InterLiquidSdkError> {
+        for (key, diff) in self.diffs.map() {
+            match &diff.after {
+                Some(value) => state_manager.set(key, value)?,
+                None => state_manager.del(key)?,
+            }
+        }
+
+        Ok(())
+    }
 }
 
-impl<'s, S: StateManager> StateManager for TransactionalStateManager<'s, S> {
+impl<'s, S: StateManager> TracableStateManager for TransactionalStateManager<'s, S> {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
         let val = self.get_without_logging(key)?;
 

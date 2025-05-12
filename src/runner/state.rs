@@ -1,17 +1,36 @@
-use crate::state::StateManager;
+use std::sync::Arc;
 
-use super::savedata::SaveData;
+use tokio::sync::{broadcast::Sender, Mutex, RwLock};
 
-pub struct RunnerState<S: StateManager + 'static> {
-    pub(crate) savedata: SaveData,
-    pub(crate) state_manager: S,
+use crate::{core::App, state::StateManager, tx::Tx};
+
+use super::{message::RunnerMessage, savedata::SaveData};
+
+pub struct RunnerState<TX: Tx, S: StateManager> {
+    pub(super) app: Arc<App<TX>>,
+    pub(super) savedata: Arc<Mutex<SaveData>>,
+    pub(super) state_manager: Arc<RwLock<S>>,
+    pub(super) message: Sender<RunnerMessage>,
 }
 
-impl<S: StateManager> RunnerState<S> {
-    pub fn new(savedata: SaveData, state_manager: S) -> Self {
+impl<TX: Tx, S: StateManager> RunnerState<TX, S> {
+    pub fn new(app: App<TX>, savedata: SaveData, state_manager: S) -> Self {
         Self {
-            savedata,
-            state_manager,
+            app: Arc::new(app),
+            savedata: Arc::new(Mutex::new(savedata)),
+            state_manager: Arc::new(RwLock::new(state_manager)),
+            message: Sender::new(16),
+        }
+    }
+}
+
+impl<TX: Tx, S: StateManager> Clone for RunnerState<TX, S> {
+    fn clone(&self) -> Self {
+        Self {
+            app: self.app.clone(),
+            savedata: self.savedata.clone(),
+            state_manager: self.state_manager.clone(),
+            message: self.message.clone(),
         }
     }
 }

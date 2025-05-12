@@ -17,7 +17,7 @@ impl RelatedState {
 }
 
 impl StateManager for RelatedState {
-    fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
+    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
         if let Some(value) = self.map.get(key) {
             Ok(Some(value.clone()))
         } else {
@@ -38,7 +38,7 @@ impl StateManager for RelatedState {
     }
 
     fn iter<'a>(
-        &'a mut self,
+        &'a self,
         key_prefix: Vec<u8>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
         if key_prefix.len() == 0 {

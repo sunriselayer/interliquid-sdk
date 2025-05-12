@@ -6,7 +6,7 @@ use super::{
     key::{join_keys, KeyDeclaration},
     KeyPrefix, Map, Value,
 };
-use crate::{state::StateManager, types::InterLiquidSdkError};
+use crate::{state::TracableStateManager, types::InterLiquidSdkError};
 
 pub struct IndexedMap<K: KeyDeclaration, V: Value> {
     map: Map<K, V>,
@@ -23,7 +23,7 @@ impl<K: KeyDeclaration, V: Value> IndexedMap<K, V> {
 
     pub fn get<'a>(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         key: K::KeyReference<'a>,
     ) -> Result<Option<V>, InterLiquidSdkError> {
         self.map.get(state, key)
@@ -31,7 +31,7 @@ impl<K: KeyDeclaration, V: Value> IndexedMap<K, V> {
 
     pub fn set<'a>(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         key: K::KeyReference<'a>,
         value: &V,
     ) -> Result<(), InterLiquidSdkError> {
@@ -64,7 +64,7 @@ impl<K: KeyDeclaration, V: Value> IndexedMap<K, V> {
 
     pub fn del<'a>(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         key: K::KeyReference<'a>,
     ) -> Result<(), InterLiquidSdkError> {
         let old_value = self.map.get(state, key)?;
@@ -82,7 +82,7 @@ impl<K: KeyDeclaration, V: Value> IndexedMap<K, V> {
 
     pub fn iter<'a, B: KeyPrefix>(
         &'a self,
-        state: &'a mut dyn StateManager,
+        state: &'a mut dyn TracableStateManager,
         key_prefix: B,
     ) -> Box<dyn Iterator<Item = Result<(B::KeyToExtract, V), InterLiquidSdkError>> + 'a> {
         self.map.iter(state, key_prefix)
@@ -92,18 +92,18 @@ impl<K: KeyDeclaration, V: Value> IndexedMap<K, V> {
 trait IndexerI<PK: KeyDeclaration, V: Value>: Send + Sync {
     fn _get(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         indexing_key: &[u8],
     ) -> Result<Option<PK>, InterLiquidSdkError>;
     fn _set(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         indexing_key: &[u8],
         primary_key: &[u8],
     ) -> Result<(), InterLiquidSdkError>;
     fn _del(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         indexing_key: &[u8],
     ) -> Result<(), InterLiquidSdkError>;
 
@@ -130,7 +130,7 @@ impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> Indexer<'a, IK, PK, V
 
     pub fn get<'b>(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         indexing_key: IK::KeyReference<'b>,
     ) -> Result<Option<PK>, InterLiquidSdkError> {
         self._get(state, &IK::to_key_bytes(indexing_key))
@@ -138,7 +138,7 @@ impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> Indexer<'a, IK, PK, V
 
     pub fn iter<'b, B: KeyPrefix>(
         &'b self,
-        state: &'b mut dyn StateManager,
+        state: &'b mut dyn TracableStateManager,
         key_prefix: B,
     ) -> Box<dyn Iterator<Item = Result<(IK, PK), InterLiquidSdkError>> + 'b> {
         let iter = state.iter(key_prefix.to_prefix_bytes());
@@ -158,7 +158,7 @@ impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> IndexerI<PK, V>
 {
     fn _get(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         indexing_key: &[u8],
     ) -> Result<Option<PK>, InterLiquidSdkError> {
         let entire_key = join_keys([&self.prefix, indexing_key]);
@@ -172,7 +172,7 @@ impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> IndexerI<PK, V>
 
     fn _set(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         indexing_key: &[u8],
         primary_key: &[u8],
     ) -> Result<(), InterLiquidSdkError> {
@@ -185,7 +185,7 @@ impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> IndexerI<PK, V>
 
     fn _del(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         indexing_key: &[u8],
     ) -> Result<(), InterLiquidSdkError> {
         let entire_key = join_keys([&self.prefix, indexing_key]);

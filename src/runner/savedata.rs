@@ -19,6 +19,7 @@ impl TxExecutionSnapshot {
     }
 }
 
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct SaveData {
     pub chain_id: String,
     pub block_height: u64,
