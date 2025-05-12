@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::core::{Module, MsgHandlerRegistry, MsgRegistry};
 
 use super::keeper::AuthKeeper;
@@ -14,7 +16,7 @@ impl AuthModule {
 
 impl Module for AuthModule {
     fn register_msgs(
-        &self,
+        self: Arc<Self>,
         _msg_registry: &mut MsgRegistry,
         _msg_handler_registry: &mut MsgHandlerRegistry,
     ) {

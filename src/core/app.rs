@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 
@@ -8,7 +9,7 @@ use crate::types::InterLiquidSdkError;
 use super::{Module, MsgHandlerRegistry, MsgRegistry, SdkContext};
 
 pub struct App<TX: Tx> {
-    modules: Vec<Box<dyn Module>>,
+    modules: Vec<Arc<dyn Module>>,
     tx_ante_handlers: Vec<Box<dyn TxAnteHandler<TX>>>,
     tx_post_handlers: Vec<Box<dyn TxPostHandler<TX>>>,
     msg_registry: MsgRegistry,
@@ -17,35 +18,26 @@ pub struct App<TX: Tx> {
 }
 
 impl<TX: Tx> App<TX> {
-    fn new() -> Self {
-        Self {
-            modules: Vec::new(),
-            tx_ante_handlers: Vec::new(),
-            tx_post_handlers: Vec::new(),
-            msg_registry: MsgRegistry::new(),
-            msg_handler_registry: MsgHandlerRegistry::new(),
-            phantom: PhantomData,
-        }
-    }
-
-    fn load(
-        &'static mut self,
-        modules: Vec<Box<dyn Module>>,
+    pub fn new(
+        modules: Vec<Arc<dyn Module>>,
         tx_ante_handlers: Vec<Box<dyn TxAnteHandler<TX>>>,
         tx_post_handlers: Vec<Box<dyn TxPostHandler<TX>>>,
-    ) -> Result<(), InterLiquidSdkError> {
-        if !self.modules.is_empty() {
-            return Err(InterLiquidSdkError::ModuleAlreadyLoaded);
-        }
-        self.modules = modules;
+    ) -> Self {
+        let mut msg_registry = MsgRegistry::new();
+        let mut msg_handler_registry = MsgHandlerRegistry::new();
 
-        for module in self.modules.iter() {
-            module.register_msgs(&mut self.msg_registry, &mut self.msg_handler_registry);
+        for module in modules.iter().cloned() {
+            module.register_msgs(&mut msg_registry, &mut msg_handler_registry);
         }
-        self.tx_ante_handlers = tx_ante_handlers;
-        self.tx_post_handlers = tx_post_handlers;
 
-        Ok(())
+        Self {
+            modules,
+            tx_ante_handlers,
+            tx_post_handlers,
+            msg_registry,
+            msg_handler_registry,
+            phantom: PhantomData,
+        }
     }
 
     pub fn execute_tx(&self, ctx: &mut SdkContext, tx: &TX) -> Result<(), InterLiquidSdkError> {
