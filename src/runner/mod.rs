@@ -2,7 +2,7 @@ mod message;
 mod prover;
 mod runner;
 mod savedata;
+mod sequencer;
 mod server;
-mod state;
 
 pub use runner::*;

@@ -1,9 +1,27 @@
-use crate::{core::Tx, state::StateManager, types::InterLiquidSdkError};
+use tokio::sync::broadcast::{Receiver, Sender};
 
-use super::Runner;
+use crate::types::InterLiquidSdkError;
 
-impl<TX: Tx, S: StateManager> Runner<TX, S> {
-    pub(super) async fn run_prover(&self) -> Result<(), InterLiquidSdkError> {
-        todo!()
+use super::message::RunnerMessage;
+
+pub struct Prover {
+    sender: Sender<RunnerMessage>,
+    receiver: Receiver<RunnerMessage>,
+}
+
+impl Prover {
+    pub fn new(sender: Sender<RunnerMessage>, receiver: Receiver<RunnerMessage>) -> Self {
+        Self { sender, receiver }
+    }
+
+    pub async fn run(&mut self) -> Result<(), InterLiquidSdkError> {
+        while let Ok(msg) = self.receiver.recv().await {
+            match msg {
+                RunnerMessage::TxProofReady(msg) => {}
+                _ => {}
+            }
+        }
+
+        Ok(())
     }
 }
