@@ -13,10 +13,10 @@ use super::{
     savedata::{SaveData, TxExecutionSnapshot},
 };
 use crate::{
-    block::PrivateInputTx,
     core::{App, SdkContext, Tx},
     state::{StateManager, TransactionalStateManager},
     types::InterLiquidSdkError,
+    zkp::PrivateInputTx,
 };
 
 pub struct SequencerState<TX: Tx, S: StateManager> {

@@ -17,6 +17,7 @@ pub struct Header {
     pub sequencer_hash_next: [u8; 32],
 }
 
+#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct Block {
     pub header: Header,
     pub txs: Vec<Vec<u8>>,

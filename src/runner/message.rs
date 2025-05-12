@@ -1,18 +1,18 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::{block::PrivateInputTx, state::StateLog};
-
-use super::savedata::TxExecutionSnapshot;
+use crate::zkp::PrivateInputTx;
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum RunnerMessage {
     TxReceived(MessageTxReceived),
     TxProofReady(MessageTxProofReady),
+    CommitStateProofReady(MessageCommitStateProofReady),
+    CommitKeysProofReady(MessageCommitKeysProofReady),
     BlockCommitted(MessageBlockCommitted),
     TxProved(MessageTxProved),
     TxProofAggregated(MessageTxProofAggregated),
-    StateRootProved(MessageStateRootProved),
-    KeysRootProved(MessageKeysRootProved),
+    CommitStateProved(MessageCommitStateProved),
+    CommitKeysProved(MessageCommitKeysProved),
     BlockProved(MessageBlockProved),
 }
 
@@ -47,6 +47,40 @@ impl MessageTxProofReady {
             block_height,
             tx_index,
             inputs,
+        }
+    }
+}
+
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
+pub struct MessageCommitStateProofReady {
+    pub chain_id: String,
+    pub block_height: u64,
+    pub state_root: [u8; 32],
+}
+
+impl MessageCommitStateProofReady {
+    pub fn new(chain_id: String, block_height: u64, state_root: [u8; 32]) -> Self {
+        Self {
+            chain_id,
+            block_height,
+            state_root,
+        }
+    }
+}
+
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
+pub struct MessageCommitKeysProofReady {
+    pub chain_id: String,
+    pub block_height: u64,
+    pub keys_root: [u8; 32],
+}
+
+impl MessageCommitKeysProofReady {
+    pub fn new(chain_id: String, block_height: u64, keys_root: [u8; 32]) -> Self {
+        Self {
+            chain_id,
+            block_height,
+            keys_root,
         }
     }
 }
@@ -110,13 +144,13 @@ impl MessageTxProofAggregated {
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub struct MessageStateRootProved {
+pub struct MessageCommitStateProved {
     pub chain_id: String,
     pub block_height: u64,
     pub state_root: [u8; 32],
 }
 
-impl MessageStateRootProved {
+impl MessageCommitStateProved {
     pub fn new(chain_id: String, block_height: u64, state_root: [u8; 32]) -> Self {
         Self {
             chain_id,
@@ -127,13 +161,13 @@ impl MessageStateRootProved {
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub struct MessageKeysRootProved {
+pub struct MessageCommitKeysProved {
     pub chain_id: String,
     pub block_height: u64,
     pub keys_root: [u8; 32],
 }
 
-impl MessageKeysRootProved {
+impl MessageCommitKeysProved {
     pub fn new(chain_id: String, block_height: u64, keys_root: [u8; 32]) -> Self {
         Self {
             chain_id,
