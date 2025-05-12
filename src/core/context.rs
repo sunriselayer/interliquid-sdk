@@ -1,59 +1,44 @@
 use crate::state::StateManager;
 
-use super::MsgRegistry;
-
-pub trait Context: Send + Sync + 'static {
-    fn chain_id(&self) -> &str;
-    fn block_height(&self) -> u64;
-    fn block_time_seconds(&self) -> u64;
-    fn state_manager(&mut self) -> &mut dyn StateManager;
-    fn msg_registry(&self) -> &MsgRegistry;
-}
-
 pub struct SdkContext {
     chain_id: String,
     block_height: u64,
-    block_time_seconds: u64,
+    block_time_unix_secs: u64,
     state_manager: Box<dyn StateManager>,
-    msg_registry: MsgRegistry,
 }
 
 impl SdkContext {
     pub fn new(
         chain_id: String,
         block_height: u64,
-        block_time_seconds: u64,
+        block_time_unix_seconds: u64,
         state_manager: Box<dyn StateManager>,
-        msg_registry: MsgRegistry,
     ) -> Self {
         Self {
             chain_id,
             block_height,
-            block_time_seconds,
+            block_time_unix_secs: block_time_unix_seconds,
             state_manager,
-            msg_registry,
         }
     }
-}
 
-impl Context for SdkContext {
-    fn chain_id(&self) -> &str {
+    pub fn chain_id(&self) -> &str {
         &self.chain_id
     }
 
-    fn block_height(&self) -> u64 {
+    pub fn block_height(&self) -> u64 {
         self.block_height
     }
 
-    fn block_time_seconds(&self) -> u64 {
-        self.block_time_seconds
+    pub fn block_time_unix_secs(&self) -> u64 {
+        self.block_time_unix_secs
     }
 
-    fn state_manager(&mut self) -> &mut dyn StateManager {
+    pub fn state_manager(&self) -> &dyn StateManager {
+        self.state_manager.as_ref()
+    }
+
+    pub fn state_manager_mut(&mut self) -> &mut dyn StateManager {
         self.state_manager.as_mut()
-    }
-
-    fn msg_registry(&self) -> &MsgRegistry {
-        &self.msg_registry
     }
 }

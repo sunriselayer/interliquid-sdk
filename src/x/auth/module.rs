@@ -1,28 +1,22 @@
-use std::marker::PhantomData;
-
-use crate::core::{Context, Module, MsgHandlerRegistry, MsgRegistry};
+use crate::core::{Module, MsgHandlerRegistry, MsgRegistry};
 
 use super::keeper::AuthKeeper;
 
-pub struct AuthModule<C: Context> {
-    _keeper: AuthKeeper<C>,
-    phantom: PhantomData<C>,
+pub struct AuthModule {
+    _keeper: AuthKeeper,
 }
 
-impl<C: Context> AuthModule<C> {
-    pub fn new(_keeper: AuthKeeper<C>) -> Self {
-        Self {
-            _keeper,
-            phantom: PhantomData,
-        }
+impl AuthModule {
+    pub fn new(_keeper: AuthKeeper) -> Self {
+        Self { _keeper }
     }
 }
 
-impl<C: Context> Module<C> for AuthModule<C> {
+impl Module for AuthModule {
     fn register_msgs(
-        &'static self,
+        &self,
         _msg_registry: &mut MsgRegistry,
-        _msg_handler_registry: &mut MsgHandlerRegistry<C>,
+        _msg_handler_registry: &mut MsgHandlerRegistry,
     ) {
     }
 }

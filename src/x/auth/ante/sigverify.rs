@@ -1,9 +1,7 @@
-use std::marker::PhantomData;
-
 use anyhow::anyhow;
 
 use crate::{
-    core::Context,
+    core::{MsgRegistry, SdkContext},
     tx::TxAnteHandler,
     types::InterLiquidSdkError,
     x::{
@@ -15,24 +13,27 @@ use crate::{
     },
 };
 
-pub struct SigVerifyAnteHandler<C: Context> {
-    auth_keeper: AuthKeeper<C>,
-    crypto_keeper: CryptoKeeper<C>,
-    phantom: PhantomData<C>,
+pub struct SigVerifyAnteHandler {
+    auth_keeper: AuthKeeper,
+    crypto_keeper: CryptoKeeper,
 }
 
-impl<C: Context> SigVerifyAnteHandler<C> {
-    pub fn new(auth_keeper: AuthKeeper<C>, crypto_keeper: CryptoKeeper<C>) -> Self {
+impl SigVerifyAnteHandler {
+    pub fn new(auth_keeper: AuthKeeper, crypto_keeper: CryptoKeeper) -> Self {
         Self {
             auth_keeper,
             crypto_keeper,
-            phantom: PhantomData,
         }
     }
 }
 
-impl<C: Context> TxAnteHandler<C, StdTx> for SigVerifyAnteHandler<C> {
-    fn handle(&self, ctx: &mut C, tx: &StdTx) -> Result<(), InterLiquidSdkError> {
+impl TxAnteHandler<StdTx> for SigVerifyAnteHandler {
+    fn handle(
+        &self,
+        ctx: &mut SdkContext,
+        _msg_registry: &MsgRegistry,
+        tx: &StdTx,
+    ) -> Result<(), InterLiquidSdkError> {
         for (address, auth_info) in tx.auth_info.iter() {
             let mut account = match self.auth_keeper.get_account(ctx, address)? {
                 Some(account) => account,

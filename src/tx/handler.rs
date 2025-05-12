@@ -1,11 +1,24 @@
-use crate::{core::Context, types::InterLiquidSdkError};
+use crate::{
+    core::{MsgRegistry, SdkContext},
+    types::InterLiquidSdkError,
+};
 
 use super::Tx;
 
-pub trait TxAnteHandler<C: Context, TX: Tx>: Send + Sync {
-    fn handle(&self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError>;
+pub trait TxAnteHandler<TX: Tx>: Send + Sync {
+    fn handle(
+        &self,
+        ctx: &mut SdkContext,
+        msg_registry: &MsgRegistry,
+        tx: &TX,
+    ) -> Result<(), InterLiquidSdkError>;
 }
 
-pub trait TxPostHandler<C: Context, TX: Tx>: Send + Sync {
-    fn handle(&self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError>;
+pub trait TxPostHandler<TX: Tx>: Send + Sync {
+    fn handle(
+        &self,
+        ctx: &mut SdkContext,
+        msg_registry: &MsgRegistry,
+        tx: &TX,
+    ) -> Result<(), InterLiquidSdkError>;
 }

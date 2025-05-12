@@ -1,57 +1,55 @@
-use std::marker::PhantomData;
-
 use super::keys::{BALANCES, BANK};
 
 use crate::{
-    core::Context,
+    core::SdkContext,
     types::{Address, InterLiquidSdkError, Tokens, TokensI, U256},
     utils::{IndexedMap, KeyPrefixTupleOne},
 };
 
-pub trait BankKeeperI<C: Context>: Send {
+pub trait BankKeeperI: Send {
     fn get_balance(
         &self,
-        ctx: &mut C,
+        ctx: &mut SdkContext,
         address: &Address,
         denom: &str,
     ) -> Result<Option<U256>, InterLiquidSdkError>;
 
     fn get_all_balances(
         &self,
-        ctx: &mut C,
+        ctx: &mut SdkContext,
         address: &Address,
     ) -> Result<Tokens, InterLiquidSdkError>;
 
     fn send(
         &self,
-        ctx: &mut C,
+        ctx: &mut SdkContext,
         from: &Address,
         to: &Address,
         tokens: &Tokens,
     ) -> Result<(), InterLiquidSdkError>;
 }
 
-pub struct BankKeeper<C: Context> {
+pub struct BankKeeper {
     balances: IndexedMap<(Address, String), U256>,
-    phantom: PhantomData<C>,
 }
 
-impl<C: Context> BankKeeper<C> {
+impl BankKeeper {
     pub fn new() -> Self {
         Self {
             balances: IndexedMap::new([BANK, BALANCES]),
-            phantom: PhantomData,
         }
     }
 
     fn add_balance(
         &self,
-        ctx: &mut C,
+        ctx: &mut SdkContext,
         address: &Address,
         denom: &str,
         amount: &U256,
     ) -> Result<(), InterLiquidSdkError> {
-        let balance = self.balances.get(ctx.state_manager(), (address, denom))?;
+        let balance = self
+            .balances
+            .get(ctx.state_manager_mut(), (address, denom))?;
 
         let new_balance = match balance {
             Some(balance) => balance.checked_add(amount)?,
@@ -59,19 +57,21 @@ impl<C: Context> BankKeeper<C> {
         };
 
         self.balances
-            .set(ctx.state_manager(), (address, denom), &new_balance)?;
+            .set(ctx.state_manager_mut(), (address, denom), &new_balance)?;
 
         Ok(())
     }
 
     fn sub_balance(
         &self,
-        ctx: &mut C,
+        ctx: &mut SdkContext,
         address: &Address,
         denom: &str,
         amount: &U256,
     ) -> Result<(), InterLiquidSdkError> {
-        let balance = self.balances.get(ctx.state_manager(), (address, denom))?;
+        let balance = self
+            .balances
+            .get(ctx.state_manager_mut(), (address, denom))?;
 
         let new_balance = match balance {
             Some(balance) => balance.checked_sub(amount)?,
@@ -81,33 +81,35 @@ impl<C: Context> BankKeeper<C> {
         };
 
         self.balances
-            .set(ctx.state_manager(), (address, denom), &new_balance)?;
+            .set(ctx.state_manager_mut(), (address, denom), &new_balance)?;
 
         Ok(())
     }
 }
 
-impl<C: Context> BankKeeperI<C> for BankKeeper<C> {
+impl BankKeeperI for BankKeeper {
     fn get_balance(
         &self,
-        ctx: &mut C,
+        ctx: &mut SdkContext,
         address: &Address,
         denom: &str,
     ) -> Result<Option<U256>, InterLiquidSdkError> {
-        let balance = self.balances.get(ctx.state_manager(), (address, denom))?;
+        let balance = self
+            .balances
+            .get(ctx.state_manager_mut(), (address, denom))?;
 
         Ok(balance)
     }
 
     fn get_all_balances(
         &self,
-        ctx: &mut C,
+        ctx: &mut SdkContext,
         address: &Address,
     ) -> Result<Tokens, InterLiquidSdkError> {
         let mut tokens = Tokens::new();
 
         for result in self.balances.iter(
-            ctx.state_manager(),
+            ctx.state_manager_mut(),
             KeyPrefixTupleOne::<Address, String>::new(address),
         ) {
             let ((_address, denom), amount) = result?;
@@ -119,7 +121,7 @@ impl<C: Context> BankKeeperI<C> for BankKeeper<C> {
 
     fn send(
         &self,
-        ctx: &mut C,
+        ctx: &mut SdkContext,
         from: &Address,
         to: &Address,
         tokens: &Tokens,

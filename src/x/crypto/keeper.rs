@@ -1,15 +1,12 @@
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::collections::BTreeMap;
 
 use anyhow::anyhow;
 
-use crate::{
-    core::Context,
-    types::{InterLiquidSdkError, NamedSerializableType, SerializableAny},
-};
+use crate::types::{InterLiquidSdkError, NamedSerializableType, SerializableAny};
 
 use super::verifying_key::VerifyingKey;
 
-pub trait CryptoKeeperI<C: Context> {
+pub trait CryptoKeeperI {
     fn register_verifying_key<T: VerifyingKey + NamedSerializableType>(
         &mut self,
     ) -> Result<(), InterLiquidSdkError>;
@@ -20,7 +17,7 @@ pub trait CryptoKeeperI<C: Context> {
     ) -> Result<Box<dyn VerifyingKey>, InterLiquidSdkError>;
 }
 
-pub struct CryptoKeeper<C: Context> {
+pub struct CryptoKeeper {
     unpack: BTreeMap<
         &'static str,
         Box<
@@ -29,19 +26,17 @@ pub struct CryptoKeeper<C: Context> {
                 + Sync,
         >,
     >,
-    phantom: PhantomData<C>,
 }
 
-impl<C: Context> CryptoKeeper<C> {
+impl CryptoKeeper {
     pub fn new() -> Self {
         Self {
             unpack: BTreeMap::new(),
-            phantom: PhantomData,
         }
     }
 }
 
-impl<C: Context> CryptoKeeperI<C> for CryptoKeeper<C> {
+impl CryptoKeeperI for CryptoKeeper {
     fn register_verifying_key<T: VerifyingKey + NamedSerializableType>(
         &mut self,
     ) -> Result<(), InterLiquidSdkError> {

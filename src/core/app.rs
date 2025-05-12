@@ -5,18 +5,18 @@ use anyhow::anyhow;
 use crate::tx::{Tx, TxAnteHandler, TxPostHandler};
 use crate::types::InterLiquidSdkError;
 
-use super::{Context, Module, MsgHandlerRegistry, MsgRegistry};
+use super::{Module, MsgHandlerRegistry, MsgRegistry, SdkContext};
 
-pub struct App<C: Context, TX: Tx> {
-    modules: Vec<Box<dyn Module<C>>>,
-    tx_ante_handlers: Vec<Box<dyn TxAnteHandler<C, TX>>>,
-    tx_post_handlers: Vec<Box<dyn TxPostHandler<C, TX>>>,
+pub struct App<TX: Tx> {
+    modules: Vec<Box<dyn Module>>,
+    tx_ante_handlers: Vec<Box<dyn TxAnteHandler<TX>>>,
+    tx_post_handlers: Vec<Box<dyn TxPostHandler<TX>>>,
     msg_registry: MsgRegistry,
-    msg_handler_registry: MsgHandlerRegistry<C>,
+    msg_handler_registry: MsgHandlerRegistry,
     phantom: PhantomData<TX>,
 }
 
-impl<C: Context, TX: Tx> App<C, TX> {
+impl<TX: Tx> App<TX> {
     fn new() -> Self {
         Self {
             modules: Vec::new(),
@@ -30,16 +30,16 @@ impl<C: Context, TX: Tx> App<C, TX> {
 
     fn load(
         &'static mut self,
-        modules: Vec<Box<dyn Module<C>>>,
-        tx_ante_handlers: Vec<Box<dyn TxAnteHandler<C, TX>>>,
-        tx_post_handlers: Vec<Box<dyn TxPostHandler<C, TX>>>,
+        modules: Vec<Box<dyn Module>>,
+        tx_ante_handlers: Vec<Box<dyn TxAnteHandler<TX>>>,
+        tx_post_handlers: Vec<Box<dyn TxPostHandler<TX>>>,
     ) -> Result<(), InterLiquidSdkError> {
         if !self.modules.is_empty() {
             return Err(InterLiquidSdkError::ModuleAlreadyLoaded);
         }
         self.modules = modules;
 
-        for module in self.modules.iter_mut() {
+        for module in self.modules.iter() {
             module.register_msgs(&mut self.msg_registry, &mut self.msg_handler_registry);
         }
         self.tx_ante_handlers = tx_ante_handlers;
@@ -48,9 +48,9 @@ impl<C: Context, TX: Tx> App<C, TX> {
         Ok(())
     }
 
-    pub fn execute_tx(&self, ctx: &mut C, tx: &TX) -> Result<(), InterLiquidSdkError> {
+    pub fn execute_tx(&self, ctx: &mut SdkContext, tx: &TX) -> Result<(), InterLiquidSdkError> {
         for handler in self.tx_ante_handlers.iter() {
-            handler.handle(ctx, tx)?;
+            handler.handle(ctx, &self.msg_registry, tx)?;
         }
 
         for msg in tx.msgs() {
@@ -67,7 +67,7 @@ impl<C: Context, TX: Tx> App<C, TX> {
         }
 
         for handler in self.tx_post_handlers.iter() {
-            handler.handle(ctx, tx)?;
+            handler.handle(ctx, &self.msg_registry, tx)?;
         }
 
         Ok(())

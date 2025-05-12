@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::{
-    core::Context,
+    core::SdkContext,
     tx::Msg,
     types::{Address, InterLiquidSdkError, NamedSerializableType, Tokens},
 };
@@ -29,8 +29,8 @@ impl Msg for MsgSend {
     }
 }
 
-impl<C: Context> BankKeeper<C> {
-    pub fn msg_send(&self, ctx: &mut C, msg: &MsgSend) -> Result<(), InterLiquidSdkError> {
+impl BankKeeper {
+    pub fn msg_send(&self, ctx: &mut SdkContext, msg: &MsgSend) -> Result<(), InterLiquidSdkError> {
         self.send(ctx, &msg.from_address, &msg.to_address, &msg.tokens)
     }
 }

@@ -1,28 +1,34 @@
-use std::{collections::BTreeSet, marker::PhantomData};
+use std::collections::BTreeSet;
 
 use anyhow::anyhow;
 
-use crate::{core::Context, tx::TxAnteHandler, types::InterLiquidSdkError, x::auth::ante::StdTx};
+use crate::{
+    core::{MsgRegistry, SdkContext},
+    tx::TxAnteHandler,
+    types::InterLiquidSdkError,
+    x::auth::ante::StdTx,
+};
 
-pub struct AddrVerifyAnteHandler<C: Context> {
-    phantom: PhantomData<C>,
-}
+pub struct AddrVerifyAnteHandler {}
 
-impl<C: Context> AddrVerifyAnteHandler<C> {
+impl AddrVerifyAnteHandler {
     pub fn new() -> Self {
-        Self {
-            phantom: PhantomData,
-        }
+        Self {}
     }
 }
 
-impl<C: Context> TxAnteHandler<C, StdTx> for AddrVerifyAnteHandler<C> {
-    fn handle(&self, ctx: &mut C, tx: &StdTx) -> Result<(), InterLiquidSdkError> {
+impl TxAnteHandler<StdTx> for AddrVerifyAnteHandler {
+    fn handle(
+        &self,
+        _ctx: &mut SdkContext,
+        msg_registry: &MsgRegistry,
+        tx: &StdTx,
+    ) -> Result<(), InterLiquidSdkError> {
         let unpacked_msgs = tx
             .body
             .msgs
             .iter()
-            .map(|msg_any| ctx.msg_registry().unpack(msg_any))
+            .map(|msg_any| msg_registry.unpack(msg_any))
             .collect::<Result<Vec<_>, InterLiquidSdkError>>()?;
 
         let signers = unpacked_msgs
