@@ -8,9 +8,12 @@ use interliquid_sdk::{
     tx::Tx,
 };
 use borsh::{BorshSerialize, BorshDeserialize};
+use borsh_derive::{BorshSerialize, BorshDeserialize};
 use crypto_bigint::U256 as U256Lib;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use reqwest;
+use base64::{prelude::BASE64_STANDARD, Engine};
 
 // Define a simple transaction struct that implements Tx
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -75,13 +78,21 @@ async fn main() -> Result<(), InterLiquidSdkError> {
     let bank_module = Arc::new(BankModule::new(bank_keeper));
     let mut app = App::new(vec![bank_module], vec![], vec![]);
 
-    // Create the runner (boilerplate)
+    // Create the runner
     let savedata = SaveData::default();
-    let runner = Runner::new(app, savedata, MemoryStateManager::new());
-    // Start the runner (API server, etc.)
-    // runner.run().await?; // Uncomment to run the server
+    let runner = Arc::new(Runner::new(app, savedata, MemoryStateManager::new()));
+    
+    // Start the runner in a separate task
+    let runner_clone = Arc::clone(&runner);
+    tokio::spawn(async move {
+        if let Err(e) = runner_clone.run().await {
+            eprintln!("Runner error: {}", e);
+        }
+    });
 
-    // --- Example: Send a transaction ---
+    // Wait for server to start
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
     // Create addresses
     let alice = Address::from([1; 32]);
     let bob = Address::from([2; 32]);
@@ -114,8 +125,23 @@ async fn main() -> Result<(), InterLiquidSdkError> {
     let mut tx_bytes = Vec::new();
     tx.serialize(&mut tx_bytes)?;
 
-    // Dispatch the transaction through the app (Cosmos SDK style)
-    app.execute_tx(&mut ctx, &tx_bytes)?;
+    // Send transaction via HTTP
+    let client = reqwest::Client::new();
+    let tx_base64 = BASE64_STANDARD.encode(&tx_bytes);
+    let response = client
+        .post("http://localhost:3000/tx")
+        .json(&serde_json::json!({
+            "tx_base64": tx_base64
+        }))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        let error = response.text().await?;
+        return Err(InterLiquidSdkError::Other(anyhow::anyhow!("Transaction failed: {}", error)));
+    }
+
+    println!("Transaction sent successfully!");
 
     // Check balances (for demonstration)
     let bank_keeper = BankKeeper::new();
