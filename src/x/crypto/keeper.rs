@@ -51,7 +51,7 @@ impl CryptoKeeperI for CryptoKeeper {
         self.unpack.insert(
             name,
             Box::new(|any| {
-                let verifying_key = T::deserialize(&mut &any.value[..])?;
+                let verifying_key = T::try_from_slice(&any.value)?;
 
                 Ok(Box::new(verifying_key))
             }),

@@ -145,8 +145,8 @@ impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> Indexer<'a, IK, PK, V
 
         Box::new(iter.map(|result| {
             let (ik, pk) = result?;
-            let ik = IK::deserialize(&mut &ik[..])?;
-            let pk = PK::deserialize(&mut &pk[..])?;
+            let ik = IK::try_from_slice(&ik)?;
+            let pk = PK::try_from_slice(&pk)?;
 
             Ok((ik, pk))
         }))
@@ -165,7 +165,7 @@ impl<'a, IK: KeyDeclaration, PK: KeyDeclaration, V: Value> IndexerI<PK, V>
         let primary_key = state.get(&entire_key)?;
 
         match primary_key {
-            Some(value) => Ok(Some(PK::deserialize(&mut &value[..])?)),
+            Some(value) => Ok(Some(PK::try_from_slice(&value)?)),
             None => Ok(None),
         }
     }

@@ -1,5 +1,6 @@
 use crate::{
     core::{App, SdkContext},
+    state::{StateManager, TransactionalStateManager},
     tx::Tx,
     types::InterLiquidSdkError,
 };
@@ -15,30 +16,15 @@ use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::Mutex;
 
-use super::Runner;
+use super::{state::RunnerState, Runner};
 
-pub struct ServerState<TX: Tx> {
-    app: Arc<App<TX>>,
-    ctx: Arc<Mutex<SdkContext>>,
-}
+type ServerState<S, TX> = (Arc<App<TX>>, Arc<Mutex<RunnerState<S>>>);
 
-impl<TX: Tx> Clone for ServerState<TX> {
-    fn clone(&self) -> Self {
-        Self {
-            app: self.app.clone(),
-            ctx: self.ctx.clone(),
-        }
-    }
-}
-
-impl<TX: Tx> Runner<TX> {
+impl<S: StateManager + 'static, TX: Tx> Runner<S, TX> {
     pub(super) async fn run_server(&self) -> Result<(), InterLiquidSdkError> {
         let server_app = Router::new()
-            .route("/tx", post(handle_tx::<TX>))
-            .with_state(ServerState {
-                app: self.app.clone(),
-                ctx: self.ctx.clone(),
-            });
+            .route("/tx", post(handle_tx::<S, TX>))
+            .with_state((self.app.clone(), self.state.clone()));
 
         let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
         let listener = tokio::net::TcpListener::bind(addr)
@@ -56,32 +42,42 @@ struct TxRequest {
     tx_base64: String,
 }
 
-async fn handle_tx<TX: Tx>(
-    State(state): State<ServerState<TX>>,
+async fn handle_tx<S: StateManager + 'static, TX: Tx>(
+    State((app, runner_state)): State<ServerState<S, TX>>,
     Json(req): Json<TxRequest>,
 ) -> Result<impl IntoResponse, Response> {
-    let tx_bytes = BASE64_STANDARD
+    let tx = BASE64_STANDARD
         .decode(req.tx_base64)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid base64: {}", e)).into_response())?;
 
-    let tx = TX::try_from_slice(&tx_bytes).map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("Failed to deserialize tx: {}", e),
-        )
-            .into_response()
-    })?;
+    let app = app;
 
-    let app = state.app;
-    let mut ctx = state.ctx.lock().await;
+    with_locked(&runner_state, |runner_state| {
+        let mut ctx = SdkContext::new(
+            runner_state.chain_id.clone(),
+            runner_state.block_height,
+            runner_state.block_time_unix_secs,
+            Box::new(TransactionalStateManager::new(
+                &mut runner_state.state_manager,
+            )),
+        );
 
-    app.execute_tx(&mut ctx, &tx).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to execute tx: {}", e),
-        )
-            .into_response()
-    })?;
+        app.execute_tx(&mut ctx, &tx).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to execute tx: {}", e),
+            )
+                .into_response()
+        })?;
+
+        Ok(())
+    })
+    .await?;
 
     Ok(StatusCode::OK)
+}
+
+async fn with_locked<T, R, F: FnOnce(&mut T) -> R>(m: &Mutex<T>, f: F) -> R {
+    let mut guard = m.lock().await;
+    f(&mut *guard)
 }

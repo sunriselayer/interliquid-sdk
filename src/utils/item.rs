@@ -20,7 +20,7 @@ impl<V: Value> Item<V> {
         let value = state.get(&self.key)?;
 
         match value {
-            Some(value) => Ok(Some(V::deserialize(&mut &value[..])?)),
+            Some(value) => Ok(Some(V::try_from_slice(&value)?)),
             None => Ok(None),
         }
     }

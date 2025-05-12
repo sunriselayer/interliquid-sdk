@@ -1,6 +1,8 @@
-use std::{marker::PhantomData, ops::RangeInclusive};
+use std::marker::PhantomData;
 
 use borsh::BorshDeserialize;
+
+use crate::types::InterLiquidSdkError;
 
 use super::KeyDeclaration;
 
@@ -9,12 +11,10 @@ pub trait KeyPrefix: Clone + Sized + Send {
 
     fn to_prefix_bytes(&self) -> Vec<u8>;
 
-    fn extract<'a>(key: &mut [u8]) -> Self::KeyToExtract {
-        <Self::KeyToExtract as BorshDeserialize>::deserialize(&mut &key[..]).unwrap()
-    }
-
-    fn exact(&self) -> RangeInclusive<Self> {
-        self.clone()..=self.clone()
+    fn extract<'a>(key: &mut [u8]) -> Result<Self::KeyToExtract, InterLiquidSdkError> {
+        Ok(<Self::KeyToExtract as BorshDeserialize>::try_from_slice(
+            &key,
+        )?)
     }
 }
 

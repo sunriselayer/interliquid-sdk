@@ -9,7 +9,6 @@ use crate::types::InterLiquidSdkError;
 use super::{Module, MsgHandlerRegistry, MsgRegistry, SdkContext};
 
 pub struct App<TX: Tx> {
-    modules: Vec<Arc<dyn Module>>,
     tx_ante_handlers: Vec<Box<dyn TxAnteHandler<TX>>>,
     tx_post_handlers: Vec<Box<dyn TxPostHandler<TX>>>,
     msg_registry: MsgRegistry,
@@ -31,7 +30,6 @@ impl<TX: Tx> App<TX> {
         }
 
         Self {
-            modules,
             tx_ante_handlers,
             tx_post_handlers,
             msg_registry,
@@ -40,9 +38,11 @@ impl<TX: Tx> App<TX> {
         }
     }
 
-    pub fn execute_tx(&self, ctx: &mut SdkContext, tx: &TX) -> Result<(), InterLiquidSdkError> {
+    pub fn execute_tx(&self, ctx: &mut SdkContext, tx: &[u8]) -> Result<(), InterLiquidSdkError> {
+        let tx = TX::try_from_slice(tx)?;
+
         for handler in self.tx_ante_handlers.iter() {
-            handler.handle(ctx, &self.msg_registry, tx)?;
+            handler.handle(ctx, &self.msg_registry, &tx)?;
         }
 
         for msg in tx.msgs() {
@@ -59,7 +59,7 @@ impl<TX: Tx> App<TX> {
         }
 
         for handler in self.tx_post_handlers.iter() {
-            handler.handle(ctx, &self.msg_registry, tx)?;
+            handler.handle(ctx, &self.msg_registry, &tx)?;
         }
 
         Ok(())

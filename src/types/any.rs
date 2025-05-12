@@ -30,7 +30,7 @@ pub trait NamedSerializableType: Any + BorshSerialize + BorshDeserialize {
     }
 
     fn unpack_any(any: &SerializableAny) -> Result<Self, InterLiquidSdkError> {
-        let value = Self::deserialize(&mut &any.value[..])?;
+        let value = Self::try_from_slice(&any.value)?;
 
         Ok(value)
     }

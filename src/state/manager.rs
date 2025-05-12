@@ -1,6 +1,6 @@
 use crate::types::InterLiquidSdkError;
 
-pub trait StateManager: Send + Sync + 'static {
+pub trait StateManager: Send + Sync {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError>;
     fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError>;
     // If the key is not found, it must be a no-op

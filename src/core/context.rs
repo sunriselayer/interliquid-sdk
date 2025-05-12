@@ -1,18 +1,18 @@
 use crate::state::StateManager;
 
-pub struct SdkContext {
+pub struct SdkContext<'a> {
     chain_id: String,
     block_height: u64,
     block_time_unix_secs: u64,
-    state_manager: Box<dyn StateManager>,
+    state_manager: Box<dyn StateManager + 'a>,
 }
 
-impl SdkContext {
+impl<'a> SdkContext<'a> {
     pub fn new(
         chain_id: String,
         block_height: u64,
         block_time_unix_seconds: u64,
-        state_manager: Box<dyn StateManager>,
+        state_manager: Box<dyn StateManager + 'a>,
     ) -> Self {
         Self {
             chain_id,

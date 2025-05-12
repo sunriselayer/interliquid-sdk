@@ -1,4 +1,3 @@
-mod snapshot;
 mod zkp_block;
 mod zkp_commit_keys;
 mod zkp_commit_state;

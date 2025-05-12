@@ -27,7 +27,7 @@ impl MsgRegistry {
         self.unpack.insert(
             name,
             Box::new(|any| {
-                let msg = T::deserialize(&mut &any.value[..])?;
+                let msg = T::try_from_slice(&any.value)?;
 
                 Ok(Box::new(msg))
             }),

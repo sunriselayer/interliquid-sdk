@@ -1,8 +1,8 @@
-use crate::{tx::Tx, types::InterLiquidSdkError};
+use crate::{state::StateManager, tx::Tx, types::InterLiquidSdkError};
 
 use super::Runner;
 
-impl<TX: Tx> Runner<TX> {
+impl<S: StateManager, TX: Tx> Runner<S, TX> {
     pub(super) async fn run_prover(&self) -> Result<(), InterLiquidSdkError> {
         todo!()
     }

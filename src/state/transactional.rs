@@ -7,24 +7,24 @@ use super::{
     CompressedDiffs, StateLogDiff, ValueDiff,
 };
 
-pub struct TransactionalState<S: StateManager> {
-    pub state: S,
+pub struct TransactionalStateManager<'s, S: StateManager> {
+    pub state_manager: &'s mut S,
     pub logs: Vec<StateLog>,
     pub diffs: CompressedDiffs,
 }
 
-impl<S: StateManager> TransactionalState<S> {
-    pub fn new(state: S) -> Self {
+impl<'s, S: StateManager> TransactionalStateManager<'s, S> {
+    pub fn new(state_manager: &'s mut S) -> Self {
         Self {
-            state,
+            state_manager,
             logs: Vec::new(),
             diffs: CompressedDiffs::default(),
         }
     }
 
-    pub fn from_diffs(state: S, diffs: CompressedDiffs) -> Self {
+    pub fn from_diffs(state_manager: &'s mut S, diffs: CompressedDiffs) -> Self {
         Self {
-            state,
+            state_manager,
             logs: Vec::new(),
             diffs,
         }
@@ -33,8 +33,8 @@ impl<S: StateManager> TransactionalState<S> {
     pub fn commit(&mut self) -> Result<(), InterLiquidSdkError> {
         for (key, diff) in self.diffs.map() {
             match &diff.after {
-                Some(value) => self.state.set(key, value)?,
-                None => self.state.del(key)?,
+                Some(value) => self.state_manager.set(key, value)?,
+                None => self.state_manager.del(key)?,
             }
         }
 
@@ -45,14 +45,14 @@ impl<S: StateManager> TransactionalState<S> {
         let val = if let Some(diff) = self.diffs.map().get(key) {
             diff.after.clone()
         } else {
-            self.state.get(key)?
+            self.state_manager.get(key)?
         };
 
         Ok(val)
     }
 }
 
-impl<S: StateManager> StateManager for TransactionalState<S> {
+impl<'s, S: StateManager> StateManager for TransactionalStateManager<'s, S> {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
         let val = self.get_without_logging(key)?;
 
@@ -100,7 +100,7 @@ impl<S: StateManager> StateManager for TransactionalState<S> {
         &'a mut self,
         key_prefix: Vec<u8>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
-        let iter = self.state.iter(key_prefix).filter_map(|result| {
+        let iter = self.state_manager.iter(key_prefix).filter_map(|result| {
             let (key, value) = match result {
                 Ok((key, value)) => (key, value),
                 Err(e) => return Some(Err(e)),
