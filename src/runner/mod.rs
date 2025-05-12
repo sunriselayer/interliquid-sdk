@@ -1,3 +1,4 @@
+mod message;
 mod prover;
 mod runner;
 mod savedata;

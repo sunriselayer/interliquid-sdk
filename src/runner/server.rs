@@ -20,7 +20,7 @@ use super::{savedata::TxExecutionSnapshot, state::RunnerState, Runner};
 
 type ServerState<S, TX> = (Arc<App<TX>>, Arc<Mutex<RunnerState<S>>>);
 
-impl<S: StateManager + 'static, TX: Tx> Runner<S, TX> {
+impl<TX: Tx, S: StateManager + 'static> Runner<TX, S> {
     pub(super) async fn run_server(&self) -> Result<(), InterLiquidSdkError> {
         let server_app = Router::new()
             .route("/tx", post(handle_tx::<S, TX>))
@@ -54,6 +54,7 @@ async fn handle_tx<S: StateManager + 'static, TX: Tx>(
 
     with_locked(&runner_state, |runner_state| {
         let accum_diffs = runner_state
+            .savedata
             .tx_snapshots
             .last()
             .and_then(|snapshot| Some(snapshot.accum_diffs.clone()))
@@ -63,9 +64,9 @@ async fn handle_tx<S: StateManager + 'static, TX: Tx>(
             TransactionalStateManager::from_diffs(&mut runner_state.state_manager, accum_diffs);
 
         let mut ctx = SdkContext::new(
-            runner_state.chain_id.clone(),
-            runner_state.block_height,
-            runner_state.block_time_unix_secs,
+            runner_state.savedata.chain_id.clone(),
+            runner_state.savedata.block_height,
+            runner_state.savedata.block_time_unix_secs,
             &mut transactional,
         );
 
@@ -78,7 +79,7 @@ async fn handle_tx<S: StateManager + 'static, TX: Tx>(
         })?;
 
         let snapshot = TxExecutionSnapshot::new(tx, transactional.logs, transactional.diffs);
-        runner_state.tx_snapshots.push(snapshot);
+        runner_state.savedata.tx_snapshots.push(snapshot);
 
         Ok(())
     })
