@@ -179,29 +179,55 @@ PrivateInputsAgg = [{StateRootPrev_i}_{i=2}^n, {StateRootNext_i}_{i=1}^{n-1}, {P
 
 ### Usage Example
 
+Here's a simple example showing how to use the SDK for token transfers:
+
 ```rust
-use interliquid_sdk::core::InterLiquid;
-use interliquid_sdk::state::StateManager;
-use interliquid_sdk::tx::TransactionProcessor;
+// Add this import for derive macros:
+use borsh_derive::{BorshSerialize, BorshDeserialize};
 
-// Initialize components
-let sdk = InterLiquid::new();
-let state_manager = StateManager::new();
-let tx_processor = TransactionProcessor::new();
+// Define a simple transaction struct that implements Tx
+#[derive(BorshSerialize, BorshDeserialize)]
+struct SimpleTx {
+    msgs: Vec<SerializableAny>,
+}
 
-// Process transactions
-let txs = vec![/* your transactions */];
-let result = sdk.process_transactions(txs, &state_manager, &tx_processor);
-
-// Handle result
-match result {
-    Ok(block) => {
-        println!("Block processed successfully: {:?}", block);
-    }
-    Err(e) => {
-        println!("Error processing block: {:?}", e);
+impl Tx for SimpleTx {
+    fn msgs(&self) -> Vec<SerializableAny> {
+        self.msgs.clone()
     }
 }
+
+// Create a MsgSend transaction
+let mut tokens = Tokens::new();
+tokens.insert("usdc".to_string(), U256::new(U256Lib::from(100u64)));
+let msg = MsgSend {
+    from_address: alice,
+    to_address: bob,
+    tokens,
+};
+let mut msg_bytes = Vec::new();
+msg.serialize(&mut msg_bytes)?;
+let msg_any = SerializableAny::new(MsgSend::type_name().to_owned(), msg_bytes);
+
+// Wrap the message in a SimpleTx
+let tx = SimpleTx {
+    msgs: vec![msg_any],
+};
+let mut tx_bytes = Vec::new();
+tx.serialize(&mut tx_bytes)?;
+
+// Dispatch the transaction through the app (Cosmos SDK style)
+app.execute_tx(&mut ctx, &tx_bytes)?;
+
+// Note: MsgSend and SaveData are private modules in the SDK and will cause errors unless made public.
 ```
+
+### Implementation Details
+
+- **SimpleTx**: A struct that implements the `Tx` trait, allowing you to wrap messages and process them.
+- **App::execute_tx**: Used to dispatch transactions through the app, similar to the Cosmos SDK style.
+- **MsgSend and SaveData**: These are private and must be used via public APIs. If you see errors, check if the SDK has made them public.
+
+For a complete working example, see [examples/basic_usage.rs](examples/basic_usage.rs).
 
 For more technical details, refer to the [Whitepaper](whitepaper/whitepaper.md).
