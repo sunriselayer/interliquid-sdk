@@ -5,12 +5,12 @@ use crate::{
     types::{InterLiquidSdkError, NamedSerializableType},
 };
 
-use super::SdkContext;
+use super::Context;
 
 pub struct MsgHandlerRegistry {
     handlers: BTreeMap<
         &'static str,
-        Box<dyn Fn(&mut SdkContext, &dyn Any) -> Result<(), InterLiquidSdkError> + Send + Sync>,
+        Box<dyn Fn(&mut dyn Context, &dyn Any) -> Result<(), InterLiquidSdkError> + Send + Sync>,
     >,
 }
 
@@ -23,7 +23,7 @@ impl MsgHandlerRegistry {
 
     pub fn register<T: Msg + NamedSerializableType>(
         &mut self,
-        handler: Box<dyn Fn(&mut SdkContext, &T) -> Result<(), InterLiquidSdkError> + Send + Sync>,
+        handler: Box<dyn Fn(&mut dyn Context, &T) -> Result<(), InterLiquidSdkError> + Send + Sync>,
     ) {
         let name = T::type_name();
 
@@ -40,7 +40,7 @@ impl MsgHandlerRegistry {
         &self,
         name: &str,
     ) -> Option<
-        &Box<dyn Fn(&mut SdkContext, &dyn Any) -> Result<(), InterLiquidSdkError> + Send + Sync>,
+        &Box<dyn Fn(&mut dyn Context, &dyn Any) -> Result<(), InterLiquidSdkError> + Send + Sync>,
     > {
         self.handlers.get(name)
     }

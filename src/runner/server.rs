@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::Mutex;
 
-use super::{state::RunnerState, Runner};
+use super::{savedata::TxExecutionSnapshot, state::RunnerState, Runner};
 
 type ServerState<S, TX> = (Arc<App<TX>>, Arc<Mutex<RunnerState<S>>>);
 
@@ -53,13 +53,20 @@ async fn handle_tx<S: StateManager + 'static, TX: Tx>(
     let app = app;
 
     with_locked(&runner_state, |runner_state| {
+        let accum_diffs = runner_state
+            .tx_snapshots
+            .last()
+            .and_then(|snapshot| Some(snapshot.accum_diffs.clone()))
+            .unwrap_or_default();
+
+        let mut transactional =
+            TransactionalStateManager::from_diffs(&mut runner_state.state_manager, accum_diffs);
+
         let mut ctx = SdkContext::new(
             runner_state.chain_id.clone(),
             runner_state.block_height,
             runner_state.block_time_unix_secs,
-            Box::new(TransactionalStateManager::new(
-                &mut runner_state.state_manager,
-            )),
+            &mut transactional,
         );
 
         app.execute_tx(&mut ctx, &tx).map_err(|e| {
@@ -69,6 +76,9 @@ async fn handle_tx<S: StateManager + 'static, TX: Tx>(
             )
                 .into_response()
         })?;
+
+        let snapshot = TxExecutionSnapshot::new(tx, transactional.logs, transactional.diffs);
+        runner_state.tx_snapshots.push(snapshot);
 
         Ok(())
     })

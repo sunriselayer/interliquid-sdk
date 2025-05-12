@@ -6,7 +6,7 @@ use anyhow::anyhow;
 use crate::tx::{Tx, TxAnteHandler, TxPostHandler};
 use crate::types::InterLiquidSdkError;
 
-use super::{Module, MsgHandlerRegistry, MsgRegistry, SdkContext};
+use super::{Context, Module, MsgHandlerRegistry, MsgRegistry};
 
 pub struct App<TX: Tx> {
     tx_ante_handlers: Vec<Box<dyn TxAnteHandler<TX>>>,
@@ -38,7 +38,7 @@ impl<TX: Tx> App<TX> {
         }
     }
 
-    pub fn execute_tx(&self, ctx: &mut SdkContext, tx: &[u8]) -> Result<(), InterLiquidSdkError> {
+    pub fn execute_tx(&self, ctx: &mut dyn Context, tx: &[u8]) -> Result<(), InterLiquidSdkError> {
         let tx = TX::try_from_slice(tx)?;
 
         for handler in self.tx_ante_handlers.iter() {

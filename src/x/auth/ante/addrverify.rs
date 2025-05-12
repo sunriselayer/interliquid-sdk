@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::anyhow;
 
 use crate::{
-    core::{MsgRegistry, SdkContext},
+    core::{Context, MsgRegistry},
     tx::TxAnteHandler,
     types::InterLiquidSdkError,
     x::auth::ante::StdTx,
@@ -20,7 +20,7 @@ impl AddrVerifyAnteHandler {
 impl TxAnteHandler<StdTx> for AddrVerifyAnteHandler {
     fn handle(
         &self,
-        _ctx: &mut SdkContext,
+        _ctx: &mut dyn Context,
         msg_registry: &MsgRegistry,
         tx: &StdTx,
     ) -> Result<(), InterLiquidSdkError> {

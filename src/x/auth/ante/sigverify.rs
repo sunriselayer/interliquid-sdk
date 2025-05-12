@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 
 use crate::{
-    core::{MsgRegistry, SdkContext},
+    core::{Context, MsgRegistry},
     tx::TxAnteHandler,
     types::InterLiquidSdkError,
     x::{
@@ -30,7 +30,7 @@ impl SigVerifyAnteHandler {
 impl TxAnteHandler<StdTx> for SigVerifyAnteHandler {
     fn handle(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         _msg_registry: &MsgRegistry,
         tx: &StdTx,
     ) -> Result<(), InterLiquidSdkError> {

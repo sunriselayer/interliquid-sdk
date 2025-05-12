@@ -1,5 +1,5 @@
 use crate::{
-    core::SdkContext,
+    core::Context,
     types::{Address, InterLiquidSdkError, SerializableAny},
     utils::Map,
 };
@@ -12,34 +12,34 @@ use super::{
 pub trait AuthKeeperI {
     fn get_account(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
     ) -> Result<Option<Account>, InterLiquidSdkError>;
 
     fn set_account(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
         account: &Account,
     ) -> Result<(), InterLiquidSdkError>;
 
     fn get_verifying_key(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
         key_index: u64,
     ) -> Result<Option<SerializableAny>, InterLiquidSdkError>;
 
     fn add_verifying_key(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
         verifying_key: &SerializableAny,
     ) -> Result<(), InterLiquidSdkError>;
 
     fn del_verifying_key(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
         key_index: u64,
     ) -> Result<(), InterLiquidSdkError>;
@@ -64,7 +64,7 @@ impl AuthKeeper {
 impl AuthKeeperI for AuthKeeper {
     fn get_account(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
     ) -> Result<Option<Account>, InterLiquidSdkError> {
         let account = self.accounts.get(ctx.state_manager_mut(), address)?;
@@ -73,7 +73,7 @@ impl AuthKeeperI for AuthKeeper {
 
     fn set_account(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
         account: &Account,
     ) -> Result<(), InterLiquidSdkError> {
@@ -84,7 +84,7 @@ impl AuthKeeperI for AuthKeeper {
 
     fn get_verifying_key(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
         key_id: u64,
     ) -> Result<Option<SerializableAny>, InterLiquidSdkError> {
@@ -96,7 +96,7 @@ impl AuthKeeperI for AuthKeeper {
 
     fn add_verifying_key(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
         verifying_key: &SerializableAny,
     ) -> Result<(), InterLiquidSdkError> {
@@ -114,7 +114,7 @@ impl AuthKeeperI for AuthKeeper {
 
     fn del_verifying_key(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         address: &Address,
         key_index: u64,
     ) -> Result<(), InterLiquidSdkError> {

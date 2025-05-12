@@ -1,5 +1,5 @@
 use crate::{
-    core::{MsgRegistry, SdkContext},
+    core::{Context, MsgRegistry},
     types::InterLiquidSdkError,
 };
 
@@ -8,7 +8,7 @@ use super::Tx;
 pub trait TxAnteHandler<TX: Tx>: Send + Sync {
     fn handle(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         msg_registry: &MsgRegistry,
         tx: &TX,
     ) -> Result<(), InterLiquidSdkError>;
@@ -17,7 +17,7 @@ pub trait TxAnteHandler<TX: Tx>: Send + Sync {
 pub trait TxPostHandler<TX: Tx>: Send + Sync {
     fn handle(
         &self,
-        ctx: &mut SdkContext,
+        ctx: &mut dyn Context,
         msg_registry: &MsgRegistry,
         tx: &TX,
     ) -> Result<(), InterLiquidSdkError>;
