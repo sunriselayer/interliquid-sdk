@@ -6,6 +6,7 @@ use crate::zkp::PrivateInputTx;
 pub enum RunnerMessage {
     TxReceived(MessageTxReceived),
     TxProofReady(MessageTxProofReady),
+    TxProofAggregationReady(MessageTxProofAggregationReady),
     CommitStateProofReady(MessageCommitStateProofReady),
     CommitKeysProofReady(MessageCommitKeysProofReady),
     BlockCommitted(MessageBlockCommitted),
@@ -49,6 +50,13 @@ impl MessageTxProofReady {
             inputs,
         }
     }
+}
+
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
+pub struct MessageTxProofAggregationReady {
+    pub chain_id: String,
+    pub block_height: u64,
+    pub tx_index: (usize, usize),
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
