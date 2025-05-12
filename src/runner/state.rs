@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use tokio::sync::{broadcast::Sender, Mutex, RwLock};
 
-use crate::{core::App, state::StateManager, tx::Tx};
+use crate::{
+    core::{App, Tx},
+    state::StateManager,
+};
 
 use super::{message::RunnerMessage, savedata::SaveData};
 

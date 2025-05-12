@@ -1,7 +1,6 @@
 use crate::{
-    core::SdkContext,
+    core::{SdkContext, Tx},
     state::{StateManager, TransactionalStateManager},
-    tx::Tx,
     types::InterLiquidSdkError,
 };
 use axum::{

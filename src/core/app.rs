@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 
-use crate::tx::{Tx, TxAnteHandler, TxPostHandler};
+use super::tx::{Tx, TxAnteHandler, TxPostHandler};
 use crate::types::InterLiquidSdkError;
 
 use super::{Context, Module, MsgHandlerRegistry, MsgRegistry};

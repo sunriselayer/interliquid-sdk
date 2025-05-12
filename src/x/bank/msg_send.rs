@@ -3,8 +3,7 @@ use std::collections::BTreeSet;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::{
-    core::Context,
-    tx::Msg,
+    core::{Context, Msg},
     types::{Address, InterLiquidSdkError, NamedSerializableType, Tokens},
 };
 

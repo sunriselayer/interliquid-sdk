@@ -4,7 +4,7 @@ use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::{
-    tx::Tx,
+    core::Tx,
     types::{Address, InterLiquidSdkError, SerializableAny},
 };
 

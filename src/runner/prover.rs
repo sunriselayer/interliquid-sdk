@@ -1,4 +1,4 @@
-use crate::{state::StateManager, tx::Tx, types::InterLiquidSdkError};
+use crate::{core::Tx, state::StateManager, types::InterLiquidSdkError};
 
 use super::Runner;
 
