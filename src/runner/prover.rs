@@ -18,6 +18,7 @@ impl Prover {
         while let Ok(msg) = self.receiver.recv().await {
             match msg {
                 RunnerMessage::TxProofReady(msg) => {}
+                RunnerMessage::TxProofAggregationReady(msg) => {}
                 RunnerMessage::CommitStateProofReady(msg) => {}
                 RunnerMessage::CommitKeysProofReady(msg) => {}
                 _ => {}
