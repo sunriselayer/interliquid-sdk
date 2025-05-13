@@ -9,10 +9,8 @@ pub struct RelatedState {
 }
 
 impl RelatedState {
-    pub fn new() -> Self {
-        Self {
-            map: BTreeMap::new(),
-        }
+    pub fn new(map: BTreeMap<Vec<u8>, Vec<u8>>) -> Self {
+        Self { map }
     }
 }
 

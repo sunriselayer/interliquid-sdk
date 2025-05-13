@@ -264,8 +264,8 @@ Here, we can get the interim result of the state transition function for each tr
 
 $$
 \begin{aligned}
-  &\left\{ \text{AccumDiffs}_i, \text{ReadKVPairs}_i, \text{IterKVPairs}_i \right\} \\
-  &= g\left(\text{StateForAccess}_i, \text{AccumDiffs}_{i-1}, \text{Tx}_i\right)
+  &\left\{ \text{AccumDiffsNext}_i, \text{ReadKVPairs}_i, \text{IterKVPairs}_i \right\} \\
+  &= g\left(\text{StateForAccess}_i, \text{AccumDiffsPrev}_i, \text{Tx}_i\right)
 \end{aligned}
 $$
 
@@ -275,13 +275,13 @@ $$
 \begin{aligned}
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
   \text{WitnessTx}_i &= \left\{ \begin{aligned}
+    & \text{Tx}_i \\
     & \text{StateSparseTreeRoot} \\
     & \text{KeysPatriciaTrieRoot} \\
     & \text{StateForAccess}_i \\
-    & \text{AccumDiffs}_{i-1} \\
+    & \text{AccumDiffsPrev}_i \\
     & \text{ReadProofPath}_i \\
-    & \text{IterProofPath}_i \\
-    & \text{Tx}_i
+    & \text{IterProofPath}_i
   \end{aligned} \right\} \\
   \text{ConstraintsTx}_i &= \left\{ \begin{aligned}
     & \text{StateSparseTreeRoot} \\
@@ -291,7 +291,7 @@ $$
   \end{aligned} \right\} \\
   \text{PubInputsTx}_i &= \left\{\begin{aligned}
     & \text{TxHash}_i(\text{Tx}_i) \\
-    & \text{AccumDiffsHashPrev}_i(\text{AccumDiffs}_{1:i-1}) \\
+    & \text{AccumDiffsHashPrev}_i(\text{AccumDiffsPrev}_i) \\
     & \text{AccumDiffsHashNext}_i(g(\dots)) \\
     & \text{EntireRoot} \\
     & (\text{StateSparseTreeRoot}, \text{KeysPatriciaTrieRoot})

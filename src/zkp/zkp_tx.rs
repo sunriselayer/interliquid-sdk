@@ -1,11 +1,14 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::anyhow;
+use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
+use sha2::{Digest, Sha256};
 
 use crate::{
+    core::{App, SdkContext, Tx},
     merkle::{OctRadPatriciaTriePath, OctRadSparseTreePath},
-    state::{CompressedDiffs, StateLog, StateManager},
+    state::{CompressedDiffs, RelatedState, StateLog, StateManager, TransactionalStateManager},
     types::InterLiquidSdkError,
 };
 
@@ -74,8 +77,6 @@ impl WitnessTx {
         state_manager: &S,
     ) -> Result<Self, InterLiquidSdkError> {
         let mut state_for_access = BTreeMap::new();
-        let mut read_proof_path = OctRadSparseTreePath::new(BTreeMap::new());
-        let mut iter_proof_path = OctRadPatriciaTriePath::new(BTreeMap::new());
 
         for (i, log) in logs.iter().enumerate() {
             match log {
@@ -145,6 +146,9 @@ impl WitnessTx {
             }
         }
 
+        let mut read_proof_path = OctRadSparseTreePath::new(BTreeMap::new());
+        let mut iter_proof_path = OctRadPatriciaTriePath::new(BTreeMap::new());
+
         Ok(Self::new(
             tx,
             state_sparse_tree_root,
@@ -155,4 +159,53 @@ impl WitnessTx {
             iter_proof_path,
         ))
     }
+}
+
+pub fn circuit_tx<TX: Tx>(
+    witness: WitnessTx,
+    app: &App<TX>,
+) -> Result<PublicInputTx, InterLiquidSdkError> {
+    let mut accum_diffs_bytes_prev = Vec::new();
+    witness
+        .accum_diffs_prev
+        .serialize(&mut accum_diffs_bytes_prev)?;
+    let accum_diffs_hash_prev = Sha256::digest(&accum_diffs_bytes_prev).into();
+
+    let related_state = RelatedState::new(witness.state_for_access);
+    let mut transactional =
+        TransactionalStateManager::from_diffs(&related_state, witness.accum_diffs_prev);
+    let mut ctx = SdkContext::new("".to_owned(), 0, 0, &mut transactional);
+
+    app.execute_tx(&mut ctx, &witness.tx)?;
+
+    let TransactionalStateManager {
+        logs,
+        diffs: accum_diffs_next,
+        ..
+    } = transactional;
+
+    // TODO: verify logs
+
+    let mut tx_bytes = Vec::new();
+    witness.tx.serialize(&mut tx_bytes)?;
+
+    let tx_hash = Sha256::digest(&tx_bytes).into();
+
+    let mut accum_diffs_bytes_next = Vec::new();
+    accum_diffs_next.serialize(&mut accum_diffs_bytes_next)?;
+    let accum_diffs_hash_next = Sha256::digest(&accum_diffs_bytes_next).into();
+
+    let mut hasher = Sha256::new();
+    hasher.update(witness.state_sparse_tree_root);
+    hasher.update(witness.keys_patricia_trie_root);
+    let entire_state_root = hasher.finalize().into();
+
+    let public = PublicInputTx::new(
+        tx_hash,
+        accum_diffs_hash_prev,
+        accum_diffs_hash_next,
+        entire_state_root,
+    );
+
+    Ok(public)
 }
