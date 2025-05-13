@@ -264,8 +264,8 @@ Here, we can get the interim result of the state transition function for each tr
 
 $$
 \begin{aligned}
-  &\left\{ \text{AccumDiffs}_{1:i}, \text{ReadKVPairs}_i, \text{IterKVPairs}_i \right\} \\
-  &= g\left(\text{StateForAccess}_i, \text{AccumDiffs}_{1:i-1}, \text{Tx}_i\right)
+  &\left\{ \text{AccumDiffs}_i, \text{ReadKVPairs}_i, \text{IterKVPairs}_i \right\} \\
+  &= g\left(\text{StateForAccess}_i, \text{AccumDiffs}_{i-1}, \text{Tx}_i\right)
 \end{aligned}
 $$
 
@@ -278,7 +278,7 @@ $$
     & \text{StateSparseTreeRoot} \\
     & \text{KeysPatriciaTrieRoot} \\
     & \text{StateForAccess}_i \\
-    & \text{AccumDiffs}_{1:i-1} \\
+    & \text{AccumDiffs}_{i-1} \\
     & \text{ReadProofPath}_i \\
     & \text{IterProofPath}_i \\
     & \text{Tx}_i

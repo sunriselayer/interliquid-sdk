@@ -1,10 +1,12 @@
 use std::collections::BTreeMap;
 
+use anyhow::anyhow;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::{
     merkle::{OctRadPatriciaTriePath, OctRadSparseTreePath},
     state::{CompressedDiffs, StateLog, StateManager},
+    types::InterLiquidSdkError,
 };
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
@@ -32,7 +34,7 @@ impl PublicInputTx {
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub struct PrivateInputTx {
+pub struct WitnessTx {
     pub tx: Vec<u8>,
     pub state_sparse_tree_root: [u8; 32],
     pub keys_patricia_trie_root: [u8; 32],
@@ -42,7 +44,7 @@ pub struct PrivateInputTx {
     pub iter_proof_path: OctRadPatriciaTriePath,
 }
 
-impl PrivateInputTx {
+impl WitnessTx {
     pub fn new(
         tx: Vec<u8>,
         state_sparse_tree_root: [u8; 32],
@@ -70,7 +72,87 @@ impl PrivateInputTx {
         logs: &[StateLog],
         accum_diffs_prev: CompressedDiffs,
         state_manager: &S,
-    ) -> Self {
-        todo!()
+    ) -> Result<Self, InterLiquidSdkError> {
+        let mut state_for_access = BTreeMap::new();
+        let mut read_proof_path = OctRadSparseTreePath::new(BTreeMap::new());
+        let mut iter_proof_path = OctRadPatriciaTriePath::new(BTreeMap::new());
+
+        for (i, log) in logs.iter().enumerate() {
+            match log {
+                StateLog::Read(read) => {
+                    let latest_diff = (0..i)
+                        .rev()
+                        .map(|j| &logs[j])
+                        .filter_map(|log| {
+                            if let StateLog::Diff(diff) = log {
+                                if diff.key == read.key {
+                                    return Some(diff);
+                                }
+                            }
+
+                            None
+                        })
+                        .next();
+
+                    if read.found {
+                        if let Some(diff) = latest_diff {
+                            match diff.diff.after {
+                                Some(_) => {
+                                    continue;
+                                }
+                                None => {
+                                    return Err(InterLiquidSdkError::Other(anyhow!(
+                                        "Inconsistent logs: read.found == true after diff.after == None"
+                                    )));
+                                }
+                            }
+                        }
+
+                        let value = state_manager.get(&read.key)?;
+                        match value {
+                            Some(value) => {
+                                state_for_access.insert(read.key.clone(), value);
+                            }
+                            None => {
+                                return Err(InterLiquidSdkError::Other(anyhow!(
+                                    "Inconsistent logs and state"
+                                )));
+                            }
+                        }
+
+                        // TODO: add read proof path
+                    } else {
+                        if let Some(diff) = latest_diff {
+                            match diff.diff.after {
+                                Some(_) => {
+                                    return Err(InterLiquidSdkError::Other(anyhow!(
+                                        "Inconsistent logs: read.found == false after diff.after == Some"
+                                    )));
+                                }
+                                None => {
+                                    continue;
+                                }
+                            }
+                        }
+
+                        // TODO: add read proof path
+                    }
+                }
+                StateLog::Iter(iter) => {
+                    // TODO: add iter proof path
+                }
+                StateLog::Diff(_diff) => {}
+            }
+        }
+
+        Ok(Self::new(
+            tx,
+            state_sparse_tree_root,
+            keys_patricia_trie_root,
+            state_for_access,
+            accum_diffs_prev,
+            read_proof_path,
+            iter_proof_path,
+        ))
     }
 }
