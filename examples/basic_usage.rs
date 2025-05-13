@@ -1,12 +1,9 @@
 use interliquid_sdk::{
-    core::{App, SdkContext},
+    core::{App, SdkContext, Tx},
     state::StateManager,
-    types::{Address, InterLiquidSdkError, Tokens, U256, SerializableAny},
-    x::bank::{BankKeeper, BankModule, BankKeeperI},
-    x::bank::msg::MsgSend,
-    runner::runner::Runner,
-    runner::savedata::SaveData,
-    tx::Tx,
+    types::{Address, InterLiquidSdkError, Tokens, U256, SerializableAny, NamedSerializableType},
+    x::bank::{BankKeeper, BankModule, BankKeeperI, MsgSend},
+    runner::{MonolithicRunner as Runner, SaveData},
 };
 use borsh::{BorshSerialize, BorshDeserialize};
 use borsh_derive::{BorshSerialize, BorshDeserialize};
@@ -15,11 +12,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use reqwest;
 use base64::{prelude::BASE64_STANDARD, Engine};
+use anyhow::anyhow;
 
 // Define a simple transaction struct that implements Tx
 #[derive(BorshSerialize, BorshDeserialize)]
-struct SimpleTx {
-    msgs: Vec<SerializableAny>,
+pub struct SimpleTx {
+    pub msgs: Vec<SerializableAny>,
 }
 
 impl Tx for SimpleTx {
@@ -31,26 +29,32 @@ impl Tx for SimpleTx {
 #[tokio::main]
 async fn main() -> Result<(), InterLiquidSdkError> {
     // Minimal in-memory StateManager for demonstration
-    struct MemoryStateManager {
-        map: BTreeMap<Vec<u8>, Vec<u8>>,
+    #[derive(Clone)]
+    pub struct MemoryStateManager {
+        pub map: BTreeMap<Vec<u8>, Vec<u8>>,
     }
+
     impl MemoryStateManager {
-        fn new() -> Self {
+        pub fn new() -> Self {
             Self { map: BTreeMap::new() }
         }
     }
+
     impl StateManager for MemoryStateManager {
         fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
             Ok(self.map.get(key).cloned())
         }
+
         fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError> {
             self.map.insert(key.to_vec(), value.to_vec());
             Ok(())
         }
+
         fn del(&mut self, key: &[u8]) -> Result<(), InterLiquidSdkError> {
             self.map.remove(key);
             Ok(())
         }
+
         fn iter<'a>(
             &'a self,
             key_prefix: Vec<u8>,
@@ -81,10 +85,10 @@ async fn main() -> Result<(), InterLiquidSdkError> {
 
     // Create the runner
     let savedata = SaveData::default();
-    let runner = Arc::new(Runner::new(app, savedata, MemoryStateManager::new()));
+    let runner: Arc<Runner<SimpleTx, MemoryStateManager>> = Arc::new(Runner::new(app, savedata, MemoryStateManager::new()));
     
     // Start the runner in a separate task
-    let runner_clone = Arc::clone(&runner);
+    let runner_clone: Arc<Runner<SimpleTx, MemoryStateManager>> = Arc::clone(&runner);
     tokio::spawn(async move {
         if let Err(e) = runner_clone.run().await {
             eprintln!("Runner error: {}", e);
@@ -135,11 +139,13 @@ async fn main() -> Result<(), InterLiquidSdkError> {
             "tx_base64": tx_base64
         }))
         .send()
-        .await?;
+        .await
+        .map_err(|e| InterLiquidSdkError::Other(anyhow!("HTTP request failed: {}", e)))?;
 
     if !response.status().is_success() {
-        let error = response.text().await?;
-        return Err(InterLiquidSdkError::Other(anyhow::anyhow!("Transaction failed: {}", error)));
+        let error = response.text().await
+            .map_err(|e| InterLiquidSdkError::Other(anyhow!("Failed to read response: {}", e)))?;
+        return Err(InterLiquidSdkError::Other(anyhow!("Transaction failed: {}", error)));
     }
 
     println!("Transaction sent successfully!");
