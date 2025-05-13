@@ -1,29 +1,47 @@
 # InterLiquid SDK
 
+InterLiquid SDK is a powerful software development kit for building ZK Sovereign Rollups, designed to provide Web2-like User Experience and Developer Experience for decentralized applications. It enables Web2 applications to seamlessly interact with public DeFi ecosystems.
 
+## 🌟 Key Features
 
-InterLiquid SDK is a software development kit for building ZK Sovereign Rollups, designed to bridge Web2 and Web3 development experiences. It enables seamless integration of Web2 applications with public DeFi ecosystems while maintaining blockchain security.
+- **Key Prefix Based Iteration**: Enables efficient state iteration similar to NoSQL systems like Firebase Firestore
+- **ZK-Friendly Architecture**: Built with Zero Knowledge Proofs in mind
+- **Flexible Deployment**: Suitable for both ZK and Optimistic Sovereign Rollups
+- **Parallelized Proof Generation**: Optimized for performance with parallel processing
+- **Divide-and-Conquer Proof Aggregation**: Efficient proof generation and verification
 
-## 🌟 Features
+## 🏗️ Architecture
 
-- **ZK Sovereign Rollup Support**: Build applications with zero-knowledge proof verification
-- **Web2-like Developer Experience**: Familiar development patterns and tools
-- **Key Prefix Based Iteration**: Efficient state management and querying
-- **Parallelized ZK Proof Generation**: Optimized performance through chunked processing
-- **Twin Nibble Trees Architecture**: Innovative state management system
-- **Cross-Platform Compatibility**: Works with Sunrise and other platforms
+### Twin Radix Trees
 
-## 📚 Documentation
+The SDK's core innovation is the Twin Radix Trees architecture, which combines:
 
-For detailed technical documentation, please refer to our [Whitepaper](whitepaper/whitepaper.md).
+1. **8-bit-Radix Sparse Merkle Tree**
+   - Handles state inclusion proof
+   - Used for get-access validity in state transitions
+   - Supports light client based interoperability protocols
 
-## Technical Architecture
+2. **8-bit-Radix Patricia Trie**
+   - Manages key indexing
+   - Enables key prefix based iteration
+   - Optimized for proof generation
+
+### Proof Generation
+
+The SDK implements an efficient proof generation system with:
+
+- Parallel transaction processing
+- Divide-and-conquer proof aggregation
+- Pipelined aggregation process
+- Optimized block proof structure
+
+## 💻 Technical Architecture
 
 ### Core Components
 
-1. **Twin Nibble Trees**
-   - 4-bit-Radix Sparse Merkle Tree for state inclusion proof
-   - 4-bit-Radix Patricia Trie for key indexing
+1. **Twin Radix Trees**
+   - 8-bit-Radix Sparse Merkle Tree for state inclusion proof
+   - 8-bit-Radix Patricia Trie for key indexing
    - State root calculation: `StateRoot = h(StateSmtRoot || KeyPatriciaRoot)`
 
 2. **State Management**
@@ -43,24 +61,22 @@ For detailed technical documentation, please refer to our [Whitepaper](whitepape
 
 #### State Transition Proof
 ```rust
-pub struct State4RadixSmtInclusionProof {
-    pub path: [Option<State4RadixSmtPath>; 63]
+pub struct State8RadixSmtInclusionProof {
+    pub path: [Option<State8RadixSmtPath>; 31],
     pub leaf_hash: [u8; 32],
 }
 
-pub struct State4RadixSmtPath {
+pub struct State8RadixSmtPath {
     pub child_index: u8,
-    pub sibling_hashes: [Option<[u8; 32]>; 15],
+    pub sibling_hashes: [Option<[u8; 32]>; 255],
 }
 ```
 
 #### Key Indexing
 ```rust
-pub struct Key4RadixPatriciaNode {
+pub struct Key8RadixPatriciaNode {
     pub key_fragment: Vec<u8>,
-    pub nibble_front: bool,
-    pub nibble_back: bool,
-    pub children: [Option<Key4RadixPatriciaNode>; 16],
+    pub children: [Option<Key8RadixPatriciaNode>; 256],
 }
 ```
 
@@ -103,7 +119,7 @@ sequenceDiagram
     Rollup-->>Client: Confirm Block Finality
 ```
 
-### Code Structure
+### 📁 Code Structure
 
 ```
 src/
@@ -121,7 +137,7 @@ src/
 └── x/            # Extended functionality
 ```
 
-### ZK Proof Generation
+### 🔐 ZK Proof Generation
 
 1. **State Transition Proof**
    ```rust
@@ -146,7 +162,7 @@ src/
    PrivateInputsIter = [{KeyPrefix_j, KeyPatriciaNodes_j}_{j=1}^k]
    ```
 
-### Parallel Processing
+### ⚡ Parallel Processing
 
 The SDK implements parallel processing through chunking:
 
@@ -160,48 +176,17 @@ PublicInputsAgg = [StateRootPrev_1, StateRootNext_n, TxRoot]
 PrivateInputsAgg = [{StateRootPrev_i}_{i=2}^n, {StateRootNext_i}_{i=1}^{n-1}, {ProofChunk_i}_{i=1}^n]
 ```
 
-### Security Measures
+## 🎯 Use Cases
 
-1. **Zero-Knowledge Proofs**
-   - State transition verification
-   - Get access validation
-   - Iter access validation
+- Building ZK Sovereign Rollups
+- Creating Web2-compatible dApps
+- Implementing efficient state management
+- Developing scalable DeFi applications
 
-2. **State Management**
-   - Merkle tree-based state validation
-   - Patricia trie for key indexing
-   - 4-bit radix optimization
+## 📚 Documentation
 
-3. **Parallel Processing**
-   - Chunked transaction processing
-   - Parallel proof generation
-   - Recursive proof aggregation
+For detailed technical documentation, please refer to our [whitepaper](https://interliquid.sunriselayer.io/whitepaper/).
 
-### Usage Example
 
-```rust
-use interliquid_sdk::core::InterLiquid;
-use interliquid_sdk::state::StateManager;
-use interliquid_sdk::tx::TransactionProcessor;
 
-// Initialize components
-let sdk = InterLiquid::new();
-let state_manager = StateManager::new();
-let tx_processor = TransactionProcessor::new();
 
-// Process transactions
-let txs = vec![/* your transactions */];
-let result = sdk.process_transactions(txs, &state_manager, &tx_processor);
-
-// Handle result
-match result {
-    Ok(block) => {
-        println!("Block processed successfully: {:?}", block);
-    }
-    Err(e) => {
-        println!("Error processing block: {:?}", e);
-    }
-}
-```
-
-For more technical details, refer to the [Whitepaper](whitepaper/whitepaper.md).
