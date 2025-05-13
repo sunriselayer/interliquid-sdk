@@ -1,3 +1,6 @@
+title: InterLiquid SDK
+description: Build next-generation InterLiquid system
+image: https://sunriselayer.io/banner.png
 markdown: kramdown
 kramdown:
   math_engine: katex

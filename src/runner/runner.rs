@@ -12,27 +12,28 @@ use super::{
     prover_orchestrator::ProverOrchestrator,
     savedata::SaveData,
     sequencer::{Sequencer, SequencerState},
-    server::Server,
+    server::{Server, ServerState},
 };
 
 pub struct MonolithicRunner<TX: Tx, S: StateManager> {
-    pub(super) server: Server,
+    pub(super) server: Server<S>,
     pub(super) sequencer: Sequencer<TX, S>,
     pub(super) prover: ProverOrchestrator,
 }
 
 impl<TX: Tx, S: StateManager> MonolithicRunner<TX, S> {
     pub fn new(app: App<TX>, savedata: SaveData, state_manager: S) -> Self {
+        let state_manager = Arc::new(RwLock::new(state_manager));
         let (sender, receiver1) = channel(16);
         let receiver2 = sender.subscribe();
 
         Self {
-            server: Server::new(sender.clone()),
+            server: Server::new(ServerState::new(state_manager.clone()), sender.clone()),
             sequencer: Sequencer::new(
                 SequencerState::new(
                     Arc::new(app),
                     Arc::new(Mutex::new(savedata)),
-                    Arc::new(RwLock::new(state_manager)),
+                    state_manager.clone(),
                 ),
                 sender.clone(),
                 receiver1,

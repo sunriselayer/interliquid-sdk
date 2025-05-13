@@ -16,7 +16,7 @@ use crate::{
     core::{App, SdkContext, Tx},
     state::{StateManager, TransactionalStateManager},
     types::InterLiquidSdkError,
-    zkp::PrivateInputTx,
+    zkp::WitnessTx,
 };
 
 pub struct SequencerState<TX: Tx, S: StateManager> {
@@ -51,8 +51,8 @@ impl<TX: Tx, S: StateManager> Clone for SequencerState<TX, S> {
 
 pub struct Sequencer<TX: Tx, S: StateManager> {
     state: SequencerState<TX, S>,
-    pub(super) sender: Sender<RunnerMessage>,
-    pub(super) receiver: Receiver<RunnerMessage>,
+    sender: Sender<RunnerMessage>,
+    receiver: Receiver<RunnerMessage>,
 }
 
 impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
@@ -117,7 +117,7 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
             diffs,
         } = transactional;
 
-        let input = PrivateInputTx::from(
+        let witness = WitnessTx::from(
             tx,
             savedata.state_sparse_tree_root,
             savedata.keys_patricia_trie_root,
@@ -134,7 +134,7 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
                 savedata.block_height,
                 savedata.block_time_unix_secs,
                 savedata.tx_snapshots.len() - 1,
-                input,
+                witness?,
             )))
             .map_err(|e| InterLiquidSdkError::Other(anyhow::anyhow!(e)))?;
 

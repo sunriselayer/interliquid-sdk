@@ -1,6 +1,6 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::zkp::PrivateInputTx;
+use crate::zkp::WitnessTx;
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum RunnerMessage {
@@ -34,7 +34,7 @@ pub struct MessageTxProofReady {
     pub block_height: u64,
     pub block_time_unix_secs: u64,
     pub tx_index: usize,
-    pub inputs: PrivateInputTx,
+    pub witness: WitnessTx,
 }
 
 impl MessageTxProofReady {
@@ -43,14 +43,14 @@ impl MessageTxProofReady {
         block_height: u64,
         block_time_unix_secs: u64,
         tx_index: usize,
-        inputs: PrivateInputTx,
+        witness: WitnessTx,
     ) -> Self {
         Self {
             chain_id,
             block_height,
             block_time_unix_secs,
             tx_index,
-            inputs,
+            witness,
         }
     }
 }
@@ -192,15 +192,15 @@ impl MessageCommitKeysProved {
 pub struct MessageBlockProved {
     pub chain_id: String,
     pub block_height: u64,
-    pub entire_state_root: [u8; 32],
+    pub entire_root: [u8; 32],
 }
 
 impl MessageBlockProved {
-    pub fn new(chain_id: String, block_height: u64, entire_state_root: [u8; 32]) -> Self {
+    pub fn new(chain_id: String, block_height: u64, entire_root: [u8; 32]) -> Self {
         Self {
             chain_id,
             block_height,
-            entire_state_root,
+            entire_root,
         }
     }
 }
