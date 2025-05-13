@@ -1,8 +1,8 @@
 use interliquid_sdk::{
-    core::{App, SdkContext, Tx},
+    core::{App, Tx},
     state::StateManager,
     types::{Address, InterLiquidSdkError, Tokens, U256, SerializableAny, NamedSerializableType},
-    x::bank::{BankKeeper, BankModule, BankKeeperI, MsgSend},
+    x::bank::{BankKeeper, BankModule, MsgSend},
     runner::{MonolithicRunner as Runner, SaveData},
 };
 use borsh::{BorshSerialize, BorshDeserialize};
@@ -11,13 +11,11 @@ use crypto_bigint::U256 as U256Lib;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use base64::{prelude::BASE64_STANDARD, Engine};
-use anyhow::anyhow;
 use tokio::sync::mpsc;
 use std::io::Write;
 use std::net::TcpStream;
 
-// Define a simple transaction struct that implements Tx
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct SimpleTx {
     pub msgs: Vec<SerializableAny>,
 }
@@ -28,76 +26,66 @@ impl Tx for SimpleTx {
     }
 }
 
+#[derive(Clone)]
+pub struct MemoryStateManager {
+    pub map: BTreeMap<Vec<u8>, Vec<u8>>,
+}
+
+impl MemoryStateManager {
+    pub fn new() -> Self {
+        Self { map: BTreeMap::new() }
+    }
+}
+
+impl StateManager for MemoryStateManager {
+    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
+        Ok(self.map.get(key).cloned())
+    }
+
+    fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError> {
+        self.map.insert(key.to_vec(), value.to_vec());
+        Ok(())
+    }
+
+    fn del(&mut self, key: &[u8]) -> Result<(), InterLiquidSdkError> {
+        self.map.remove(key);
+        Ok(())
+    }
+
+    fn iter<'a>(
+        &'a self,
+        key_prefix: Vec<u8>,
+    ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
+        Box::new(self.map.iter().filter_map(move |(k, v)| {
+            if k.starts_with(&key_prefix) {
+                Some(Ok((k.clone(), v.clone())))
+            } else {
+                None
+            }
+        }))
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), InterLiquidSdkError> {
-    // Minimal in-memory StateManager for demonstration
-    #[derive(Clone)]
-    pub struct MemoryStateManager {
-        pub map: BTreeMap<Vec<u8>, Vec<u8>>,
-    }
-
-    impl MemoryStateManager {
-        pub fn new() -> Self {
-            Self { map: BTreeMap::new() }
-        }
-    }
-
-    impl StateManager for MemoryStateManager {
-        fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
-            Ok(self.map.get(key).cloned())
-        }
-
-        fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError> {
-            self.map.insert(key.to_vec(), value.to_vec());
-            Ok(())
-        }
-
-        fn del(&mut self, key: &[u8]) -> Result<(), InterLiquidSdkError> {
-            self.map.remove(key);
-            Ok(())
-        }
-
-        fn iter<'a>(
-            &'a self,
-            key_prefix: Vec<u8>,
-        ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
-            Box::new(self.map.iter().filter_map(move |(k, v)| {
-                if k.starts_with(&key_prefix) {
-                    Some(Ok((k.clone(), v.clone())))
-                } else {
-                    None
-                }
-            }))
-        }
-    }
-
     // Create addresses
     let alice = Address::from([1; 32]);
     let bob = Address::from([2; 32]);
 
     // Set up initial state
-    let mut init_state_manager = MemoryStateManager::new();
+    let mut state_manager = MemoryStateManager::new();
     let mut key_buf = Vec::new();
     (alice, "usdc".to_string()).serialize(&mut key_buf).unwrap();
     let alice_balance_key = b"bank/balances/".iter().chain(key_buf.iter()).cloned().collect::<Vec<u8>>();
     let alice_initial_balance = U256::new(U256Lib::from(1000u64));
     let mut buf = vec![];
     alice_initial_balance.serialize(&mut buf).unwrap();
-    init_state_manager.set(&alice_balance_key, &buf)?;
-
-    // Create state manager for context using the initialized state
-    let mut ctx_state_manager = init_state_manager;
-    let mut ctx = SdkContext::new(
-        "test-chain".to_string(),
-        1,
-        0,
-        &mut ctx_state_manager,
-    );
+    state_manager.set(&alice_balance_key, &buf)?;
 
     // Create and register the bank module
     let bank_keeper = BankKeeper::new();
     let bank_module = Arc::new(BankModule::new(bank_keeper));
-    let mut app: App<SimpleTx> = App::new(vec![bank_module], vec![], vec![]);
+    let app: App<SimpleTx> = App::new(vec![bank_module], vec![], vec![]);
 
     // Create the runner with proper initialization
     let savedata = SaveData {
@@ -109,9 +97,7 @@ async fn main() -> Result<(), InterLiquidSdkError> {
         tx_snapshots: vec![],
     };
     
-    // Create a separate state manager for the runner
-    let runner_state_manager = MemoryStateManager::new();
-    let mut runner = Runner::new(app, savedata, runner_state_manager);
+    let mut runner = Runner::new(app, savedata, state_manager);
 
     // Create a channel for signaling when to stop the server
     let (tx, mut rx) = mpsc::channel(1);
@@ -168,23 +154,12 @@ async fn main() -> Result<(), InterLiquidSdkError> {
         let _ = tx_clone.send(()).await;
     });
 
-    // Run the server in the main task
-    println!("Starting server...");
-    tokio::select! {
-        _ = runner.run() => {
-            println!("Server stopped");
-        }
-        _ = rx.recv() => {
-            println!("Received stop signal");
-        }
-    }
+    // Run the server
+    println!("Starting server on http://localhost:3000");
+    runner.run().await?;
 
-    // Check balances (for demonstration)
-    let bank_keeper = BankKeeper::new();
-    let alice_balance = bank_keeper.get_balance(&mut ctx, &alice, "usdc")?;
-    let bob_balance = bank_keeper.get_balance(&mut ctx, &bob, "usdc")?;
-    println!("Alice's balance: {:?}", alice_balance);
-    println!("Bob's balance: {:?}", bob_balance);
+    // Wait for the signal to stop
+    let _ = rx.recv().await;
 
     Ok(())
 } 
