@@ -25,7 +25,12 @@ To clarify the word of Sovereign Rollup, in ZK Sovereign Rollup, validity proof 
 Key prefix based iteration is a common pattern in Web2 development.
 Only if it exists can on-chain logic be as flexible as that of NoSQL systems like Firebase Firestore.
 
+For example, imagine iterating all vote info in a governance contract.
+The key should be like `gov/votes/{proposal_id}/{voter_address}`.
+Here, it is very useful to iterate all vote info in a certain proposal by designating a key prefix like `gov/votes/{proposal_id}`.
+
 However, it is not possible in almost all public blockchains.
+Even fundamental features like governance vote iteration are not supported.
 It is one of the most painful problems for Developer Experience.
 
 Of course Indexing services should be utilized for proper purposes like search and analytics.
@@ -46,6 +51,9 @@ Solana's state is stored respectively with each account.
 Thanks to its design, Solana succeeded to parallelize state transition for each account.
 However, it is not possible to iterate state in a key prefix based way.
 By making each account like B-tree node, developers can realize the structure of B-tree artificially, but it requires paying Solana account rent and the Developer Experience is terrible.
+
+Not only Solana, but also other chains like scalable monolithic blockchains (e.g. Sui) have the same structure to make it scalable.
+In the perspective of creating next generation financial infrastructure, the interoperable set of key prefix based iteratable rollups is prior to such monolithic chains.
 
 ### Cosmos SDK
 
