@@ -53,7 +53,7 @@ However, it is not possible to iterate state in a key prefix based way.
 By making each account like B-tree node, developers can realize the structure of B-tree artificially, but it requires paying Solana account rent and the Developer Experience is terrible.
 
 Not only Solana, but also other chains like scalable monolithic blockchains (e.g. Sui) have the same structure to make it scalable.
-In the perspective of creating next generation financial infrastructure, the interoperable set of key prefix based iteratable rollups is prior to such monolithic chains.
+Given that next-generation financial infrastructure demands key prefix based iterable state, the cluster of interoperable rollups provide better solutions than monolithic chains.
 
 ### Cosmos SDK
 
