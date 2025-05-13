@@ -1,10 +1,11 @@
 use interliquid_sdk::{
-    core::{App, MsgRegistry, SdkContext, Context, Module},
+    core::{App, SdkContext},
     state::StateManager,
     types::{Address, InterLiquidSdkError, Tokens, U256, SerializableAny},
     x::bank::{BankKeeper, BankModule, BankKeeperI},
-    x::bank::msg_send::MsgSend,
-    runner::{Runner, savedata::SaveData},
+    x::bank::msg::MsgSend,
+    runner::runner::Runner,
+    runner::savedata::SaveData,
     tx::Tx,
 };
 use borsh::{BorshSerialize, BorshDeserialize};
@@ -39,7 +40,7 @@ async fn main() -> Result<(), InterLiquidSdkError> {
         }
     }
     impl StateManager for MemoryStateManager {
-        fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
+        fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
             Ok(self.map.get(key).cloned())
         }
         fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError> {
@@ -51,7 +52,7 @@ async fn main() -> Result<(), InterLiquidSdkError> {
             Ok(())
         }
         fn iter<'a>(
-            &'a mut self,
+            &'a self,
             key_prefix: Vec<u8>,
         ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
             Box::new(self.map.iter().filter_map(move |(k, v)| {
