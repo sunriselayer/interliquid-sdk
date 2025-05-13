@@ -91,17 +91,17 @@ as the public input of the ZKP, it is possible to generate the verifiable validi
 $$
 \begin{aligned}
   \text{PubInputsStf} &= \{\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}\} \\
-  \text{PrivInputsStf} &= \left\{ \begin{aligned}
+  \text{WitnessStf} &= \left\{ \begin{aligned}
     & \text{StateForAccess} \\
     & \text{Diffs} \\
     & \text{StateCommitPath} \\
     & \text{Txs}
   \end{aligned} \right\} \\
-  \text{ProofStf} &= \text{CircuitStf}(\text{PubInputsStf}, \text{PrivInputsStf})
+  \text{ProofStf} &= \text{CircuitStf}(\text{PubInputsStf}, \text{WitnessStf})
 \end{aligned}
 $$
 
-Hereafter the relation between $$\text{ProofXXX}$$ and $$\text{PubInputsXXX}$$ and $$\text{PrivInputsXXX}$$ is omitted.
+Hereafter the relation between $$\text{ProofXXX}$$ and $$\text{PubInputsXXX}$$ and $$\text{WitnessXXX}$$ is omitted.
 
 ### Security assumptions
 
@@ -165,7 +165,7 @@ $$
 \begin{aligned}
   \text{KeysHash} &= h(\text{Key}_1 || \dots || \text{Key}_k) \\
   \text{PubInputsRead} &= [\text{StateSparseTreeRootPrev}, \text{KeysHash}] \\
-  \text{PrivInputsRead} &= [\{\text{Key}_j\}_{j=1}^{k}, \text{ReadProofPath}]
+  \text{WitnessRead} &= [\{\text{Key}_j\}_{j=1}^{k}, \text{ReadProofPath}]
 \end{aligned}
 $$
 
@@ -216,7 +216,7 @@ $$
 \begin{aligned}
   \text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \dots || \text{KeyPrefix}_k) \\
   \text{PubInputsIter} &= [\text{KeysPatriciaTrieRootPrev}, \text{KeyPrefixesHash}] \\
-  \text{PrivInputsIter} &= [\{\text{KeyPrefix}_j\}_{j=1}^{k}, \text{IterProofPath}]
+  \text{WitnessIter} &= [\{\text{KeyPrefix}_j\}_{j=1}^{k}, \text{IterProofPath}]
 \end{aligned}
 $$
 
@@ -252,7 +252,7 @@ $$
     & \text{AccumDiffsHashNext}_i \\
     & \text{EntireStateRoot}
   \end{aligned} \right\} \\
-  \text{PrivInputsTx}_i &= \left\{ \begin{aligned}
+  \text{WitnessTx}_i &= \left\{ \begin{aligned}
     & \text{StateSparseTreeRoot} \\
     & \text{KeysPatriciaTrieRoot} \\
     & \text{StateForAccess}_i \\
@@ -288,7 +288,7 @@ $$
     & \text{AccumDiffsHashNext}_{i+1} \\
     & \text{EntireStateRoot}
   \end{aligned} \right\} \\
-  \text{PrivInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
+  \text{WitnessTxAgg}_{i,i+1} &= \left\{\begin{aligned}
     & \text{TxHash}_i \\
     & \text{TxHash}_{i+1} \\
     & \text{AccumDiffsHashMid}_{i,i+1} \\
@@ -311,7 +311,7 @@ $$
     & \text{AccumDiffsHashNext}_s \\
     & \text{EntireStateRoot}
   \end{aligned} \right\} \\
-  \text{PrivInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
+  \text{WitnessTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
     & \text{TxRoot}_{\{p:q\}} \\
     & \text{TxRoot}_{\{r:s\}} \\
     & \text{AccumDiffsHashMid}_{\{p:s\}} \\
@@ -335,7 +335,7 @@ $$
     & \text{StateSparseTreeRootNext} \\
     & \text{AccumDiffsHash}_n
   \end{aligned} \right\} \\
-  \text{PrivInputsCommitState} &= \left\{ \begin{aligned}
+  \text{WitnessCommitState} &= \left\{ \begin{aligned}
     & \text{AccumDiffs}_n \\
     & \text{StateCommitPath}
   \end{aligned} \right\} \\
@@ -345,7 +345,7 @@ $$
     & \text{KeysPatriciaTrieRootNext} \\
     & \text{AccumDiffsHash}_n
   \end{aligned} \right\} \\
-  \text{PrivInputsCommitKeys} &= \left\{ \begin{aligned}
+  \text{WitnessCommitKeys} &= \left\{ \begin{aligned}
     & \text{AccumDiffs}_n \\
     & \text{KeysCommitPath}
   \end{aligned} \right\}
@@ -364,7 +364,7 @@ $$
     & \text{EntireStateRootNext} \\
     & \text{TxRoot}
   \end{aligned} \right\} \\
-  \text{PrivInputsBlock} &= \left\{ \begin{aligned}
+  \text{WitnessBlock} &= \left\{ \begin{aligned}
     & \text{StateSparseTreeRootPrev} \\
     & \text{StateSparseTreeRootNext} \\
     & \text{KeysPatriciaTrieRootPrev} \\
