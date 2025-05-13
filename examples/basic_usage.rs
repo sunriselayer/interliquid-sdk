@@ -13,6 +13,7 @@ use std::sync::Arc;
 use reqwest;
 use base64::{prelude::BASE64_STANDARD, Engine};
 use anyhow::anyhow;
+use tokio::sync::mpsc;
 
 // Define a simple transaction struct that implements Tx
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -69,86 +70,109 @@ async fn main() -> Result<(), InterLiquidSdkError> {
         }
     }
 
-    // Create state manager, context, and app
-    let mut state_manager = MemoryStateManager::new();
-    let mut ctx = SdkContext::new(
-        "test-chain".to_string(),
-        1,
-        0,
-        &mut state_manager,
-    );
-
-    // Create and register the bank module
-    let bank_keeper = BankKeeper::new();
-    let bank_module = Arc::new(BankModule::new(bank_keeper));
-    let mut app = App::new(vec![bank_module], vec![], vec![]);
-
-    // Create the runner
-    let savedata = SaveData::default();
-    let runner: Arc<Runner<SimpleTx, MemoryStateManager>> = Arc::new(Runner::new(app, savedata, MemoryStateManager::new()));
-    
-    // Start the runner in a separate task
-    let runner_clone: Arc<Runner<SimpleTx, MemoryStateManager>> = Arc::clone(&runner);
-    tokio::spawn(async move {
-        if let Err(e) = runner_clone.run().await {
-            eprintln!("Runner error: {}", e);
-        }
-    });
-
-    // Wait for server to start
-    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
     // Create addresses
     let alice = Address::from([1; 32]);
     let bob = Address::from([2; 32]);
 
-    // Set initial balance for Alice (simulate genesis)
+    // Set up initial state
+    let mut init_state_manager = MemoryStateManager::new();
     let mut key_buf = Vec::new();
     (alice, "usdc".to_string()).serialize(&mut key_buf).unwrap();
     let alice_balance_key = b"bank/balances/".iter().chain(key_buf.iter()).cloned().collect::<Vec<u8>>();
     let alice_initial_balance = U256::new(U256Lib::from(1000u64));
     let mut buf = vec![];
     alice_initial_balance.serialize(&mut buf).unwrap();
-    state_manager.set(&alice_balance_key, &buf)?;
+    init_state_manager.set(&alice_balance_key, &buf)?;
 
-    // Create a MsgSend transaction
-    let mut tokens = Tokens::new();
-    tokens.insert("usdc".to_string(), U256::new(U256Lib::from(100u64)));
-    let msg = MsgSend {
-        from_address: alice,
-        to_address: bob,
-        tokens,
+    // Create state manager for context using the initialized state
+    let mut ctx_state_manager = init_state_manager;
+    let mut ctx = SdkContext::new(
+        "test-chain".to_string(),
+        1,
+        0,
+        &mut ctx_state_manager,
+    );
+
+    // Create and register the bank module
+    let bank_keeper = BankKeeper::new();
+    let bank_module = Arc::new(BankModule::new(bank_keeper));
+    let mut app: App<SimpleTx> = App::new(vec![bank_module], vec![], vec![]);
+
+    // Create the runner with proper initialization
+    let savedata = SaveData {
+        chain_id: "test-chain".to_string(),
+        block_height: 1,
+        block_time_unix_secs: 0,
+        state_sparse_tree_root: [0; 32],
+        keys_patricia_trie_root: [0; 32],
+        tx_snapshots: vec![],
     };
-    let mut msg_bytes = Vec::new();
-    msg.serialize(&mut msg_bytes)?;
-    let msg_any = SerializableAny::new(MsgSend::type_name().to_owned(), msg_bytes);
+    
+    // Create a separate state manager for the runner
+    let runner_state_manager = MemoryStateManager::new();
+    let mut runner = Runner::new(app, savedata, runner_state_manager);
 
-    // Wrap the message in a SimpleTx
-    let tx = SimpleTx {
-        msgs: vec![msg_any],
-    };
-    let mut tx_bytes = Vec::new();
-    tx.serialize(&mut tx_bytes)?;
+    // Create a channel for signaling when to stop the server
+    let (tx, mut rx) = mpsc::channel(1);
 
-    // Send transaction via HTTP
-    let client = reqwest::Client::new();
-    let tx_base64 = BASE64_STANDARD.encode(&tx_bytes);
-    let response = client
-        .post("http://localhost:3000/tx")
-        .json(&serde_json::json!({
-            "tx_base64": tx_base64
-        }))
-        .send()
-        .await
-        .map_err(|e| InterLiquidSdkError::Other(anyhow!("HTTP request failed: {}", e)))?;
+    // Spawn a task to send the transaction
+    let tx_clone = tx.clone();
+    tokio::spawn(async move {
+        // Wait for server to start
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    if !response.status().is_success() {
-        let error = response.text().await
-            .map_err(|e| InterLiquidSdkError::Other(anyhow!("Failed to read response: {}", e)))?;
-        return Err(InterLiquidSdkError::Other(anyhow!("Transaction failed: {}", error)));
+        // Create a MsgSend transaction
+        let mut tokens = Tokens::new();
+        tokens.insert("usdc".to_string(), U256::new(U256Lib::from(100u64)));
+        let msg = MsgSend {
+            from_address: alice,
+            to_address: bob,
+            tokens,
+        };
+        let mut msg_bytes = Vec::new();
+        msg.serialize(&mut msg_bytes).unwrap();
+        let msg_any = SerializableAny::new(MsgSend::type_name().to_owned(), msg_bytes);
+
+        // Wrap the message in a SimpleTx
+        let tx = SimpleTx {
+            msgs: vec![msg_any],
+        };
+        let mut tx_bytes = Vec::new();
+        tx.serialize(&mut tx_bytes).unwrap();
+
+        // Send transaction via HTTP
+        let client = reqwest::Client::new();
+        let tx_base64 = BASE64_STANDARD.encode(&tx_bytes);
+        let response = client
+            .post("http://localhost:3000/tx")
+            .json(&serde_json::json!({
+                "tx_base64": tx_base64
+            }))
+            .send()
+            .await
+            .unwrap();
+
+        if !response.status().is_success() {
+            let error = response.text().await.unwrap();
+            eprintln!("Transaction failed: {}", error);
+        } else {
+            println!("Transaction sent successfully!");
+        }
+
+        // Signal to stop the server
+        let _ = tx_clone.send(()).await;
+    });
+
+    // Run the server in the main task
+    println!("Starting server...");
+    tokio::select! {
+        _ = runner.run() => {
+            println!("Server stopped");
+        }
+        _ = rx.recv() => {
+            println!("Received stop signal");
+        }
     }
-
-    println!("Transaction sent successfully!");
 
     // Check balances (for demonstration)
     let bank_keeper = BankKeeper::new();
