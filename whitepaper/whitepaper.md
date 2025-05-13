@@ -276,7 +276,6 @@ To further optimize the proof generation process, we can employ a divide-and-con
 
 1. Aggregate proofs of adjacent transactions in pairs
 1. Recursively aggregate the resulting proofs
-1. This reduces the overall proof generation complexity from $$\mathcal{O}(N)$$ to $$\mathcal{O}(\log{N})$$
 
 The aggregation circuit for two transaction proofs is defined as:
 
@@ -396,17 +395,6 @@ InterLiquid SDK uses [Borsh](https://github.com/near/borsh) made by NEAR for ser
 [Protocol Buffers](https://github.com/protocolbuffers/protobuf) made by Google was not a bad choice for Cosmos SDK to enhance the reusability of the types and to have deterministic property of serialization,
 but it is not suitable for ZKP and lightweight rollups.
 
-### Parallelization of tx execution
-
-By adding the accessed keys into the tx, we can realize **Semi-Optimistic Parallel Execution**.
-
-In the conventional Optimistic Parallel Execution, if a tx state access conflicts with another tx, it is reverted and rearranged into the series execution.
-Here, if tx conflicts increase, the total performance gets worse.
-
-However, in the Semi-Optimistic Parallel Execution, we can reduce the risk of the state access conflicts by adding the accessed keys into the tx beforehand. The sequencer can plan the parallelization pipeline to minimize the risk of the state access conflicts.
-
-Even if the state access conflicts happen, it is reverted and rearranged into the series execution, so the tx will not fail.
-
 ### Customizable tx authentication flow
 
 To realize great User Experience, InterLiquid SDK thinks that Passkey is a key factor.
@@ -418,7 +406,7 @@ InterLiquid SDK allows developers to customize the tx authentication flow.
 
 ## Conclusion
 
-The innovative Twin Radix Trees architecture enables key prefix based iteration while maintaining ZK friendliness, which is a significant advancement in blockchain state management. The parallel processing capabilities and divide-and-conquer approach for proof aggregation ensure efficient performance even with complex state transitions.
+The innovative architecture Twin Radix Trees enables key prefix based iteration while maintaining ZK friendliness, which is a significant advancement in blockchain state management. The parallel processing capabilities and divide-and-conquer approach for proof aggregation ensure efficient performance even with complex state transitions.
 
 With its customizable transaction authentication flow and seamless integration with Sunrise, InterLiquid SDK provides a robust foundation for building next-generation financial applications that combine the best of Web2 and Web3 technologies.
 

@@ -132,6 +132,7 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
             .send(RunnerMessage::TxProofReady(MessageTxProofReady::new(
                 savedata.chain_id.clone(),
                 savedata.block_height,
+                savedata.block_time_unix_secs,
                 savedata.tx_snapshots.len() - 1,
                 input,
             )))

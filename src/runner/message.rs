@@ -32,6 +32,7 @@ impl MessageTxReceived {
 pub struct MessageTxProofReady {
     pub chain_id: String,
     pub block_height: u64,
+    pub block_time_unix_secs: u64,
     pub tx_index: usize,
     pub inputs: PrivateInputTx,
 }
@@ -40,12 +41,14 @@ impl MessageTxProofReady {
     pub fn new(
         chain_id: String,
         block_height: u64,
+        block_time_unix_secs: u64,
         tx_index: usize,
         inputs: PrivateInputTx,
     ) -> Self {
         Self {
             chain_id,
             block_height,
+            block_time_unix_secs,
             tx_index,
             inputs,
         }

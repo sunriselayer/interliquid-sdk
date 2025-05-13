@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    prover::Prover,
+    prover_orchestrator::ProverOrchestrator,
     savedata::SaveData,
     sequencer::{Sequencer, SequencerState},
     server::Server,
@@ -18,7 +18,7 @@ use super::{
 pub struct MonolithicRunner<TX: Tx, S: StateManager> {
     pub(super) server: Server,
     pub(super) sequencer: Sequencer<TX, S>,
-    pub(super) prover: Prover,
+    pub(super) prover: ProverOrchestrator,
 }
 
 impl<TX: Tx, S: StateManager> MonolithicRunner<TX, S> {
@@ -37,7 +37,7 @@ impl<TX: Tx, S: StateManager> MonolithicRunner<TX, S> {
                 sender.clone(),
                 receiver1,
             ),
-            prover: Prover::new(sender.clone(), receiver2),
+            prover: ProverOrchestrator::new(vec![], sender.clone(), receiver2),
         }
     }
 
