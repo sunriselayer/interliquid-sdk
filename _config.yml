@@ -1,6 +1,6 @@
 title: InterLiquid SDK
 description: Build next-generation InterLiquid system
-image: https://raw.githubusercontent.com/sunriselayer/brand-kit/refs/heads/main/color.png
+image: https://sunriselayer.io/banner.png
 markdown: kramdown
 kramdown:
   math_engine: katex
