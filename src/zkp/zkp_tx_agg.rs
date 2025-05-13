@@ -1,4 +1,5 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
+use sha2::{Digest, Sha256};
 
 use crate::types::InterLiquidSdkError;
 
@@ -63,5 +64,17 @@ impl WitnessTxAgg {
 }
 
 pub fn circuit_tx_agg(witness: WitnessTxAgg) -> Result<PublicInputTxAgg, InterLiquidSdkError> {
-    todo!()
+    let mut hasher = Sha256::new();
+    hasher.update(witness.tx_root_left);
+    hasher.update(witness.tx_root_right);
+    let tx_root = hasher.finalize().into();
+
+    let input = PublicInputTxAgg::new(
+        tx_root,
+        witness.accum_diffs_hash_left_prev,
+        witness.accum_diffs_hash_right_next,
+        witness.entire_root,
+    );
+
+    Ok(input)
 }
