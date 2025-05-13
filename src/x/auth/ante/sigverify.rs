@@ -1,8 +1,7 @@
 use anyhow::anyhow;
 
 use crate::{
-    core::{Context, MsgRegistry},
-    tx::TxAnteHandler,
+    core::{Context, MsgRegistry, TxAnteHandler},
     types::InterLiquidSdkError,
     x::{
         auth::{

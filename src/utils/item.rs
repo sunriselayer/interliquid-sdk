@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use super::{key::join_keys, Value};
-use crate::{state::StateManager, types::InterLiquidSdkError};
+use crate::{state::TracableStateManager, types::InterLiquidSdkError};
 
 pub struct Item<V: Value> {
     key: Vec<u8>,
@@ -16,7 +16,10 @@ impl<V: Value> Item<V> {
         }
     }
 
-    pub fn get<S: StateManager>(&self, state: &mut S) -> Result<Option<V>, InterLiquidSdkError> {
+    pub fn get<S: TracableStateManager>(
+        &self,
+        state: &mut S,
+    ) -> Result<Option<V>, InterLiquidSdkError> {
         let value = state.get(&self.key)?;
 
         match value {
@@ -25,7 +28,7 @@ impl<V: Value> Item<V> {
         }
     }
 
-    pub fn set<S: StateManager>(
+    pub fn set<S: TracableStateManager>(
         &self,
         state: &mut S,
         value: &V,
@@ -36,7 +39,7 @@ impl<V: Value> Item<V> {
         state.set(&self.key, &buf)
     }
 
-    pub fn del<S: StateManager>(&self, state: &mut S) -> Result<(), InterLiquidSdkError> {
+    pub fn del<S: TracableStateManager>(&self, state: &mut S) -> Result<(), InterLiquidSdkError> {
         state.del(&self.key)
     }
 }

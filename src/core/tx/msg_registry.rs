@@ -2,10 +2,9 @@ use std::collections::BTreeMap;
 
 use anyhow::anyhow;
 
-use crate::{
-    tx::Msg,
-    types::{InterLiquidSdkError, NamedSerializableType, SerializableAny},
-};
+use crate::types::{InterLiquidSdkError, NamedSerializableType, SerializableAny};
+
+use super::Msg;
 
 pub struct MsgRegistry {
     unpack: BTreeMap<

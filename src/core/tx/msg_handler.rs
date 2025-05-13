@@ -1,11 +1,11 @@
 use std::{any::Any, collections::BTreeMap};
 
 use crate::{
-    tx::Msg,
+    core::Context,
     types::{InterLiquidSdkError, NamedSerializableType},
 };
 
-use super::Context;
+use super::Msg;
 
 pub struct MsgHandlerRegistry {
     handlers: BTreeMap<

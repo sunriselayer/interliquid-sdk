@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{msg_registry::MsgRegistry, MsgHandlerRegistry};
+use super::{MsgHandlerRegistry, MsgRegistry};
 
 pub trait Module: Send + Sync {
     fn register_msgs(

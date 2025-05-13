@@ -4,7 +4,7 @@ use super::{
     key::{join_keys, KeyDeclaration},
     KeyPrefix, Value,
 };
-use crate::{state::StateManager, types::InterLiquidSdkError};
+use crate::{state::TracableStateManager, types::InterLiquidSdkError};
 
 pub struct Map<K: KeyDeclaration, V: Value> {
     prefix: Vec<u8>,
@@ -21,7 +21,7 @@ impl<K: KeyDeclaration, V: Value> Map<K, V> {
 
     pub fn get<'a>(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         key: K::KeyReference<'a>,
     ) -> Result<Option<V>, InterLiquidSdkError> {
         let entire_key = join_keys([self.prefix.as_slice(), &K::to_key_bytes(key)]);
@@ -35,7 +35,7 @@ impl<K: KeyDeclaration, V: Value> Map<K, V> {
 
     pub fn set<'a>(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         key: K::KeyReference<'a>,
         value: &V,
     ) -> Result<(), InterLiquidSdkError> {
@@ -48,7 +48,7 @@ impl<K: KeyDeclaration, V: Value> Map<K, V> {
 
     pub fn del<'a>(
         &self,
-        state: &mut dyn StateManager,
+        state: &mut dyn TracableStateManager,
         key: K::KeyReference<'a>,
     ) -> Result<(), InterLiquidSdkError> {
         let entire_key = join_keys([self.prefix.as_slice(), &K::to_key_bytes(key)]);
@@ -58,7 +58,7 @@ impl<K: KeyDeclaration, V: Value> Map<K, V> {
 
     pub fn iter<'a, B: KeyPrefix>(
         &'a self,
-        state: &'a mut dyn StateManager,
+        state: &'a mut dyn TracableStateManager,
         key_prefix: B,
     ) -> Box<dyn Iterator<Item = Result<(B::KeyToExtract, V), InterLiquidSdkError>> + 'a> {
         let iter = state.iter(key_prefix.to_prefix_bytes());
