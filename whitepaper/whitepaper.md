@@ -80,7 +80,7 @@ $$
 \end{aligned}
 $$
 
-Because zkVM cannot access to the storage, we need to give the state to access $$ \text{StateForAccess} $$ beforehand.
+Because zkVMs cannot access the storage directly, we need to give the state to access $$ \text{StateForAccess} $$ beforehand.
 It is also enough to output only the diffs $$ \text{Diffs} $$ without entire state.
 To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state commit path $$ \text{StateCommitPath} $$ to allow zkVM to calculate the state root.
 
@@ -115,7 +115,7 @@ Here, it is said that we give the state to zkVM beforehand.
 If we don't prove that the given state is correct, it is possible to make a false proof.
 To prevent this, we also need to prove that the given state is correct.
 
-Proving it only for get access (only for one designated key) is straightforward.
+Proving inclusion for get-access (i.e., a single designated key) is straightforward.
 Merkle inclusion proof with the given state root is enough.
 
 However, proving it for iter access (all keys which match the designated key prefix) requires a smart design.
