@@ -17,7 +17,7 @@ pub struct PublicInputTx {
     pub tx_hash: [u8; 32],
     pub accum_diffs_hash_prev: [u8; 32],
     pub accum_diffs_hash_next: [u8; 32],
-    pub entire_state_root: [u8; 32],
+    pub entire_root: [u8; 32],
 }
 
 impl PublicInputTx {
@@ -25,13 +25,13 @@ impl PublicInputTx {
         tx_hash: [u8; 32],
         accum_diffs_hash_prev: [u8; 32],
         accum_diffs_hash_next: [u8; 32],
-        entire_state_root: [u8; 32],
+        entire_root: [u8; 32],
     ) -> Self {
         Self {
             tx_hash,
             accum_diffs_hash_prev,
             accum_diffs_hash_next,
-            entire_state_root,
+            entire_root,
         }
     }
 }
@@ -198,13 +198,13 @@ pub fn circuit_tx<TX: Tx>(
     let mut hasher = Sha256::new();
     hasher.update(witness.state_sparse_tree_root);
     hasher.update(witness.keys_patricia_trie_root);
-    let entire_state_root = hasher.finalize().into();
+    let entire_root = hasher.finalize().into();
 
     let public = PublicInputTx::new(
         tx_hash,
         accum_diffs_hash_prev,
         accum_diffs_hash_next,
-        entire_state_root,
+        entire_root,
     );
 
     Ok(public)

@@ -192,15 +192,15 @@ impl MessageCommitKeysProved {
 pub struct MessageBlockProved {
     pub chain_id: String,
     pub block_height: u64,
-    pub entire_state_root: [u8; 32],
+    pub entire_root: [u8; 32],
 }
 
 impl MessageBlockProved {
-    pub fn new(chain_id: String, block_height: u64, entire_state_root: [u8; 32]) -> Self {
+    pub fn new(chain_id: String, block_height: u64, entire_root: [u8; 32]) -> Self {
         Self {
             chain_id,
             block_height,
-            entire_state_root,
+            entire_root,
         }
     }
 }
