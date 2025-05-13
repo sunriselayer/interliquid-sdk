@@ -103,11 +103,11 @@ $$
     & (\text{StateForAccess}, \text{Diffs}, \text{StateCommitPath}) \\
     & \text{TxRoot}(\text{Txs})
   \end{aligned} \right\} \\
-  \text{ProofStf} &= \text{CircuitStf}(\text{PubInputsStf}, \text{WitnessStf})
+  \text{ProofStf} &= \text{CircuitStf}(\text{WitnessStf}, \text{PubInputsStf})
 \end{aligned}
 $$
 
-Hereafter the relation between $$\text{ProofXXX}$$ and $$\text{PubInputsXXX}$$ and $$\text{WitnessXXX}$$ is omitted.
+Hereafter the relation between $$\text{ProofXXX}$$, $$\text{WitnessXXX}$$ and $$\text{PubInputsXXX}$$ is omitted.
 
 ### Security assumptions
 
