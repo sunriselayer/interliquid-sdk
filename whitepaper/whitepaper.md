@@ -90,12 +90,18 @@ as the public input of the ZKP, it is possible to generate the verifiable validi
 
 $$
 \begin{aligned}
-  \text{PubInputsStf} &= \{\text{StateRootPrev}, \text{StateRootNext}, \text{TxRoot}\} \\
   \text{WitnessStf} &= \left\{ \begin{aligned}
     & \text{StateForAccess} \\
     & \text{Diffs} \\
     & \text{StateCommitPath} \\
     & \text{Txs}
+  \end{aligned} \right\} \\
+  \text{PubInputsStf} &= \left\{ \begin{aligned}
+    & \text{StateRootPrev} \\
+    & (\text{StateForAccess}, \text{StateCommitPath}) \\
+    & \text{StateRootNext} \\
+    & (\text{StateForAccess}, \text{Diffs}, \text{StateCommitPath}) \\
+    & \text{TxRoot}(\text{Txs})
   \end{aligned} \right\} \\
   \text{ProofStf} &= \text{CircuitStf}(\text{PubInputsStf}, \text{WitnessStf})
 \end{aligned}
@@ -125,7 +131,7 @@ Twin Radix Trees combines two tree components:
 The state root is calculated by the following equation where $$h$$ is the hash function:
 
 $$
-\text{EntireStateRoot} = h(\text{StateSparseTreeRoot} || \text{KeysPatriciaTrieRoot})
+\text{EntireRoot} = h(\text{StateSparseTreeRoot} || \text{KeysPatriciaTrieRoot})
 $$
 
 ### 8-bit-Radix Sparse Merkle Tree
@@ -159,13 +165,20 @@ Thanks to the property of the hash function, the attack vector of increasing the
 
 Using an 8-bit radix reduces the maximum tree depth from 256 to 32.
 
-To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \{ \text{Key}_i \}_{j=1}^{k} $$.
+To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \text{ReadKVPairs} $$.
 
 $$
 \begin{aligned}
-  \text{KeysHash} &= h(\text{Key}_1 || \dots || \text{Key}_k) \\
-  \text{PubInputsRead} &= [\text{StateSparseTreeRootPrev}, \text{KeysHash}] \\
-  \text{WitnessRead} &= [\{\text{Key}_j\}_{j=1}^{k}, \text{ReadProofPath}]
+  \text{WitnessRead} &= \left\{ \begin{aligned}
+    & \text{StateForAccess} \\
+    & \text{ReadKVPairs} \\
+    & \text{ReadProofPath}
+  \end{aligned} \right\} \\
+  \text{PubInputsRead} &= \left\{ \begin{aligned}
+    & \text{StateSparseTreeRootPrev} \\
+    & (\text{StateForAccess}, \text{ReadKVPairs}, \text{ReadProofPath}) \\
+    & \text{ReadKVPairsHash}(\text{ReadKVPairs})
+  \end{aligned} \right\}
 \end{aligned}
 $$
 
@@ -214,9 +227,16 @@ To prove the validity of iter access, it is needed to re-construct the node hash
 
 $$
 \begin{aligned}
-  \text{KeyPrefixesHash} &= h(\text{KeyPrefix}_1 || \dots || \text{KeyPrefix}_k) \\
-  \text{PubInputsIter} &= [\text{KeysPatriciaTrieRootPrev}, \text{KeyPrefixesHash}] \\
-  \text{WitnessIter} &= [\{\text{KeyPrefix}_j\}_{j=1}^{k}, \text{IterProofPath}]
+  \text{WitnessIter} &= \left\{ \begin{aligned}
+    & \text{StateForAccess} \\
+    & \text{IterKVPairs} \\
+    & \text{IterProofPath}
+  \end{aligned} \right\} \\
+  \text{PubInputsIter} &= \left\{ \begin{aligned}
+    & \text{KeysPatriciaTrieRootPrev} \\
+    & (\text{StateForAccess}, \text{IterKVPairs}, \text{IterProofPath}) \\
+    & \text{IterKVPairsHash}(\text{IterKVPairs})
+  \end{aligned} \right\}
 \end{aligned}
 $$
 
@@ -236,7 +256,7 @@ Here, we can get the interim result of the state transition function for each tr
 
 $$
 \begin{aligned}
-  &\left\{ \text{AccumDiffs}_{1:i}, \{\text{Key}_{ij}, \text{KeyPrefix}_{ij}\}_{j=1}^{k} \right\} \\
+  &\left\{ \text{AccumDiffs}_{1:i}, \text{ReadKVPairs}_i, \text{IterKVPairs}_i \right\} \\
   &= g\left(\text{StateForAccess}_i, \text{AccumDiffs}_{1:i-1}, \text{Tx}_i\right)
 \end{aligned}
 $$
@@ -246,27 +266,34 @@ Then we can generate the proof in parallel for each transaction with one circuit
 $$
 \begin{aligned}
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
-  \text{PubInputsTx}_i &= \left\{\begin{aligned}
-    & \text{TxHash}_i \\
-    & \text{AccumDiffsHashPrev}_i \\
-    & \text{AccumDiffsHashNext}_i \\
-    & \text{EntireStateRoot}
-  \end{aligned} \right\} \\
   \text{WitnessTx}_i &= \left\{ \begin{aligned}
     & \text{StateSparseTreeRoot} \\
     & \text{KeysPatriciaTrieRoot} \\
     & \text{StateForAccess}_i \\
-    & \text{AccumDiffs}_{1:i} \\
+    & \text{AccumDiffs}_{1:i-1} \\
     & \text{ReadProofPath}_i \\
     & \text{IterProofPath}_i \\
     & \text{Tx}_i
+  \end{aligned} \right\} \\
+  \text{ConstraintsTx}_i &= \left\{ \begin{aligned}
+    & \text{StateSparseTreeRoot} \\
+    & (\text{StateForAccess}_i, g(\dots), \text{ReadProofPath}_i) \\
+    & \text{KeysPatriciaTrieRoot} \\
+    & (\text{StateForAccess}_i, g(\dots), \text{IterProofPath}_i)
+  \end{aligned} \right\} \\
+  \text{PubInputsTx}_i &= \left\{\begin{aligned}
+    & \text{TxHash}_i(\text{Tx}_i) \\
+    & \text{AccumDiffsHashPrev}_i(\text{AccumDiffs}_{1:i-1}) \\
+    & \text{AccumDiffsHashNext}_i(g(\dots)) \\
+    & \text{EntireRoot} \\
+    & (\text{StateSparseTreeRoot}, \text{KeysPatriciaTrieRoot})
   \end{aligned} \right\}
 \end{aligned}
 $$
 
-Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions in parallel.
+Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions respectively.
 
-By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\{\text{Key}\}_{j=1}^k$$ and $$\{\text{KeyPrefix}\}_{j=1}^k$$ by itself.
+By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\text{ReadKVPairs}_i$$ and $$\text{IterKVPairs}_i$$ by itself.
 
 Needless to say, $$\text{StateSparseTreeRootPrev}$$ and $$\text{KeysPatriciaTrieRootPrev}$$ which need to be verified, also can be verified by using $$\text{PubInputsTx}_i$$ in the circuit.
 
@@ -274,26 +301,45 @@ Needless to say, $$\text{StateSparseTreeRootPrev}$$ and $$\text{KeysPatriciaTrie
 
 To further optimize the proof generation process, we can employ a divide-and-conquer approach for proof aggregation:
 
-1. Aggregate proofs of adjacent transactions in pairs
+1. Aggregate proofs of adjacent transactions in pairs by verifying the proof inside the circuit
 1. Recursively aggregate the resulting proofs
 
 The aggregation circuit for two transaction proofs is defined as:
 
 $$
 \begin{aligned}
-  \text{AccumDiffsHashMid}_{i,i+1} &= \text{AccumDiffsHashNext}_{i} = \text{AccumDiffsHashPrev}_{i+1}\\
-  \text{PubInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
-    & \text{TxRoot}_{i,i+1} \\
-    & \text{AccumDiffsHashPrev}_i \\
-    & \text{AccumDiffsHashNext}_{i+1} \\
-    & \text{EntireStateRoot}
-  \end{aligned} \right\} \\
+  \text{AccumDiffsHashMid}_{i,i+1} &= \text{AccumDiffsHashNext}_{i} = \text{AccumDiffsHashPrev}_{i+1} \\
   \text{WitnessTxAgg}_{i,i+1} &= \left\{\begin{aligned}
     & \text{TxHash}_i \\
     & \text{TxHash}_{i+1} \\
+    & \text{AccumDiffsHashPrev}_i \\
     & \text{AccumDiffsHashMid}_{i,i+1} \\
+    & \text{AccumDiffsHashNext}_{i+1} \\
     & \text{ProofTx}_i \\
-    & \text{ProofTx}_{i+1}
+    & \text{ProofTx}_{i+1} \\
+    & \text{EntireRoot}
+  \end{aligned} \right\} \\
+  \text{ConstraintsTxAgg}_{i,i+1} &= \left\{ \begin{aligned}
+    & \text{ProofTx}_i \\
+    & \left(\begin{aligned}
+      & \text{TxHash}_i \\
+      & \text{AccumDiffsHashPrev}_i \\
+      & \text{AccumDiffsHashMid}_{i,i+1} \\
+      & \text{EntireRoot}
+    \end{aligned}\right) \\
+    & \text{ProofTx}_{i+1} \\
+    & \left(\begin{aligned}
+    & \text{TxHash}_i \\
+    & \text{AccumDiffsHashMid}_{i,i+1} \\
+    & \text{AccumDiffsHashNext}_{i+1} \\
+    & \text{EntireRoot}
+    \end{aligned}\right) \\
+  \end{aligned} \right\} \\
+  \text{PubInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
+    & \text{TxRoot}_{i,i+1}(\text{Tx}_i, \text{Tx}_{i+1}) \\
+    & \text{AccumDiffsHashPrev}_i \\
+    & \text{AccumDiffsHashNext}_{i+1} \\
+    & \text{EntireRoot}
   \end{aligned} \right\}
 \end{aligned}
 $$
@@ -304,19 +350,38 @@ $$
 \begin{aligned}
   q &= \frac{p+s-1}{2} \\
   r &= \frac{p+s+1}{2} \\
-  \text{AccumDiffsHashMid}_{\{p:s\}} &= \text{AccumDiffsHashNext}_q = \text{AccumDiffsHashPrev}_r\\
-  \text{PubInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
-    & \text{TxRoot}_{\{p:s\}} \\
-    & \text{AccumDiffsHashPrev}_p \\
-    & \text{AccumDiffsHashNext}_s \\
-    & \text{EntireStateRoot}
-  \end{aligned} \right\} \\
+  \text{AccumDiffsHashMid}_{\{p:s\}} &= \text{AccumDiffsHashNext}_q = \text{AccumDiffsHashPrev}_r \\
   \text{WitnessTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
     & \text{TxRoot}_{\{p:q\}} \\
     & \text{TxRoot}_{\{r:s\}} \\
+    & \text{AccumDiffsHashPrev}_p \\
     & \text{AccumDiffsHashMid}_{\{p:s\}} \\
+    & \text{AccumDiffsHashNext}_s \\
     & \text{ProofTxAgg}_{\{p:q\}} \\
-    & \text{ProofTxAgg}_{\{r:s\}}
+    & \text{ProofTxAgg}_{\{r:s\}} \\
+    & \text{EntireRoot}
+  \end{aligned} \right\} \\
+  \text{ConstraintsTxAgg}_{\{p:s\}} &= \left\{ \begin{aligned}
+    & \text{ProofTxAgg}_{\{p:q\}} \\
+    & \left(\begin{aligned}
+      & \text{TxRoot}_{\{p:q\}} \\
+      & \text{AccumDiffsHashPrev}_p \\
+      & \text{AccumDiffsHashMid}_{\{p:s\}} \\
+      & \text{EntireRoot}
+    \end{aligned}\right) \\
+    & \text{ProofTxAgg}_{\{r:s\}} \\
+    & \left(\begin{aligned}
+    & \text{TxRoot}_{\{r:s\}} \\
+    & \text{AccumDiffsHashMid}_{\{p:s\}} \\
+    & \text{AccumDiffsHashNext}_s \\
+    & \text{EntireRoot}
+    \end{aligned}\right) \\
+  \end{aligned} \right\} \\
+  \text{PubInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
+    & \text{TxRoot}_{\{p:s\}}(\text{TxRoot}_{\{p:q\}}, \text{TxRoot}_{\{r:s\}}) \\
+    & \text{AccumDiffsHashPrev}_p \\
+    & \text{AccumDiffsHashNext}_s \\
+    & \text{EntireRoot}
   \end{aligned} \right\}
 \end{aligned}
 $$
@@ -330,40 +395,44 @@ Before proving the block, we also divide the circuit of state commitment and key
 
 $$
 \begin{aligned}
-  \text{PubInputsCommitState} &= \left\{\begin{aligned}
-    & \text{StateSparseTreeRootPrev} \\
-    & \text{StateSparseTreeRootNext} \\
-    & \text{AccumDiffsHash}_n
-  \end{aligned} \right\} \\
   \text{WitnessCommitState} &= \left\{ \begin{aligned}
+    & \text{StateSparseTreeRootPrev} \\
     & \text{AccumDiffs}_n \\
     & \text{StateCommitPath}
   \end{aligned} \right\} \\
+  \text{PubInputsCommitState} &= \left\{\begin{aligned}
+    & \text{StateSparseTreeRootPrev} \\
+    & \text{StateSparseTreeRootNext} \\
+    & \left(\begin{aligned}
+      & \text{StateSparseTreeRootPrev} \\
+      & \text{AccumDiffs}_n \\
+      & \text{StateCommitPath}
+    \end{aligned}\right) \\
+    & \text{AccumDiffsHash}_n(\text{AccumDiffs}_n)
+  \end{aligned} \right\} \\
   \\
+  \text{WitnessCommitKeys} &= \left\{ \begin{aligned}
+    & \text{KeysPatriciaTrieRootPrev} \\
+    & \text{AccumDiffs}_n \\
+    & \text{KeysCommitPath}
+  \end{aligned} \right\} \\
   \text{PubInputsCommitKeys} &= \left\{\begin{aligned}
     & \text{KeysPatriciaTrieRootPrev} \\
     & \text{KeysPatriciaTrieRootNext} \\
-    & \text{AccumDiffsHash}_n
-  \end{aligned} \right\} \\
-  \text{WitnessCommitKeys} &= \left\{ \begin{aligned}
-    & \text{AccumDiffs}_n \\
-    & \text{KeysCommitPath}
+    & \left(\begin{aligned}
+      & \text{KeysPatriciaTrieRootPrev} \\
+      & \text{AccumDiffs}_n \\
+      & \text{KeysCommitPath}
+    \end{aligned}\right) \\
+    & \text{AccumDiffsHash}_n(\text{AccumDiffs}_n)
   \end{aligned} \right\}
 \end{aligned}
 $$
 
-Finally we can construct the block proof by aggregating the state commitment proof, keys commitment proof, and the transaction proofs.
+Finally we can construct the block proof by aggregating the state commitment proof, keys commitment proof, and the transaction proofs by verifying them in the circuit.
 
 $$
 \begin{aligned}
-  \text{TxRoot} &= \text{TxRoot}_{\{1:n\}} \\
-  \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
-  \text{AccumDiffsHashNext}_n &= \text{AccumDiffsHash}_n \\
-  \text{PubInputsBlock} &= \left\{\begin{aligned}
-    & \text{EntireStateRootPrev} \\
-    & \text{EntireStateRootNext} \\
-    & \text{TxRoot}
-  \end{aligned} \right\} \\
   \text{WitnessBlock} &= \left\{ \begin{aligned}
     & \text{StateSparseTreeRootPrev} \\
     & \text{StateSparseTreeRootNext} \\
@@ -372,12 +441,50 @@ $$
     & \text{AccumDiffsHash}_n \\
     & \text{ProofTxAgg}_{\{1:n\}} \\
     & \text{ProofCommitState} \\
-    & \text{ProofCommitKeys}
+    & \text{ProofCommitKeys} \\
+    & \text{TxRoot}
+  \end{aligned} \right\} \\
+  \text{EntireRootPrev} &= h\left(\begin{aligned}
+    &\text{StateSparseTreeRootPrev} \\
+    & || \text{KeysPatriciaTrieRootPrev}
+  \end{aligned}\right) \\
+  \text{EntireRootNext} &= h\left(\begin{aligned}
+    &\text{StateSparseTreeRootNext} \\
+    & || \text{KeysPatriciaTrieRootNext}
+  \end{aligned}\right) \\
+  \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
+  \text{AccumDiffsHashNext}_n &= \text{AccumDiffsHash}_n \\
+  \text{TxRoot} &= \text{TxRoot}_{\{1:n\}} \\
+  \text{ConstraintsBlock} &= \left\{ \begin{aligned}
+    & \text{ProofTxAgg}_{\{1:n\}} \\
+    & \left(\begin{aligned}
+      & \text{TxRoot} \\
+      & \text{AccumDiffsHashPrev}_1 \\
+      & \text{AccumDiffsHashNext}_n \\
+      & \text{EntireRootPrev}
+    \end{aligned}\right) \\
+    & \text{ProofCommitState} \\
+    & \left(\begin{aligned}
+      & \text{StateSparseTreeRootPrev} \\
+      & \text{StateSparseTreeRootNext} \\
+      & \text{AccumDiffsHash}_n
+    \end{aligned}\right) \\
+    & \text{ProofCommitKeys} \\
+    & \left(\begin{aligned}
+      & \text{KeysPatriciaTrieRootPrev} \\
+      & \text{KeysPatriciaTrieRootNext} \\
+      & \text{AccumDiffsHash}_n
+    \end{aligned}\right)
+  \end{aligned} \right\} \\
+  \text{PubInputsBlock} &= \left\{\begin{aligned}
+    & \text{EntireRootPrev} \\
+    & \text{EntireRootNext} \\
+    & \text{TxRoot}
   \end{aligned} \right\}
 \end{aligned}
 $$
 
-Because the accumulated diffs are anchored by the $$\text{EntireStateRootNext}$$, we can omit the accumulated diffs from the public inputs.
+Because the accumulated diffs are anchored by the $$\text{EntireRootNext}$$, we can omit the accumulated diffs from the public inputs.
 
 By pipelining the aggregation process, we can significantly reduce the overall proof generation time.
 
