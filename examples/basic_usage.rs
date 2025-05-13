@@ -10,10 +10,11 @@ use borsh_derive::{BorshSerialize, BorshDeserialize};
 use crypto_bigint::U256 as U256Lib;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use reqwest;
 use base64::{prelude::BASE64_STANDARD, Engine};
 use anyhow::anyhow;
 use tokio::sync::mpsc;
+use std::io::Write;
+use std::net::TcpStream;
 
 // Define a simple transaction struct that implements Tx
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -140,23 +141,27 @@ async fn main() -> Result<(), InterLiquidSdkError> {
         let mut tx_bytes = Vec::new();
         tx.serialize(&mut tx_bytes).unwrap();
 
-        // Send transaction via HTTP
-        let client = reqwest::Client::new();
+        // Send transaction via TCP
         let tx_base64 = BASE64_STANDARD.encode(&tx_bytes);
-        let response = client
-            .post("http://localhost:3000/tx")
-            .json(&serde_json::json!({
-                "tx_base64": tx_base64
-            }))
-            .send()
-            .await
-            .unwrap();
+        let request = format!(
+            "POST /tx HTTP/1.1\r\n\
+             Host: localhost:3000\r\n\
+             Content-Type: application/json\r\n\
+             Content-Length: {}\r\n\
+             \r\n\
+             {{\"tx_base64\":\"{}\"}}",
+            tx_base64.len() + 15,
+            tx_base64
+        );
 
-        if !response.status().is_success() {
-            let error = response.text().await.unwrap();
-            eprintln!("Transaction failed: {}", error);
+        if let Ok(mut stream) = TcpStream::connect("localhost:3000") {
+            if stream.write_all(request.as_bytes()).is_ok() {
+                println!("Transaction sent successfully!");
+            } else {
+                eprintln!("Failed to send transaction");
+            }
         } else {
-            println!("Transaction sent successfully!");
+            eprintln!("Failed to connect to server");
         }
 
         // Signal to stop the server
