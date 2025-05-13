@@ -51,8 +51,8 @@ impl<TX: Tx, S: StateManager> Clone for SequencerState<TX, S> {
 
 pub struct Sequencer<TX: Tx, S: StateManager> {
     state: SequencerState<TX, S>,
-    pub(super) sender: Sender<RunnerMessage>,
-    pub(super) receiver: Receiver<RunnerMessage>,
+    sender: Sender<RunnerMessage>,
+    receiver: Receiver<RunnerMessage>,
 }
 
 impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
