@@ -184,10 +184,6 @@ PrivateInputsAgg = [{StateRootPrev_i}_{i=2}^n, {StateRootNext_i}_{i=1}^{n-1}, {P
 - Implementing efficient state management
 - Developing scalable DeFi applications
 
-## 📚 Documentation
-
-For detailed technical documentation, please refer to our [whitepaper](https://interliquid.sunriselayer.io/whitepaper/).
-
 ## Example
 
 Below is a snippet from our basic usage example (`examples/basic_usage.rs`). This example demonstrates how to submit a transaction via the `/tx` API endpoint using our SDK:
@@ -240,3 +236,9 @@ if let Ok(mut stream) = TcpStream::connect("localhost:3000") {
 - **API-First Design:** The example demonstrates how to submit a transaction via the `/tx` API endpoint, following a Cosmos SDK-style approach where developers interact with the chain via API endpoints rather than direct state access.
 - **Transaction Submission:** The example constructs a `MsgSend` transaction, serializes it, and sends it to the server using a TCP connection.
 - **Server Handling:** The server processes the transaction and updates the state accordingly.
+
+## 📚 Documentation
+
+For detailed technical documentation, please refer to our [whitepaper](https://interliquid.sunriselayer.io/whitepaper/).
+
+
