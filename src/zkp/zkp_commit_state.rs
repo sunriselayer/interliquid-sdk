@@ -57,9 +57,11 @@ pub fn circuit_commit_state(
         .serialize(&mut accum_diffs_bytes_final)?;
 
     // TODO
-    let remainder_nodes = BTreeMap::new();
+    let remainder_nodes = BTreeMap::<Vec<u8>, [u8; 32]>::new();
 
-    let state_sparse_tree_root_next = witness.state_commit_path.root(&remainder_nodes);
+    let mut state_commit_path = witness.state_commit_path;
+    state_commit_path.assign_node_hashes(remainder_nodes.iter());
+    let state_sparse_tree_root_next = state_commit_path.root();
 
     let accum_diffs_hash_final = Sha256::digest(&accum_diffs_bytes_final).into();
 

@@ -14,15 +14,76 @@ impl OctRadSparseTreePath {
         Self(path)
     }
 
-    /// If there is a duplicated path, `remainder_node_hashes` is prioritized.
-    pub fn root(&self, remainder_node_hashes: &BTreeMap<Vec<u8>, [u8; 32]>) -> [u8; 32] {
-        // Create a new map that combines self.0 and remainder_node_hashes
-        // If there are duplicate keys, remainder_node_hashes takes precedence
-        let mut combined_hashes = self.0.clone();
-        for (key, hash) in remainder_node_hashes {
-            combined_hashes.insert(key.clone(), *hash);
+    /// Assigns the node hashes to the path.
+    /// It can be used for inclusion proof.
+    pub fn assign_node_hashes<'a>(
+        &mut self,
+        node_hashes: impl Iterator<Item = (&'a Vec<u8>, &'a [u8; 32])>,
+    ) {
+        for (key, hash) in node_hashes {
+            self.0.insert(key.clone(), *hash);
+        }
+    }
+
+    pub fn verify_non_inclusion<'a>(
+        &self,
+        key: &[u8; 32],
+        dead_end_node_depth: u8,
+        dead_end_node_child_hashes: &BTreeMap<u8, [u8; 32]>,
+    ) -> Result<(), OctRadSparseTreeError> {
+        if dead_end_node_depth == 31 {
+            return Err(OctRadSparseTreeError::InvalidProof(anyhow::anyhow!(
+                "the node at depth 31 must be a leaf node"
+            )));
+        }
+        if dead_end_node_depth > 31 {
+            return Err(OctRadSparseTreeError::InvalidProof(anyhow::anyhow!(
+                "node depth is greater than 31"
+            )));
         }
 
+        let dead_end_node_key = key[..dead_end_node_depth as usize].to_vec();
+        let non_inclusion_index = key[dead_end_node_depth as usize];
+
+        if dead_end_node_child_hashes.contains_key(&non_inclusion_index) {
+            return Err(OctRadSparseTreeError::InvalidProof(anyhow::anyhow!(
+                "the keys is included"
+            )));
+        }
+
+        let node_hash = OctRadSparseTreeNodeBranch::hash_from_child_hashes_iter(
+            *dead_end_node_key.last().unwrap(),
+            dead_end_node_child_hashes,
+        );
+
+        if !self
+            .0
+            .get(&dead_end_node_key)
+            .map_or(false, |h| h.eq(&node_hash))
+        {
+            return Err(OctRadSparseTreeError::InvalidProof(anyhow::anyhow!(
+                "the dead end node is not included"
+            )));
+        }
+
+        Ok(())
+    }
+
+    pub fn verify_root(&self, root: &[u8; 32]) -> Result<(), OctRadSparseTreeError> {
+        // Calculate the root hash from the path
+        let calculated_root = self.root();
+
+        // Verify that the calculated root matches the given root
+        if !calculated_root.eq(root) {
+            return Err(OctRadSparseTreeError::InvalidProof(anyhow::anyhow!(
+                "calculated root does not match given root"
+            )));
+        }
+
+        Ok(())
+    }
+
+    pub fn root(&self) -> [u8; 32] {
         // Stack to store pending nodes to process
         #[derive(Debug)]
         struct StackItem {
@@ -33,7 +94,7 @@ impl OctRadSparseTreePath {
 
         let mut stack = vec![StackItem {
             key_prefix: Vec::new(),
-            hashes: combined_hashes,
+            hashes: self.0.clone(),
             parent_byte: None,
         }];
         let mut node_stack = Vec::new();
@@ -88,33 +149,5 @@ impl OctRadSparseTreePath {
 
         // The root node should be the only remaining node
         node_stack.pop().unwrap().1
-    }
-
-    pub fn prove_inclusion(
-        &self,
-        node_hashes_to_prove: &BTreeMap<Vec<u8>, [u8; 32]>,
-        root: &[u8; 32],
-    ) -> Result<(), OctRadSparseTreeError> {
-        // For each node hash to prove, verify that it exists in the path
-        for (key, _hash) in node_hashes_to_prove {
-            if !self.0.contains_key(key) {
-                return Err(OctRadSparseTreeError::InvalidProof(anyhow::anyhow!(
-                    "node hash not found in path for key {:?}",
-                    key
-                )));
-            }
-        }
-
-        // Calculate the root hash from the path
-        let calculated_root = self.root(node_hashes_to_prove);
-
-        // Verify that the calculated root matches the given root
-        if !calculated_root.eq(root) {
-            return Err(OctRadSparseTreeError::InvalidProof(anyhow::anyhow!(
-                "calculated root does not match given root"
-            )));
-        }
-
-        Ok(())
     }
 }
