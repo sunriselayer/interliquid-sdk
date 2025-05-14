@@ -1,8 +1,8 @@
 use tokio::sync::broadcast::{Receiver, Sender};
 
-use crate::types::InterLiquidSdkError;
+use crate::{runner::RunnerMessage, types::InterLiquidSdkError};
 
-use super::{message::RunnerMessage, ProverInstance};
+use super::ProverInstance;
 
 pub struct ProverOrchestrator {
     instances: Vec<Box<dyn ProverInstance>>,

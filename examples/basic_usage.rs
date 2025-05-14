@@ -1,19 +1,19 @@
+use base64::{prelude::BASE64_STANDARD, Engine};
+use borsh::{BorshDeserialize, BorshSerialize};
+use borsh_derive::{BorshDeserialize, BorshSerialize};
+use crypto_bigint::U256 as U256Lib;
 use interliquid_sdk::{
     core::{App, Tx},
-    state::StateManager,
-    types::{Address, InterLiquidSdkError, Tokens, U256, SerializableAny, NamedSerializableType},
-    x::bank::{BankKeeper, BankModule, MsgSend},
     runner::{MonolithicRunner as Runner, SaveData},
+    state::StateManager,
+    types::{Address, InterLiquidSdkError, NamedSerializableType, SerializableAny, Tokens, U256},
+    x::bank::{BankKeeper, BankModule, MsgSend},
 };
-use borsh::{BorshSerialize, BorshDeserialize};
-use borsh_derive::{BorshSerialize, BorshDeserialize};
-use crypto_bigint::U256 as U256Lib;
 use std::collections::BTreeMap;
-use std::sync::Arc;
-use base64::{prelude::BASE64_STANDARD, Engine};
-use tokio::sync::mpsc;
 use std::io::Write;
 use std::net::TcpStream;
+use std::sync::Arc;
+use tokio::sync::mpsc;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct SimpleTx {
@@ -33,7 +33,9 @@ pub struct MemoryStateManager {
 
 impl MemoryStateManager {
     pub fn new() -> Self {
-        Self { map: BTreeMap::new() }
+        Self {
+            map: BTreeMap::new(),
+        }
     }
 }
 
@@ -76,7 +78,11 @@ async fn main() -> Result<(), InterLiquidSdkError> {
     let mut state_manager = MemoryStateManager::new();
     let mut key_buf = Vec::new();
     (alice, "usdc".to_string()).serialize(&mut key_buf).unwrap();
-    let alice_balance_key = b"bank/balances/".iter().chain(key_buf.iter()).cloned().collect::<Vec<u8>>();
+    let alice_balance_key = b"bank/balances/"
+        .iter()
+        .chain(key_buf.iter())
+        .cloned()
+        .collect::<Vec<u8>>();
     let alice_initial_balance = U256::new(U256Lib::from(1000u64));
     let mut buf = vec![];
     alice_initial_balance.serialize(&mut buf).unwrap();
@@ -96,8 +102,8 @@ async fn main() -> Result<(), InterLiquidSdkError> {
         keys_patricia_trie_root: [0; 32],
         tx_snapshots: vec![],
     };
-    
-    let mut runner = Runner::new(app, savedata, state_manager);
+
+    let mut runner = Runner::new(app, state_manager, savedata, vec![]);
 
     // Create a channel for signaling when to stop the server
     let (tx, mut rx) = mpsc::channel(1);
@@ -162,4 +168,4 @@ async fn main() -> Result<(), InterLiquidSdkError> {
     let _ = rx.recv().await;
 
     Ok(())
-} 
+}

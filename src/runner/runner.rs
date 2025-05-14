@@ -9,10 +9,10 @@ use crate::{
 };
 
 use super::{
-    prover_orchestrator::ProverOrchestrator,
     savedata::SaveData,
     sequencer::{Sequencer, SequencerState},
     server::{Server, ServerState},
+    ProverInstance, ProverOrchestrator,
 };
 
 pub struct MonolithicRunner<TX: Tx, S: StateManager> {
@@ -22,7 +22,12 @@ pub struct MonolithicRunner<TX: Tx, S: StateManager> {
 }
 
 impl<TX: Tx, S: StateManager> MonolithicRunner<TX, S> {
-    pub fn new(app: App<TX>, savedata: SaveData, state_manager: S) -> Self {
+    pub fn new(
+        app: App<TX>,
+        state_manager: S,
+        savedata: SaveData,
+        prover_instances: Vec<Box<dyn ProverInstance>>,
+    ) -> Self {
         let state_manager = Arc::new(RwLock::new(state_manager));
         let (sender, receiver1) = channel(16);
         let receiver2 = sender.subscribe();
@@ -38,7 +43,7 @@ impl<TX: Tx, S: StateManager> MonolithicRunner<TX, S> {
                 sender.clone(),
                 receiver1,
             ),
-            prover: ProverOrchestrator::new(vec![], sender.clone(), receiver2),
+            prover: ProverOrchestrator::new(prover_instances, sender.clone(), receiver2),
         }
     }
 
