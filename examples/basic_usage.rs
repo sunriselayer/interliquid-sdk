@@ -48,7 +48,6 @@ impl StateManager for MemoryStateManager {
         self.map.insert(key.to_vec(), value.to_vec());
         Ok(())
     }
-
     fn del(&mut self, key: &[u8]) -> Result<(), InterLiquidSdkError> {
         self.map.remove(key);
         Ok(())

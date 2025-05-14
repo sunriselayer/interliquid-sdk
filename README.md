@@ -135,6 +135,7 @@ src/
 ├── types/        # Common types
 ├── utils/        # Utility functions
 └── x/            # Extended functionality
+    └── bank/     # Bank module implementation
 ```
 
 ### 🔐 ZK Proof Generation
@@ -183,10 +184,61 @@ PrivateInputsAgg = [{StateRootPrev_i}_{i=2}^n, {StateRootNext_i}_{i=1}^{n-1}, {P
 - Implementing efficient state management
 - Developing scalable DeFi applications
 
+## Example
+
+Below is a snippet from our basic usage example (`examples/basic_usage.rs`). This example demonstrates how to submit a transaction via the `/tx` API endpoint using our SDK:
+
+```rust
+// Create a MsgSend transaction
+let mut tokens = Tokens::new();
+tokens.insert("usdc".to_string(), U256::new(U256Lib::from(100u64)));
+let msg = MsgSend {
+    from_address: alice,
+    to_address: bob,
+    tokens,
+};
+let mut msg_bytes = Vec::new();
+msg.serialize(&mut msg_bytes).unwrap();
+let msg_any = SerializableAny::new(MsgSend::type_name().to_owned(), msg_bytes);
+
+// Wrap the message in a SimpleTx
+let tx = SimpleTx {
+    msgs: vec![msg_any],
+};
+let mut tx_bytes = Vec::new();
+tx.serialize(&mut tx_bytes).unwrap();
+
+// Send transaction via TCP
+let tx_base64 = BASE64_STANDARD.encode(&tx_bytes);
+let request = format!(
+    "POST /tx HTTP/1.1\r\n\
+     Host: localhost:3000\r\n\
+     Content-Type: application/json\r\n\
+     Content-Length: {}\r\n\
+     \r\n\
+     {{\"tx_base64\":\"{}\"}}",
+    tx_base64.len() + 15,
+    tx_base64
+);
+
+if let Ok(mut stream) = TcpStream::connect("localhost:3000") {
+    if stream.write_all(request.as_bytes()).is_ok() {
+        println!("Transaction sent successfully!");
+    } else {
+        eprintln!("Failed to send transaction");
+    }
+} else {
+    eprintln!("Failed to connect to server");
+}
+```
+
+### Key Points About the Example:
+- **API-First Design:** The example demonstrates how to submit a transaction via the `/tx` API endpoint, following a Cosmos SDK-style approach where developers interact with the chain via API endpoints rather than direct state access.
+- **Transaction Submission:** The example constructs a `MsgSend` transaction, serializes it, and sends it to the server using a TCP connection.
+- **Server Handling:** The server processes the transaction and updates the state accordingly.
+
 ## 📚 Documentation
 
 For detailed technical documentation, please refer to our [whitepaper](https://interliquid.sunriselayer.io/whitepaper/).
-
-
 
 
