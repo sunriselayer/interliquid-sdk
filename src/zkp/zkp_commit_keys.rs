@@ -1,42 +1,73 @@
-use borsh_derive::{BorshDeserialize, BorshSerialize};
+use std::collections::BTreeMap;
 
-use crate::{merkle::OctRadPatriciaTriePath, state::CompressedDiffs};
+use borsh::BorshSerialize;
+use borsh_derive::{BorshDeserialize, BorshSerialize};
+use sha2::{Digest, Sha256};
+
+use crate::{merkle::OctRadPatriciaTriePath, state::CompressedDiffs, types::InterLiquidSdkError};
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub struct PublicInputPatriciaTrie {
+pub struct PublicInputCommitKeys {
     pub keys_patricia_trie_root_prev: [u8; 32],
     pub keys_patricia_trie_root_next: [u8; 32],
-    pub accum_diffs_final_hash: [u8; 32],
+    pub accum_diffs_hash_final: [u8; 32],
 }
 
-impl PublicInputPatriciaTrie {
+impl PublicInputCommitKeys {
     pub fn new(
         keys_patricia_trie_root_prev: [u8; 32],
         keys_patricia_trie_root_next: [u8; 32],
-        accum_diffs_final_hash: [u8; 32],
+        accum_diffs_hash_final: [u8; 32],
     ) -> Self {
         Self {
             keys_patricia_trie_root_prev,
             keys_patricia_trie_root_next,
-            accum_diffs_final_hash,
+            accum_diffs_hash_final,
         }
     }
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub struct PrivateInputPatriciaTrie {
+pub struct WitnessCommitKeys {
+    pub state_sparse_tree_root_prev: [u8; 32],
     pub accum_diffs_final: CompressedDiffs,
     pub keys_commit_path: OctRadPatriciaTriePath,
 }
 
-impl PrivateInputPatriciaTrie {
+impl WitnessCommitKeys {
     pub fn new(
+        state_sparse_tree_root_prev: [u8; 32],
         accum_diffs_final: CompressedDiffs,
         keys_commit_path: OctRadPatriciaTriePath,
     ) -> Self {
         Self {
+            state_sparse_tree_root_prev,
             accum_diffs_final,
             keys_commit_path,
         }
     }
+}
+
+pub fn circuit_commit_keys(
+    witness: WitnessCommitKeys,
+) -> Result<PublicInputCommitKeys, InterLiquidSdkError> {
+    let mut accum_diffs_bytes_final = Vec::new();
+    witness
+        .accum_diffs_final
+        .serialize(&mut accum_diffs_bytes_final)?;
+
+    // TODO
+    let remainder_nodes = BTreeMap::new();
+
+    let keys_patricia_trie_root_next = witness.keys_commit_path.root(&remainder_nodes);
+
+    let accum_diffs_hash_final = Sha256::digest(&accum_diffs_bytes_final).into();
+
+    let input = PublicInputCommitKeys::new(
+        witness.state_sparse_tree_root_prev,
+        keys_patricia_trie_root_next,
+        accum_diffs_hash_final,
+    );
+
+    Ok(input)
 }

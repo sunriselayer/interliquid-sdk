@@ -74,7 +74,7 @@ Before explaining Twin Radix Trees, let's see how to prove the validity of state
 Generally speaking, state transition function is described as follows:
 
 $$
-\text{StateNext} = f(\text{StatePrev}, \text{Txs})
+\text{StateNext} = f(\text{Txs}, \text{StatePrev})
 $$
 
 We need to prove the validity of the above equation with ZKP.
@@ -84,7 +84,7 @@ To prove this, the state transition function is adjusted as follows:
 $$
 \begin{aligned}
   &\{\text{StateRootNext}, \text{Diffs}\} \\
-  &= \hat{f}({\text{StateRootPrev} , \text{StateForAccess}}, \text{StateCommitPath}, \text{Txs})
+  &= \hat{f}(\text{Txs}, \text{StateRootPrev} , \text{StateForAccess}, \text{StateCommitPath})
 \end{aligned}
 $$
 
@@ -92,24 +92,24 @@ Because zkVMs cannot access the storage directly, we need to give the state to a
 It is also enough to output only the diffs $$ \text{Diffs} $$ without entire state.
 To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state commit path $$ \text{StateCommitPath} $$ to allow zkVM to calculate the state root.
 
-By committing these three values $$\text{StateRootPrev}$$, $$\text{StateRootNext}$$ and $$\text{TxRoot}$$:
+By committing these three values $$\text{StateRootPrev}$$, $$\text{StateRootNext}$$ and $$\text{TxsRoot}$$:
 
 as the public input of the ZKP, it is possible to generate the verifiable validity proof of the state transition.
 
 $$
 \begin{aligned}
   \text{WitnessStf} &= \left\{ \begin{aligned}
+    & \text{Txs} \\
     & \text{StateForAccess} \\
     & \text{Diffs} \\
-    & \text{StateCommitPath} \\
-    & \text{Txs}
+    & \text{StateCommitPath}
   \end{aligned} \right\} \\
   \text{PubInputsStf} &= \left\{ \begin{aligned}
+    & \text{TxsRoot}(\text{Txs}) \\
     & \text{StateRootPrev} \\
     & (\text{StateForAccess}, \text{StateCommitPath}) \\
     & \text{StateRootNext} \\
-    & (\text{StateForAccess}, \text{Diffs}, \text{StateCommitPath}) \\
-    & \text{TxRoot}(\text{Txs})
+    & (\text{StateForAccess}, \text{Diffs}, \text{StateCommitPath})
   \end{aligned} \right\} \\
   \text{ProofStf} &= \text{CircuitStf}(\text{WitnessStf}, \text{PubInputsStf})
 \end{aligned}
@@ -344,7 +344,7 @@ $$
     \end{aligned}\right) \\
   \end{aligned} \right\} \\
   \text{PubInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
-    & \text{TxRoot}_{i,i+1}(\text{Tx}_i, \text{Tx}_{i+1}) \\
+    & \text{TxsRoot}_{i,i+1}(\text{Tx}_i, \text{Tx}_{i+1}) \\
     & \text{AccumDiffsHashPrev}_i \\
     & \text{AccumDiffsHashNext}_{i+1} \\
     & \text{EntireRoot}
@@ -360,8 +360,8 @@ $$
   r &= \frac{p+s+1}{2} \\
   \text{AccumDiffsHashMid}_{\{p:s\}} &= \text{AccumDiffsHashNext}_q = \text{AccumDiffsHashPrev}_r \\
   \text{WitnessTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
-    & \text{TxRoot}_{\{p:q\}} \\
-    & \text{TxRoot}_{\{r:s\}} \\
+    & \text{TxsRoot}_{\{p:q\}} \\
+    & \text{TxsRoot}_{\{r:s\}} \\
     & \text{AccumDiffsHashPrev}_p \\
     & \text{AccumDiffsHashMid}_{\{p:s\}} \\
     & \text{AccumDiffsHashNext}_s \\
@@ -372,21 +372,21 @@ $$
   \text{ConstraintsTxAgg}_{\{p:s\}} &= \left\{ \begin{aligned}
     & \text{ProofTxAgg}_{\{p:q\}} \\
     & \left(\begin{aligned}
-      & \text{TxRoot}_{\{p:q\}} \\
+      & \text{TxsRoot}_{\{p:q\}} \\
       & \text{AccumDiffsHashPrev}_p \\
       & \text{AccumDiffsHashMid}_{\{p:s\}} \\
       & \text{EntireRoot}
     \end{aligned}\right) \\
     & \text{ProofTxAgg}_{\{r:s\}} \\
     & \left(\begin{aligned}
-    & \text{TxRoot}_{\{r:s\}} \\
+    & \text{TxsRoot}_{\{r:s\}} \\
     & \text{AccumDiffsHashMid}_{\{p:s\}} \\
     & \text{AccumDiffsHashNext}_s \\
     & \text{EntireRoot}
     \end{aligned}\right) \\
   \end{aligned} \right\} \\
   \text{PubInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
-    & \text{TxRoot}_{\{p:s\}}(\text{TxRoot}_{\{p:q\}}, \text{TxRoot}_{\{r:s\}}) \\
+    & \text{TxsRoot}_{\{p:s\}}(\text{TxsRoot}_{\{p:q\}}, \text{TxsRoot}_{\{r:s\}}) \\
     & \text{AccumDiffsHashPrev}_p \\
     & \text{AccumDiffsHashNext}_s \\
     & \text{EntireRoot}
@@ -442,6 +442,7 @@ Finally we can construct the block proof by aggregating the state commitment pro
 $$
 \begin{aligned}
   \text{WitnessBlock} &= \left\{ \begin{aligned}
+    & \text{TxsRoot} \\
     & \text{StateSparseTreeRootPrev} \\
     & \text{StateSparseTreeRootNext} \\
     & \text{KeysPatriciaTrieRootPrev} \\
@@ -449,8 +450,7 @@ $$
     & \text{AccumDiffsHash}_n \\
     & \text{ProofTxAgg}_{\{1:n\}} \\
     & \text{ProofCommitState} \\
-    & \text{ProofCommitKeys} \\
-    & \text{TxRoot}
+    & \text{ProofCommitKeys}
   \end{aligned} \right\} \\
   \text{EntireRootPrev} &= h\left(\begin{aligned}
     &\text{StateSparseTreeRootPrev} \\
@@ -462,11 +462,11 @@ $$
   \end{aligned}\right) \\
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
   \text{AccumDiffsHashNext}_n &= \text{AccumDiffsHash}_n \\
-  \text{TxRoot} &= \text{TxRoot}_{\{1:n\}} \\
+  \text{TxsRoot} &= \text{TxsRoot}_{\{1:n\}} \\
   \text{ConstraintsBlock} &= \left\{ \begin{aligned}
     & \text{ProofTxAgg}_{\{1:n\}} \\
     & \left(\begin{aligned}
-      & \text{TxRoot} \\
+      & \text{TxsRoot} \\
       & \text{AccumDiffsHashPrev}_1 \\
       & \text{AccumDiffsHashNext}_n \\
       & \text{EntireRootPrev}
@@ -485,9 +485,9 @@ $$
     \end{aligned}\right)
   \end{aligned} \right\} \\
   \text{PubInputsBlock} &= \left\{\begin{aligned}
+    & \text{TxsRoot} \\
     & \text{EntireRootPrev} \\
-    & \text{EntireRootNext} \\
-    & \text{TxRoot}
+    & \text{EntireRootNext}
   \end{aligned} \right\}
 \end{aligned}
 $$

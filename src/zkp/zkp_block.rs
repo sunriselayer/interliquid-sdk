@@ -1,16 +1,18 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
+use crate::{core::entire_root, types::InterLiquidSdkError};
+
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct PublicInputBlock {
-    pub tx_root: [u8; 32],
+    pub txs_root: [u8; 32],
     pub entire_root_prev: [u8; 32],
     pub entire_root_next: [u8; 32],
 }
 
 impl PublicInputBlock {
-    pub fn new(tx_root: [u8; 32], entire_root_prev: [u8; 32], entire_root_next: [u8; 32]) -> Self {
+    pub fn new(txs_root: [u8; 32], entire_root_prev: [u8; 32], entire_root_next: [u8; 32]) -> Self {
         Self {
-            tx_root,
+            txs_root,
             entire_root_prev,
             entire_root_next,
         }
@@ -18,7 +20,8 @@ impl PublicInputBlock {
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub struct PrivateInputBlock {
+pub struct WitnessBlock {
+    pub txs_root: [u8; 32],
     pub state_sparse_tree_root_prev: [u8; 32],
     pub state_sparse_tree_root_next: [u8; 32],
     pub keys_patricia_trie_root_prev: [u8; 32],
@@ -29,8 +32,9 @@ pub struct PrivateInputBlock {
     pub proof_commit_keys: Vec<u8>,
 }
 
-impl PrivateInputBlock {
+impl WitnessBlock {
     pub fn new(
+        txs_root: [u8; 32],
         state_sparse_tree_root_prev: [u8; 32],
         state_sparse_tree_root_next: [u8; 32],
         keys_patricia_trie_root_prev: [u8; 32],
@@ -41,6 +45,7 @@ impl PrivateInputBlock {
         proof_commit_keys: Vec<u8>,
     ) -> Self {
         Self {
+            txs_root,
             state_sparse_tree_root_prev,
             state_sparse_tree_root_next,
             keys_patricia_trie_root_prev,
@@ -51,4 +56,20 @@ impl PrivateInputBlock {
             proof_commit_keys,
         }
     }
+}
+
+pub fn circuit_block(witness: WitnessBlock) -> Result<PublicInputBlock, InterLiquidSdkError> {
+    let entire_root_prev = entire_root(
+        &witness.state_sparse_tree_root_prev,
+        &witness.keys_patricia_trie_root_prev,
+    );
+
+    let entire_root_next = entire_root(
+        &witness.state_sparse_tree_root_next,
+        &witness.keys_patricia_trie_root_next,
+    );
+
+    let input = PublicInputBlock::new(witness.txs_root, entire_root_prev, entire_root_next);
+
+    Ok(input)
 }

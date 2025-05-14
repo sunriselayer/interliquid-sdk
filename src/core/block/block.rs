@@ -1,4 +1,5 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct Header {
@@ -22,4 +23,11 @@ pub struct Block {
     pub header: Header,
     pub txs: Vec<Vec<u8>>,
     pub sequencer_signature: Vec<u8>,
+}
+
+pub fn entire_root(state_root: &[u8; 32], keys_root: &[u8; 32]) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(state_root);
+    hasher.update(keys_root);
+    hasher.finalize().into()
 }
