@@ -45,8 +45,8 @@ impl<S: StateManager> Server<S> {
     pub async fn run(&self) -> Result<(), InterLiquidSdkError> {
         let server_app = Router::new()
             .route("/tx", post(handle_tx))
-            .route("/query/get/:key", get(handle_query_get))
-            .route("/query/iter/:key_prefix", get(handle_query_iter))
+            .route("/query/get/{key}", get(handle_query_get))
+            .route("/query/iter/{key_prefix}", get(handle_query_iter))
             .with_state((self.state.clone(), self.sender.clone()));
 
         let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
