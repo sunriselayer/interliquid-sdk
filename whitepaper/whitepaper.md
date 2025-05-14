@@ -300,7 +300,7 @@ $$
 \end{aligned}
 $$
 
-Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions respectively.
+Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions respectively. Some zkVMs already have the feature to divide the stack trace, but it is still effective to make the pipeline of proof generation described below.
 
 By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\text{ReadKVPairs}_i$$ and $$\text{IterKVPairs}_i$$ by itself.
 
@@ -395,7 +395,20 @@ $$
 \end{aligned}
 $$
 
+```mermaid
+graph BT
+    Tx1[ProofTx1] --> TxAgg12[ProofTxAgg1,2]
+    Tx2[ProofTx2] --> TxAgg12
+
+    Tx3[ProofTx3] --> TxAgg34[ProofTxAgg3,4]
+    Tx4[ProofTx4] --> TxAgg34
+
+    TxAgg12 --> TxAgg3[ProofTxAgg#123;1:4#125;]
+    TxAgg34 --> TxAgg3
+```
+
 This approach can be further optimized by pipelining the aggregation process, starting the next aggregation as soon as adjacent proofs are available.
+For example if we have 4 txs in the block, $$\text{ProofTxAgg}_{1,2}$$ and $$\text{ProofTx}_3$$ are ready before the 4th tx is not processed yet.
 
 ### Block Proof Structure
 
@@ -492,6 +505,13 @@ $$
   \end{aligned} \right\}
 \end{aligned}
 $$
+
+```mermaid
+graph BT
+    TxAgg[ProofTxAgg#123;1:n#125;] --> Block[ProofBlock]
+    CommitState[ProofCommitState] --> Block
+    CommitKeys[ProofCommitKeys] --> Block
+```
 
 Because the accumulated diffs are anchored by the $$\text{EntireRootNext}$$, we can omit the accumulated diffs from the public inputs.
 
