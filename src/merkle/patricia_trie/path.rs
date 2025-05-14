@@ -12,29 +12,94 @@ impl OctRadPatriciaTriePath {
         Self(path)
     }
 
-    /// If there is a duplicated path, `remainder_node_hashes` is prioritized.
-    pub fn root(&self, remainder_node_hashes: &BTreeMap<Vec<u8>, [u8; 32]>) -> [u8; 32] {
-        todo!()
+    pub fn assign_node_hashes<'a>(
+        &mut self,
+        node_hashes: impl Iterator<Item = (&'a Vec<u8>, &'a [u8; 32])>,
+    ) {
+        for (key, hash) in node_hashes {
+            self.0.insert(key.clone(), *hash);
+        }
     }
 
-    pub fn inclusion_proof(
-        &self,
-        node_hashes_to_prove: &BTreeMap<Vec<u8>, [u8; 32]>,
-        root: &[u8; 32],
-    ) -> Result<(), OctRadPatriciaTrieError> {
-        todo!()
+    pub fn verify_root(&self, root: &[u8; 32]) -> Result<(), OctRadPatriciaTrieError> {
+        // Calculate the root hash from the path
+        let calculated_root = self.root();
+
+        // Verify that the calculated root matches the given root
+        if !calculated_root.eq(root) {
+            return Err(OctRadPatriciaTrieError::InvalidProof(anyhow::anyhow!(
+                "calculated root does not match given root"
+            )));
+        }
+
+        Ok(())
     }
 
-    pub fn range_completeness_proof(
-        &self,
-        key_suffixes_for_prefix: &BTreeMap<Vec<u8>, Vec<u8>>,
-        root: &[u8; 32],
-    ) -> Result<(), OctRadPatriciaTrieError> {
-        // TODO: construct node for each prefix with child nodes constructed from suffixes
+    pub fn root(&self) -> [u8; 32] {
+        // Stack to store pending nodes to process
+        #[derive(Debug)]
+        struct StackItem {
+            key_prefix: Vec<u8>,
+            hashes: BTreeMap<Vec<u8>, [u8; 32]>,
+            parent_byte: Option<u8>,
+        }
 
-        // TODO: calculate hash for each prefix node
-        let prefix_node_hashes = BTreeMap::new();
+        let mut stack = vec![StackItem {
+            key_prefix: Vec::new(),
+            hashes: self.0.clone(),
+            parent_byte: None,
+        }];
+        let mut node_stack = Vec::new();
 
-        self.inclusion_proof(&prefix_node_hashes, root)
+        while let Some(item) = stack.pop() {
+            // Group hashes by their next byte
+            let mut next_byte_groups: BTreeMap<u8, BTreeMap<Vec<u8>, [u8; 32]>> = BTreeMap::new();
+            for (key, hash) in item.hashes {
+                if key.is_empty() {
+                    // If key is empty, this is a leaf node
+                    node_stack.push((item.parent_byte, hash));
+                    continue;
+                }
+                let next_byte = key[0];
+                let rest_key = key[1..].to_vec();
+                next_byte_groups
+                    .entry(next_byte)
+                    .or_default()
+                    .insert(rest_key, hash);
+            }
+
+            // Push children to stack in reverse order to maintain correct order
+            for (byte, hashes) in next_byte_groups.into_iter().rev() {
+                let mut child_key_prefix = item.key_prefix.clone();
+                child_key_prefix.push(byte);
+                stack.push(StackItem {
+                    key_prefix: child_key_prefix,
+                    hashes,
+                    parent_byte: Some(byte),
+                });
+            }
+
+            // Wait for all children to be processed
+            let mut child_hashes = BTreeMap::new();
+            while node_stack
+                .last()
+                .map_or(false, |(b, _)| *b == item.parent_byte)
+            {
+                let (_, child_hash) = node_stack.pop().unwrap();
+                if let Some(byte) = item.key_prefix.last() {
+                    child_hashes.insert(*byte, child_hash);
+                }
+            }
+
+            // Create branch node
+            let branch = crate::merkle::OctRadPatriciaTrieNodeBranch::new(
+                item.key_prefix.clone(),
+                child_hashes,
+            );
+            node_stack.push((item.parent_byte, branch.hash()));
+        }
+
+        // The root node should be the only remaining node
+        node_stack.pop().unwrap().1
     }
 }

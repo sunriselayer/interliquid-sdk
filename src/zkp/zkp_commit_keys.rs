@@ -59,7 +59,9 @@ pub fn circuit_commit_keys(
     // TODO
     let remainder_nodes = BTreeMap::new();
 
-    let keys_patricia_trie_root_next = witness.keys_commit_path.root(&remainder_nodes);
+    let mut keys_commit_path = witness.keys_commit_path;
+    keys_commit_path.assign_node_hashes(remainder_nodes.iter());
+    let keys_patricia_trie_root_next = keys_commit_path.root();
 
     let accum_diffs_hash_final = Sha256::digest(&accum_diffs_bytes_final).into();
 

@@ -48,12 +48,15 @@ impl OctRadSparseTreeNodeBranch {
     }
 
     pub fn hash(&self) -> [u8; HASH_BYTES] {
-        Self::hash_from_child_hashes_iter(self.key_hash_fragment, &self.child_hashes)
+        Self::hash_from_child_hashes_iter(
+            self.key_hash_fragment,
+            self.child_hashes.iter().map(|(k, v)| (*k, v)).collect(),
+        )
     }
 
     pub fn hash_from_child_hashes_iter<'a>(
         key_hash_fragment: u8,
-        child_hashes: &BTreeMap<u8, [u8; HASH_BYTES]>,
+        child_hashes: BTreeMap<u8, &'a [u8; HASH_BYTES]>,
     ) -> [u8; HASH_BYTES] {
         let child_bitmap = OctRadBitmap::from_index_set(child_hashes.keys().copied());
         let mut hasher = Sha256::new();

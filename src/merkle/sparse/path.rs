@@ -29,7 +29,7 @@ impl OctRadSparseTreePath {
         &self,
         key: &[u8; 32],
         dead_end_node_depth: u8,
-        dead_end_node_child_hashes: &BTreeMap<u8, [u8; 32]>,
+        dead_end_node_child_hashes: BTreeMap<u8, &'a [u8; 32]>,
     ) -> Result<(), OctRadSparseTreeError> {
         if dead_end_node_depth == 31 {
             return Err(OctRadSparseTreeError::InvalidProof(anyhow::anyhow!(
