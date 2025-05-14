@@ -2,7 +2,7 @@ mod indexed_map;
 mod item;
 mod key;
 mod map;
-mod range;
+pub mod range;
 mod value;
 
 pub use indexed_map::*;
