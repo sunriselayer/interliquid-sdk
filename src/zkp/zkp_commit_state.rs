@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use anyhow::anyhow;
 use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 use sha2::{Digest, Sha256};
@@ -56,12 +57,51 @@ pub fn circuit_commit_state(
         .accum_diffs_final
         .serialize(&mut accum_diffs_bytes_final)?;
 
-    // TODO
-    let remainder_nodes = BTreeMap::<Vec<u8>, [u8; 32]>::new();
+    let mut state_commit_path_for_prev = witness.state_commit_path.clone();
+    state_commit_path_for_prev.assign_node_hashes(
+        witness
+            .accum_diffs_final
+            .diffs
+            .iter()
+            .filter_map(|(key, diff)| {
+                if let Some(before) = &diff.before {
+                    let hash: [u8; 32] = Sha256::digest(before).into();
+                    Some((key, hash))
+                } else {
+                    None
+                }
+            })
+            .collect::<BTreeMap<&Vec<u8>, [u8; 32]>>()
+            .iter()
+            .map(|(k, h)| (*k, h)),
+    );
+    let state_sparse_tree_root_prev = state_commit_path_for_prev.root();
 
-    let mut state_commit_path = witness.state_commit_path;
-    state_commit_path.assign_node_hashes(remainder_nodes.iter());
-    let state_sparse_tree_root_next = state_commit_path.root();
+    if state_sparse_tree_root_prev != witness.state_sparse_tree_root_prev {
+        return Err(InterLiquidSdkError::Other(anyhow!(
+            "Inconsistent state_sparse_tree_root_prev and state_commit_path"
+        )));
+    }
+
+    let mut state_commit_path_for_next = witness.state_commit_path;
+    state_commit_path_for_next.assign_node_hashes(
+        witness
+            .accum_diffs_final
+            .diffs
+            .iter()
+            .filter_map(|(key, diff)| {
+                if let Some(after) = &diff.after {
+                    let hash: [u8; 32] = Sha256::digest(after).into();
+                    Some((key, hash))
+                } else {
+                    None
+                }
+            })
+            .collect::<BTreeMap<&Vec<u8>, [u8; 32]>>()
+            .iter()
+            .map(|(k, h)| (*k, h)),
+    );
+    let state_sparse_tree_root_next = state_commit_path_for_next.root();
 
     let accum_diffs_hash_final = Sha256::digest(&accum_diffs_bytes_final).into();
 

@@ -184,7 +184,12 @@ pub fn circuit_tx<TX: Tx>(
         ..
     } = transactional;
 
+    let RelatedState {
+        map: state_for_access,
+    } = related_state;
+
     // TODO: verify read_proof
+
     // TODO: verify iter_proof
 
     let mut tx_bytes = Vec::new();
