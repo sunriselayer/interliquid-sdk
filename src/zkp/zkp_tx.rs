@@ -184,7 +184,8 @@ pub fn circuit_tx<TX: Tx>(
         ..
     } = transactional;
 
-    // TODO: verify logs
+    // TODO: verify read_proof
+    // TODO: verify iter_proof
 
     let mut tx_bytes = Vec::new();
     witness.tx.serialize(&mut tx_bytes)?;
