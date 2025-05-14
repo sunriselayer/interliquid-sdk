@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     core::Context,
     types::{Address, InterLiquidSdkError, SerializableAny},
@@ -46,16 +48,16 @@ pub trait AuthKeeperI {
     ) -> Result<(), InterLiquidSdkError>;
 }
 
-pub struct AuthKeeper<'a> {
-    crypto_keeper: &'a dyn CryptoKeeperI,
+pub struct AuthKeeper {
+    crypto_keeper: Arc<dyn CryptoKeeperI>,
 
     accounts: Map<Address, Account>,
     verifying_keys: Map<(Address, u64), SerializableAny>,
     verifying_key_counter: Map<Address, u64>,
 }
 
-impl<'a> AuthKeeper<'a> {
-    pub fn new(crypto_keeper: &'a dyn CryptoKeeperI) -> Self {
+impl AuthKeeper {
+    pub fn new(crypto_keeper: Arc<dyn CryptoKeeperI>) -> Self {
         Self {
             crypto_keeper,
             accounts: Map::new([AUTH, ACCOUNTS]),
@@ -65,7 +67,7 @@ impl<'a> AuthKeeper<'a> {
     }
 }
 
-impl<'a> AuthKeeperI for AuthKeeper<'a> {
+impl AuthKeeperI for AuthKeeper {
     fn get_account(
         &self,
         ctx: &mut dyn Context,

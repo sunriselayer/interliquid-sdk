@@ -5,11 +5,11 @@ use crate::core::{Module, MsgHandlerRegistry, MsgRegistry};
 use super::{msg_send::MsgSend, BankKeeper};
 
 pub struct BankModule {
-    keeper: BankKeeper,
+    keeper: Arc<BankKeeper>,
 }
 
 impl BankModule {
-    pub fn new(keeper: BankKeeper) -> Self {
+    pub fn new(keeper: Arc<BankKeeper>) -> Self {
         Self { keeper }
     }
 

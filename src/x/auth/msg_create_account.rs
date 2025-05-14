@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
+use crate::sha2::{Digest, Sha256};
 use anyhow::anyhow;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
-use sha2::{Digest, Sha256};
 
 use crate::{
     core::{Context, Msg},
@@ -30,7 +30,7 @@ impl Msg for MsgCreateAccount {
     }
 }
 
-impl<'a> AuthKeeper<'a> {
+impl AuthKeeper {
     pub fn msg_create_account(
         &self,
         ctx: &mut dyn Context,

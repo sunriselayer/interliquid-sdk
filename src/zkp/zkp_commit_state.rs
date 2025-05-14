@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
+use crate::sha2::{Digest, Sha256};
 use anyhow::anyhow;
 use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
-use sha2::{Digest, Sha256};
 
 use crate::{merkle::OctRadSparseTreePath, state::CompressedDiffs, types::InterLiquidSdkError};
 

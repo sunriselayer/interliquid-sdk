@@ -1,30 +1,25 @@
 use base64::{prelude::BASE64_STANDARD, Engine};
-use borsh::{BorshDeserialize, BorshSerialize};
-use borsh_derive::{BorshDeserialize, BorshSerialize};
+use borsh::BorshSerialize;
 use crypto_bigint::U256 as U256Lib;
 use interliquid_sdk::{
-    core::{App, Tx},
+    core::App,
     runner::{MonolithicRunner as Runner, SaveData},
     state::StateManager,
     types::{Address, InterLiquidSdkError, NamedSerializableType, SerializableAny, Tokens, U256},
-    x::bank::{BankKeeper, BankModule, MsgSend},
+    x::{
+        auth::{
+            ante::{AddrVerifyAnteHandler, SigVerifyAnteHandler, StdTx, TxBody},
+            AuthKeeper, AuthModule,
+        },
+        bank::{BankKeeper, BankModule, MsgSend},
+        crypto::{keeper::CryptoKeeper, module::CryptoModule, p256::VerifyingKeyP256},
+    },
 };
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct SimpleTx {
-    pub msgs: Vec<SerializableAny>,
-}
-
-impl Tx for SimpleTx {
-    fn msgs(&self) -> Vec<SerializableAny> {
-        self.msgs.clone()
-    }
-}
 
 #[derive(Clone)]
 pub struct MemoryStateManager {
@@ -88,9 +83,29 @@ async fn main() -> Result<(), InterLiquidSdkError> {
     state_manager.set(&alice_balance_key, &buf)?;
 
     // Create and register the bank module
-    let bank_keeper = BankKeeper::new();
+    let mut crypto_keeper = CryptoKeeper::new();
+    crypto_keeper
+        .register_verifying_key::<VerifyingKeyP256>()
+        .unwrap();
+    let crypto_keeper = Arc::new(crypto_keeper);
+    let auth_keeper = Arc::new(AuthKeeper::new(crypto_keeper.clone()));
+    let bank_keeper = Arc::new(BankKeeper::new());
+
+    let auth_module = Arc::new(AuthModule::new(auth_keeper.clone()));
     let bank_module = Arc::new(BankModule::new(bank_keeper));
-    let app: App<SimpleTx> = App::new(vec![bank_module], vec![], vec![]);
+    let crypto_module = Arc::new(CryptoModule::new(crypto_keeper.clone()));
+
+    let app: App<StdTx> = App::new(
+        vec![auth_module, bank_module, crypto_module],
+        vec![
+            Box::new(AddrVerifyAnteHandler::new()),
+            Box::new(SigVerifyAnteHandler::new(
+                auth_keeper.clone(),
+                crypto_keeper.clone(),
+            )),
+        ],
+        vec![],
+    );
 
     // Create the runner with proper initialization
     let savedata = SaveData {
@@ -126,8 +141,14 @@ async fn main() -> Result<(), InterLiquidSdkError> {
         let msg_any = SerializableAny::new(MsgSend::type_name().to_owned(), msg_bytes);
 
         // Wrap the message in a SimpleTx
-        let tx = SimpleTx {
-            msgs: vec![msg_any],
+        let tx = StdTx {
+            body: TxBody {
+                msgs: vec![msg_any],
+                timeout_seconds: 0,
+                options: vec![],
+            },
+            auth_info: BTreeMap::new(),
+            signature: BTreeMap::new(),
         };
         let mut tx_bytes = Vec::new();
         tx.serialize(&mut tx_bytes).unwrap();
