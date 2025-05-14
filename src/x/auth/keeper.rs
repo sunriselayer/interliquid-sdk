@@ -2,6 +2,7 @@ use crate::{
     core::Context,
     types::{Address, InterLiquidSdkError, SerializableAny},
     utils::Map,
+    x::crypto::keeper::CryptoKeeperI,
 };
 
 use super::{
@@ -45,15 +46,18 @@ pub trait AuthKeeperI {
     ) -> Result<(), InterLiquidSdkError>;
 }
 
-pub struct AuthKeeper {
+pub struct AuthKeeper<'a> {
+    crypto_keeper: &'a dyn CryptoKeeperI,
+
     accounts: Map<Address, Account>,
     verifying_keys: Map<(Address, u64), SerializableAny>,
     verifying_key_counter: Map<Address, u64>,
 }
 
-impl AuthKeeper {
-    pub fn new() -> Self {
+impl<'a> AuthKeeper<'a> {
+    pub fn new(crypto_keeper: &'a dyn CryptoKeeperI) -> Self {
         Self {
+            crypto_keeper,
             accounts: Map::new([AUTH, ACCOUNTS]),
             verifying_keys: Map::new([AUTH, VERIFYING_KEYS]),
             verifying_key_counter: Map::new([AUTH, VERIFYING_KEY_COUNTER]),
@@ -61,7 +65,7 @@ impl AuthKeeper {
     }
 }
 
-impl AuthKeeperI for AuthKeeper {
+impl<'a> AuthKeeperI for AuthKeeper<'a> {
     fn get_account(
         &self,
         ctx: &mut dyn Context,
@@ -91,6 +95,7 @@ impl AuthKeeperI for AuthKeeper {
         let verifying_key = self
             .verifying_keys
             .get(ctx.state_manager_mut(), (address, key_id))?;
+
         Ok(verifying_key)
     }
 
@@ -100,6 +105,8 @@ impl AuthKeeperI for AuthKeeper {
         address: &Address,
         verifying_key: &SerializableAny,
     ) -> Result<(), InterLiquidSdkError> {
+        let _ = self.crypto_keeper.unpack_verifying_key(verifying_key)?;
+
         let key_id = self
             .verifying_key_counter
             .get(ctx.state_manager_mut(), address)?

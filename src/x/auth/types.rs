@@ -7,3 +7,9 @@ pub struct Account {
     pub address: Address,
     pub nonce: u64,
 }
+
+impl Account {
+    pub fn new(address: Address) -> Self {
+        Self { address, nonce: 0 }
+    }
+}

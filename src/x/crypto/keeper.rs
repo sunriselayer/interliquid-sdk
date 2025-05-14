@@ -6,11 +6,7 @@ use crate::types::{InterLiquidSdkError, NamedSerializableType, SerializableAny};
 
 use super::verifying_key::VerifyingKey;
 
-pub trait CryptoKeeperI {
-    fn register_verifying_key<T: VerifyingKey + NamedSerializableType>(
-        &mut self,
-    ) -> Result<(), InterLiquidSdkError>;
-
+pub trait CryptoKeeperI: Send + Sync {
     fn unpack_verifying_key(
         &self,
         any: &SerializableAny,
@@ -34,10 +30,8 @@ impl CryptoKeeper {
             unpack: BTreeMap::new(),
         }
     }
-}
 
-impl CryptoKeeperI for CryptoKeeper {
-    fn register_verifying_key<T: VerifyingKey + NamedSerializableType>(
+    pub fn register_verifying_key<T: VerifyingKey + NamedSerializableType>(
         &mut self,
     ) -> Result<(), InterLiquidSdkError> {
         let name = T::type_name();
@@ -59,7 +53,9 @@ impl CryptoKeeperI for CryptoKeeper {
 
         Ok(())
     }
+}
 
+impl CryptoKeeperI for CryptoKeeper {
     fn unpack_verifying_key(
         &self,
         any: &SerializableAny,

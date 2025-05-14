@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use crate::core::{Module, MsgHandlerRegistry, MsgRegistry};
 
-use super::{
-    keeper::{CryptoKeeper, CryptoKeeperI},
-    p256::VerifyingKeyP256,
-};
+use super::{keeper::CryptoKeeper, p256::VerifyingKeyP256};
 
 pub struct CryptoModule {
     keeper: CryptoKeeper,
@@ -16,6 +13,10 @@ impl CryptoModule {
         keeper.register_verifying_key::<VerifyingKeyP256>().unwrap();
 
         Self { keeper }
+    }
+
+    pub fn keeper(&self) -> &CryptoKeeper {
+        &self.keeper
     }
 }
 

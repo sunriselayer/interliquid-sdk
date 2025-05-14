@@ -12,13 +12,13 @@ use crate::{
     },
 };
 
-pub struct SigVerifyAnteHandler {
-    auth_keeper: AuthKeeper,
+pub struct SigVerifyAnteHandler<'a> {
+    auth_keeper: AuthKeeper<'a>,
     crypto_keeper: CryptoKeeper,
 }
 
-impl SigVerifyAnteHandler {
-    pub fn new(auth_keeper: AuthKeeper, crypto_keeper: CryptoKeeper) -> Self {
+impl<'a> SigVerifyAnteHandler<'a> {
+    pub fn new(auth_keeper: AuthKeeper<'a>, crypto_keeper: CryptoKeeper) -> Self {
         Self {
             auth_keeper,
             crypto_keeper,
@@ -26,7 +26,7 @@ impl SigVerifyAnteHandler {
     }
 }
 
-impl TxAnteHandler<StdTx> for SigVerifyAnteHandler {
+impl<'a> TxAnteHandler<StdTx> for SigVerifyAnteHandler<'a> {
     fn handle(
         &self,
         ctx: &mut dyn Context,

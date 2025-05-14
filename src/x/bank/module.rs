@@ -12,6 +12,10 @@ impl BankModule {
     pub fn new(keeper: BankKeeper) -> Self {
         Self { keeper }
     }
+
+    pub fn keeper(&self) -> &BankKeeper {
+        &self.keeper
+    }
 }
 
 impl Module for BankModule {
