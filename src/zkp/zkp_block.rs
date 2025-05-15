@@ -22,10 +22,10 @@ impl PublicInputBlock {
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct WitnessBlock {
     pub txs_root: [u8; 32],
-    pub state_sparse_tree_root_prev: [u8; 32],
-    pub state_sparse_tree_root_next: [u8; 32],
-    pub keys_patricia_trie_root_prev: [u8; 32],
-    pub keys_patricia_trie_root_next: [u8; 32],
+    pub state_root_prev: [u8; 32],
+    pub state_root_next: [u8; 32],
+    pub keys_root_prev: [u8; 32],
+    pub keys_root_next: [u8; 32],
     pub accum_diffs_hash: [u8; 32],
     pub proof_tx_agg: Vec<u8>,
     pub proof_commit_state: Vec<u8>,
@@ -35,10 +35,10 @@ pub struct WitnessBlock {
 impl WitnessBlock {
     pub fn new(
         txs_root: [u8; 32],
-        state_sparse_tree_root_prev: [u8; 32],
-        state_sparse_tree_root_next: [u8; 32],
-        keys_patricia_trie_root_prev: [u8; 32],
-        keys_patricia_trie_root_next: [u8; 32],
+        state_root_prev: [u8; 32],
+        state_root_next: [u8; 32],
+        keys_root_prev: [u8; 32],
+        keys_root_next: [u8; 32],
         accum_diffs_hash: [u8; 32],
         proof_tx_agg: Vec<u8>,
         proof_commit_state: Vec<u8>,
@@ -46,10 +46,10 @@ impl WitnessBlock {
     ) -> Self {
         Self {
             txs_root,
-            state_sparse_tree_root_prev,
-            state_sparse_tree_root_next,
-            keys_patricia_trie_root_prev,
-            keys_patricia_trie_root_next,
+            state_root_prev,
+            state_root_next,
+            keys_root_prev,
+            keys_root_next,
             accum_diffs_hash,
             proof_tx_agg,
             proof_commit_state,
@@ -59,15 +59,9 @@ impl WitnessBlock {
 }
 
 pub fn circuit_block(witness: WitnessBlock) -> Result<PublicInputBlock, InterLiquidSdkError> {
-    let entire_root_prev = entire_root(
-        &witness.state_sparse_tree_root_prev,
-        &witness.keys_patricia_trie_root_prev,
-    );
+    let entire_root_prev = entire_root(&witness.state_root_prev, &witness.keys_root_prev);
 
-    let entire_root_next = entire_root(
-        &witness.state_sparse_tree_root_next,
-        &witness.keys_patricia_trie_root_next,
-    );
+    let entire_root_next = entire_root(&witness.state_root_next, &witness.keys_root_next);
 
     let input = PublicInputBlock::new(witness.txs_root, entire_root_prev, entire_root_next);
 

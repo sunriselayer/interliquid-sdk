@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::trie::NibblePatriciaTrieError;
+
 #[derive(Debug, Error)]
 pub enum InterLiquidSdkError {
     // Core
@@ -33,6 +35,10 @@ pub enum InterLiquidSdkError {
     // Store
     #[error("Accessing unrelated state")]
     UnrelatedState,
+
+    // Trie
+    #[error("Trie error")]
+    Trie(#[from] NibblePatriciaTrieError),
 
     // IO
     #[error("IO error")]

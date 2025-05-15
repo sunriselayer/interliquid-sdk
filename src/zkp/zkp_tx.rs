@@ -1,13 +1,15 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
-use crate::sha2::{Digest, Sha256};
+use crate::{
+    sha2::{Digest, Sha256},
+    trie::NibblePatriciaTrieRootPath,
+};
 use anyhow::anyhow;
 use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::{
     core::{App, SdkContext, Tx},
-    merkle::{OctRadPatriciaTriePath, OctRadSparseTreePath},
     state::{CompressedDiffs, RelatedState, StateLog, StateManager, TransactionalStateManager},
     types::InterLiquidSdkError,
 };
@@ -39,28 +41,28 @@ impl PublicInputTx {
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct WitnessTx {
     pub tx: Vec<u8>,
-    pub state_sparse_tree_root: [u8; 32],
-    pub keys_patricia_trie_root: [u8; 32],
+    pub state_root: [u8; 32],
+    pub keys_root: [u8; 32],
     pub state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
     pub accum_diffs_prev: CompressedDiffs,
-    pub read_proof_path: OctRadSparseTreePath,
-    pub iter_proof_path: OctRadPatriciaTriePath,
+    pub read_proof_path: NibblePatriciaTrieRootPath,
+    pub iter_proof_path: NibblePatriciaTrieRootPath,
 }
 
 impl WitnessTx {
     pub fn new(
         tx: Vec<u8>,
-        state_sparse_tree_root: [u8; 32],
-        keys_patricia_trie_root: [u8; 32],
+        state_root: [u8; 32],
+        keys_root: [u8; 32],
         state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
         accum_diffs_prev: CompressedDiffs,
-        read_proof_path: OctRadSparseTreePath,
-        iter_proof_path: OctRadPatriciaTriePath,
+        read_proof_path: NibblePatriciaTrieRootPath,
+        iter_proof_path: NibblePatriciaTrieRootPath,
     ) -> Self {
         Self {
             tx,
-            state_sparse_tree_root,
-            keys_patricia_trie_root,
+            state_root,
+            keys_root,
             state_for_access,
             accum_diffs_prev,
             read_proof_path,
@@ -70,8 +72,8 @@ impl WitnessTx {
 
     pub fn from<S: StateManager>(
         tx: Vec<u8>,
-        state_sparse_tree_root: [u8; 32],
-        keys_patricia_trie_root: [u8; 32],
+        state_root: [u8; 32],
+        keys_root: [u8; 32],
         logs: &[StateLog],
         accum_diffs_prev: CompressedDiffs,
         state_manager: &S,
@@ -146,13 +148,13 @@ impl WitnessTx {
             }
         }
 
-        let mut read_proof_path = OctRadSparseTreePath::new(BTreeMap::new());
-        let mut iter_proof_path = OctRadPatriciaTriePath::new(BTreeMap::new());
+        let mut read_proof_path = NibblePatriciaTrieRootPath::new(BTreeMap::new(), BTreeMap::new());
+        let mut iter_proof_path = NibblePatriciaTrieRootPath::new(BTreeMap::new(), BTreeMap::new());
 
         Ok(Self::new(
             tx,
-            state_sparse_tree_root,
-            keys_patricia_trie_root,
+            state_root,
+            keys_root,
             state_for_access,
             accum_diffs_prev,
             read_proof_path,
@@ -202,8 +204,8 @@ pub fn circuit_tx<TX: Tx>(
     let accum_diffs_hash_next = Sha256::digest(&accum_diffs_bytes_next).into();
 
     let mut hasher = Sha256::new();
-    hasher.update(witness.state_sparse_tree_root);
-    hasher.update(witness.keys_patricia_trie_root);
+    hasher.update(witness.state_root);
+    hasher.update(witness.keys_root);
     let entire_root = hasher.finalize().into();
 
     let public = PublicInputTx::new(

@@ -1,28 +1,31 @@
-use std::collections::BTreeMap;
-
-use crate::sha2::{Digest, Sha256};
+use crate::{
+    sha2::{Digest, Sha256},
+    trie::NibblePatriciaTrieRootPath,
+};
 use anyhow::anyhow;
 use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::{merkle::OctRadSparseTreePath, state::CompressedDiffs, types::InterLiquidSdkError};
+use crate::{state::CompressedDiffs, types::InterLiquidSdkError};
+
+use super::trie::node_for_inclusion_proof;
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct PublicInputCommitState {
-    pub state_sparse_tree_root_prev: [u8; 32],
-    pub state_sparse_tree_root_next: [u8; 32],
+    pub state_root_prev: [u8; 32],
+    pub state_root_next: [u8; 32],
     pub accum_diffs_hash_final: [u8; 32],
 }
 
 impl PublicInputCommitState {
     pub fn new(
-        state_sparse_tree_root_prev: [u8; 32],
-        state_sparse_tree_root_next: [u8; 32],
+        state_root_prev: [u8; 32],
+        state_root_next: [u8; 32],
         accum_diffs_hash_final: [u8; 32],
     ) -> Self {
         Self {
-            state_sparse_tree_root_prev,
-            state_sparse_tree_root_next,
+            state_root_prev,
+            state_root_next,
             accum_diffs_hash_final,
         }
     }
@@ -30,19 +33,19 @@ impl PublicInputCommitState {
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct WitnessCommitState {
-    pub state_sparse_tree_root_prev: [u8; 32],
+    pub state_root_prev: [u8; 32],
     pub accum_diffs_final: CompressedDiffs,
-    pub state_commit_path: OctRadSparseTreePath,
+    pub state_commit_path: NibblePatriciaTrieRootPath,
 }
 
 impl WitnessCommitState {
     pub fn new(
-        state_sparse_tree_root_prev: [u8; 32],
+        state_root_prev: [u8; 32],
         accum_diffs_final: CompressedDiffs,
-        state_commit_path: OctRadSparseTreePath,
+        state_commit_path: NibblePatriciaTrieRootPath,
     ) -> Self {
         Self {
-            state_sparse_tree_root_prev,
+            state_root_prev,
             accum_diffs_final,
             state_commit_path,
         }
@@ -57,57 +60,54 @@ pub fn circuit_commit_state(
         .accum_diffs_final
         .serialize(&mut accum_diffs_bytes_final)?;
 
-    let mut state_commit_path_for_prev = witness.state_commit_path.clone();
-    state_commit_path_for_prev.assign_node_hashes(
-        witness
-            .accum_diffs_final
-            .diffs
-            .iter()
-            .filter_map(|(key, diff)| {
-                if let Some(before) = &diff.before {
-                    let hash: [u8; 32] = Sha256::digest(before).into();
-                    Some((key, hash))
-                } else {
-                    None
-                }
-            })
-            .collect::<BTreeMap<&Vec<u8>, [u8; 32]>>()
-            .iter()
-            .map(|(k, h)| (*k, h)),
-    );
-    let state_sparse_tree_root_prev = state_commit_path_for_prev.root();
+    let nodes_for_inclusion_proof_prev = witness
+        .accum_diffs_final
+        .diffs
+        .iter()
+        .filter_map(|(key, diff)| {
+            if let Some(before) = &diff.before {
+                let key_hash: [u8; 32] = Sha256::digest(key).into();
+                Some((key_hash, before))
+            } else {
+                None
+            }
+        })
+        .map(|(k, v)| node_for_inclusion_proof(&witness.state_commit_path, &k, v.clone()))
+        .collect::<Result<_, _>>()?;
+    let state_root_prev = witness
+        .state_commit_path
+        .clone()
+        .root(nodes_for_inclusion_proof_prev, None)?;
 
-    if state_sparse_tree_root_prev != witness.state_sparse_tree_root_prev {
+    if state_root_prev != witness.state_root_prev {
         return Err(InterLiquidSdkError::Other(anyhow!(
             "Inconsistent state_sparse_tree_root_prev and state_commit_path"
         )));
     }
 
-    let mut state_commit_path_for_next = witness.state_commit_path;
-    state_commit_path_for_next.assign_node_hashes(
-        witness
-            .accum_diffs_final
-            .diffs
-            .iter()
-            .filter_map(|(key, diff)| {
-                if let Some(after) = &diff.after {
-                    let hash: [u8; 32] = Sha256::digest(after).into();
-                    Some((key, hash))
-                } else {
-                    None
-                }
-            })
-            .collect::<BTreeMap<&Vec<u8>, [u8; 32]>>()
-            .iter()
-            .map(|(k, h)| (*k, h)),
-    );
-    let state_sparse_tree_root_next = state_commit_path_for_next.root();
+    let nodes_for_inclusion_proof_next = witness
+        .accum_diffs_final
+        .diffs
+        .iter()
+        .filter_map(|(key, diff)| {
+            if let Some(after) = &diff.after {
+                let key_hash: [u8; 32] = Sha256::digest(key).into();
+                Some((key_hash, after))
+            } else {
+                None
+            }
+        })
+        .map(|(k, v)| node_for_inclusion_proof(&witness.state_commit_path, &k, v.clone()))
+        .collect::<Result<_, _>>()?;
+    let state_root_next = witness
+        .state_commit_path
+        .root(nodes_for_inclusion_proof_next, None)?;
 
     let accum_diffs_hash_final = Sha256::digest(&accum_diffs_bytes_final).into();
 
     let input = PublicInputCommitState::new(
-        witness.state_sparse_tree_root_prev,
-        state_sparse_tree_root_next,
+        witness.state_root_prev,
+        state_root_next,
         accum_diffs_hash_final,
     );
 

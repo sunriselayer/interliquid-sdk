@@ -1,5 +1,4 @@
 pub mod core;
-pub mod merkle;
 pub mod state;
 pub mod trie;
 pub mod types;
