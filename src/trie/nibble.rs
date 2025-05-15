@@ -36,3 +36,11 @@ impl From<Nibble> for u8 {
         value.0
     }
 }
+
+pub fn nibbles_from_bytes(bytes: &[u8]) -> Vec<Nibble> {
+    bytes
+        .iter()
+        .map(|b| Nibble::split(*b))
+        .flat_map(|(b1, b2)| [b1, b2])
+        .collect()
+}
