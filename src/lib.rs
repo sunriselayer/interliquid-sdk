@@ -1,6 +1,7 @@
 pub mod core;
 pub mod merkle;
 pub mod state;
+pub mod trie;
 pub mod types;
 pub mod utils;
 pub mod x;
