@@ -49,13 +49,13 @@ impl NibblePatriciaTrieNodeBranch {
         }
     }
 
-    pub fn hash(&self, child_hash: impl Fn(&Nibble) -> [u8; 32]) -> [u8; 32] {
+    pub fn hash(&self, child_hash: impl Fn(&Nibble) -> Option<[u8; 32]>) -> Option<[u8; 32]> {
         let mut hasher = Sha256::new();
         hasher.update(Nibble::as_slice(&self.key_fragment));
         for (index, _child_key_fragment) in self.child_key_fragments.iter() {
             hasher.update([index.as_u8()]);
-            hasher.update(child_hash(index));
+            hasher.update(child_hash(index)?);
         }
-        hasher.finalize().into()
+        Some(hasher.finalize().into())
     }
 }
