@@ -276,31 +276,31 @@ impl NibblePatriciaTrieRootPath {
 
         while let Some((_depth, nodes_branch_at_depth)) = nodes_branch.pop_last() {
             for (key, branch) in nodes_branch_at_depth {
-                let hash = branch
-                    .hash(|index| {
-                        let child_key_fragment = branch.child_key_fragments.get(&index).unwrap();
+                let hash = branch.hash(|index| {
+                    let child_key_fragment = branch.child_key_fragments.get(&index).unwrap();
 
-                        let child_key = key
-                            .iter()
-                            .chain(child_key_fragment)
-                            .copied()
-                            .collect::<Vec<_>>();
+                    let child_key = key
+                        .iter()
+                        .chain(child_key_fragment)
+                        .copied()
+                        .collect::<Vec<_>>();
 
-                        let nodes_hashed_at_depth = nodes_hashed.get(&child_key.len())?;
-                        let child_hash = nodes_hashed_at_depth.get(&child_key);
+                    let nodes_hashed_at_depth = nodes_hashed.get(&child_key.len())?;
+                    let child_hash = nodes_hashed_at_depth.get(&child_key);
 
-                        child_hash.copied()
-                    })
-                    .ok_or(NibblePatriciaTrieError::InvalidProof)?;
+                    child_hash.copied()
+                });
 
-                if let Some(ref branch_hash_callback) = branch_hash_callback {
-                    branch_hash_callback(&key, &hash);
+                if let Some(hash) = hash {
+                    if let Some(ref branch_hash_callback) = branch_hash_callback {
+                        branch_hash_callback(&key, &hash);
+                    }
+
+                    nodes_hashed
+                        .entry(key.len())
+                        .or_insert_with(BTreeMap::new)
+                        .insert(key, hash);
                 }
-
-                nodes_hashed
-                    .entry(key.len())
-                    .or_insert_with(BTreeMap::new)
-                    .insert(key, hash);
             }
         }
 

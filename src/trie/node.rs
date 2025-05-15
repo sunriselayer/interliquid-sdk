@@ -52,11 +52,26 @@ impl NibblePatriciaTrieNodeBranch {
     }
 
     pub fn hash(&self, child_hash: impl Fn(&Nibble) -> Option<[u8; 32]>) -> Option<[u8; 32]> {
+        let child_hashes = self
+            .child_key_fragments
+            .keys()
+            .map(|index| {
+                let child_hash = child_hash(index);
+                (index, child_hash)
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        if child_hashes.iter().all(|(_, hash)| hash.is_none()) {
+            return None;
+        }
+
         let mut hasher = Sha256::new();
         hasher.update(Nibble::as_slice(&self.key_fragment));
-        for (index, _child_key_fragment) in self.child_key_fragments.iter() {
-            hasher.update([index.as_u8()]);
-            hasher.update(child_hash(index)?);
+        for (index, child_hash) in child_hashes.iter() {
+            if let Some(child_hash) = child_hash {
+                hasher.update([index.as_u8()]);
+                hasher.update(child_hash);
+            }
         }
         Some(hasher.finalize().into())
     }
