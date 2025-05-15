@@ -158,3 +158,75 @@ impl NibblePatriciaTrieNodeBranch {
         (root_key, node_map)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn nibbles_from_bytes(bytes: &[u8]) -> Vec<Nibble> {
+        // Convert each byte to two nibbles
+        bytes
+            .iter()
+            .map(|b| Nibble::split(*b))
+            .flat_map(|(b1, b2)| [b1, b2])
+            .collect()
+    }
+
+    #[test]
+    fn test_build_trie_simple() {
+        // Prepare simple key-value pairs
+        let mut entries = BTreeMap::new();
+        entries.insert(nibbles_from_bytes(&[0x12]), b"a".to_vec());
+        entries.insert(nibbles_from_bytes(&[0x13]), b"b".to_vec());
+        entries.insert(nibbles_from_bytes(&[0x22]), b"c".to_vec());
+
+        let (root_key, node_map) = NibblePatriciaTrieNodeBranch::build_trie(entries.clone());
+
+        // Root should be empty prefix
+        assert_eq!(root_key, vec![]);
+        // Root node should be a branch
+        let root_node = node_map.get(&root_key).unwrap();
+        match root_node {
+            NibblePatriciaTrieNode::Branch(branch) => {
+                // There should be two children: 0x1 and 0x2
+                let child_indices: Vec<u8> = branch
+                    .child_key_fragments
+                    .keys()
+                    .map(|n| n.as_u8())
+                    .collect();
+                assert_eq!(child_indices, vec![0x1, 0x2]);
+            }
+            _ => panic!("Root node is not a branch"),
+        }
+        // Check leaf nodes
+        for (key, value) in entries {
+            // Find the leaf node by its prefix in the node_map
+            let mut prefix = vec![];
+            let mut node = node_map.get(&prefix).unwrap();
+            let mut idx = 0;
+            loop {
+                match node {
+                    NibblePatriciaTrieNode::Branch(branch) => {
+                        if idx >= key.len() {
+                            panic!("Key too short");
+                        }
+                        let nib = key[idx];
+                        let child_prefix = branch.child_key_fragments.get(&nib).unwrap();
+                        prefix = child_prefix.clone();
+                        node = node_map.get(&prefix).unwrap();
+                        idx += 1;
+                    }
+                    NibblePatriciaTrieNode::Leaf(leaf) => {
+                        // Check key_fragment and value
+                        let reconstructed_key: Vec<Nibble> =
+                            [prefix.clone(), leaf.key_fragment.clone()].concat();
+                        assert_eq!(reconstructed_key, key);
+                        assert_eq!(leaf.value, value);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
