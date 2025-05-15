@@ -1,15 +1,14 @@
 use crate::trie::{
-    nibbles_from_bytes, Nibble, NibblePatriciaTrieError, NibblePatriciaTrieNodeLeaf,
-    NibblePatriciaTrieRootPath,
+    nibbles_from_bytes, search_near_leaf_parent_key, Nibble, NibblePatriciaTrieError,
+    NibblePatriciaTrieNodeLeaf, NibblePatriciaTrieRootPath,
 };
 
 pub fn leaf_key_fragment_from_path(
     path: &NibblePatriciaTrieRootPath,
     leaf_key: &[Nibble],
 ) -> Result<Vec<Nibble>, NibblePatriciaTrieError> {
-    let parent_key = NibblePatriciaTrieRootPath::search_near_leaf_parent_key(leaf_key, |key| {
-        Ok(path.nodes_branch.get(key).cloned())
-    })?;
+    let parent_key =
+        search_near_leaf_parent_key(leaf_key, |key| Ok(path.nodes_branch.get(key).cloned()))?;
 
     let key_fragment = leaf_key[parent_key.len()..].to_vec();
 

@@ -14,6 +14,7 @@ use sha2;
 #[cfg(feature = "sp1")]
 use sha2_sp1 as sha2;
 
+#[allow(unused)]
 #[cfg(not(feature = "sp1"))]
 use sha3;
 #[cfg(feature = "sp1")]

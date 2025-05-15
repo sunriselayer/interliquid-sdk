@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use super::Nibble;
+use borsh::BorshDeserialize;
+
+use super::{Nibble, NibblePatriciaTrieError, NibblePatriciaTrieNode};
 
 pub trait NibblePatriciaTrieDb {
     fn get(&self, key: &[Nibble]) -> Option<Vec<u8>>;
@@ -32,4 +34,24 @@ impl NibblePatriciaTrieDb for NibblePatriciaTrieMemoryDb {
     fn del(&mut self, key: &[Nibble]) {
         self.db.remove(key);
     }
+}
+
+pub(super) fn get_node<Db: NibblePatriciaTrieDb>(
+    key: &[Nibble],
+    node_db: &Db,
+) -> Result<NibblePatriciaTrieNode, NibblePatriciaTrieError> {
+    let node_bytes = node_db.get(key).ok_or(NibblePatriciaTrieError::NotFound)?;
+    let node = NibblePatriciaTrieNode::try_from_slice(&node_bytes)?;
+    Ok(node)
+}
+
+pub(super) fn get_node_hash<Db: NibblePatriciaTrieDb>(
+    key: &[Nibble],
+    hash_db: &Db,
+) -> Result<[u8; 32], NibblePatriciaTrieError> {
+    let hash_bytes = hash_db.get(key).ok_or(NibblePatriciaTrieError::NotFound)?;
+    let hash: [u8; 32] = hash_bytes
+        .try_into()
+        .map_err(|_| NibblePatriciaTrieError::InvalidHash)?;
+    Ok(hash)
 }
