@@ -134,16 +134,16 @@ However, proving it for iter access (all keys which match the designated key pre
 
 Twin Radix Trees combines two tree components:
 
-- 8-bit-Radix Sparse Merkle Tree for state inclusion proof
-- 8-bit-Radix Patricia Trie for key indexing to enable key prefix based iteration
+- 4-bit-Radix State Patricia Trie for state inclusion proof
+- 4-bit-Radix Keys Patricia Trie for key indexing to enable key prefix based iteration
 
 The state root is calculated by the following equation where $$h$$ is the hash function:
 
 $$
-\text{EntireRoot} = h(\text{StateSparseTreeRoot} || \text{KeysPatriciaTrieRoot})
+\text{EntireRoot} = h(\text{StateRoot} || \text{KeysRoot})
 $$
 
-### 8-bit-Radix Sparse Merkle Tree
+### 4-bit-Radix State Patricia Trie
 
 This tree works for the state inclusion proof.
 
@@ -151,28 +151,7 @@ It can be used for proving get access validity in the state transition, and also
 
 The leaf index is determined by the key hash, and the leaf value is the state hash.
 
-```rust
-pub enum OctRadSparseTreeNode {
-    Leaf(OctRadSparseTreeNodeLeaf),
-    Branch(OctRadSparseTreeNodeBranch),
-}
-
-pub struct OctRadSparseTreeNodeLeaf {
-    pub key_hash_fragment: u8,
-    pub value: Vec<u8>,
-}
-
-pub struct OctRadSparseTreeNodeBranch {
-    pub key_hash_fragment: u8,
-    pub child_hashes: BTreeMap<u8, [u8; HASH_BYTES]>,
-}
-
-pub struct OctRadSparseTreePath(BTreeMap<Vec<u8>, [u8; 32]>);
-```
-
 Thanks to the property of the hash function, the attack vector of increasing the inclusion proof size of the specific key is also reduced.
-
-Using an 8-bit radix reduces the maximum tree depth from 256 to 32.
 
 To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \text{ReadKVPairs} $$.
 
@@ -184,7 +163,7 @@ $$
     & \text{ReadProofPath}
   \end{aligned} \right\} \\
   \text{PubInputsRead} &= \left\{ \begin{aligned}
-    & \text{StateSparseTreeRootPrev} \\
+    & \text{StateRootPrev} \\
     & (\text{StateForAccess}, \text{ReadKVPairs}, \text{ReadProofPath}) \\
     & \text{ReadKVPairsHash}(\text{ReadKVPairs})
   \end{aligned} \right\}
@@ -193,35 +172,17 @@ $$
 
 It is also needed to prove the non-inclusion of the key which was tried to be be accessed in the STF but not found. To do this, it is enough to prove the inclusion of dead end node in the tree.
 
-### 8-bit-Radix Patricia Trie
+### 4-bit-Radix Keys Patricia Trie
 
 This trie works for the key indexing.
 
 It can be used for proving iter access validity in the state transition.
 
-```rust
-pub enum OctRadPatriciaTrieNode {
-    Leaf(OctRadPatriciaTrieNodeLeaf),
-    Branch(OctRadPatriciaTrieNodeBranch),
-}
-
-pub struct OctRadPatriciaTrieNodeLeaf {
-    pub key_fragment: Vec<u8>,
-}
-
-pub struct OctRadPatriciaTrieNodeBranch {
-    pub key_fragment: Vec<u8>,
-    pub child_hashes: BTreeMap<u8, [u8; HASH_BYTES]>,
-}
-
-pub struct OctRadPatriciaTriePath(BTreeMap<Vec<u8>, [u8; 32]>);
-```
-
 The node hash is calculated by the following equation where $$h$$ is the hash function:
 
 $$
 \begin{aligned}
-  &\text{KeyPatriciaNodeHash} \\
+  &\text{KeysNodeHash} \\
   &= \begin{cases}
     \begin{aligned}
       h(&\text{KeyFragment} \\
@@ -242,7 +203,7 @@ $$
     & \text{IterProofPath}
   \end{aligned} \right\} \\
   \text{PubInputsIter} &= \left\{ \begin{aligned}
-    & \text{KeysPatriciaTrieRootPrev} \\
+    & \text{KeysRootPrev} \\
     & (\text{StateForAccess}, \text{IterKVPairs}, \text{IterProofPath}) \\
     & \text{IterKVPairsHash}(\text{IterKVPairs})
   \end{aligned} \right\}
@@ -277,17 +238,17 @@ $$
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
   \text{WitnessTx}_i &= \left\{ \begin{aligned}
     & \text{Tx}_i \\
-    & \text{StateSparseTreeRoot} \\
-    & \text{KeysPatriciaTrieRoot} \\
+    & \text{StateRoot} \\
+    & \text{KeysRoot} \\
     & \text{StateForAccess}_i \\
     & \text{AccumDiffsPrev}_i \\
     & \text{ReadProofPath}_i \\
     & \text{IterProofPath}_i
   \end{aligned} \right\} \\
   \text{ConstraintsTx}_i &= \left\{ \begin{aligned}
-    & \text{StateSparseTreeRoot} \\
+    & \text{StateRoot} \\
     & (\text{StateForAccess}_i, g(\dots), \text{ReadProofPath}_i) \\
-    & \text{KeysPatriciaTrieRoot} \\
+    & \text{KeysRoot} \\
     & (\text{StateForAccess}_i, g(\dots), \text{IterProofPath}_i)
   \end{aligned} \right\} \\
   \text{PubInputsTx}_i &= \left\{\begin{aligned}
@@ -295,7 +256,7 @@ $$
     & \text{AccumDiffsHashPrev}_i(\text{AccumDiffsPrev}_i) \\
     & \text{AccumDiffsHashNext}_i(g(\dots)) \\
     & \text{EntireRoot} \\
-    & (\text{StateSparseTreeRoot}, \text{KeysPatriciaTrieRoot})
+    & (\text{StateRoot}, \text{KeysRoot})
   \end{aligned} \right\}
 \end{aligned}
 $$
@@ -304,7 +265,7 @@ Not only for the parallelization but also the fact that the proof of ZK-STARK re
 
 By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\text{ReadKVPairs}_i$$ and $$\text{IterKVPairs}_i$$ by itself.
 
-Needless to say, $$\text{StateSparseTreeRootPrev}$$ and $$\text{KeysPatriciaTrieRootPrev}$$ which need to be verified, also can be verified by using $$\text{PubInputsTx}_i$$ in the circuit.
+Needless to say, $$\text{StateRootPrev}$$ and $$\text{KeysRootPrev}$$ which need to be verified, also can be verified by using $$\text{PubInputsTx}_i$$ in the circuit.
 
 ### Divide and Conquer for Proof Aggregation
 
@@ -418,15 +379,15 @@ Before proving the block, we also divide the circuit of state commitment and key
 $$
 \begin{aligned}
   \text{WitnessCommitState} &= \left\{ \begin{aligned}
-    & \text{StateSparseTreeRootPrev} \\
+    & \text{StateRootPrev} \\
     & \text{AccumDiffs}_n \\
     & \text{StateCommitPath}
   \end{aligned} \right\} \\
   \text{PubInputsCommitState} &= \left\{\begin{aligned}
-    & \text{StateSparseTreeRootPrev} \\
-    & \text{StateSparseTreeRootNext} \\
+    & \text{StateRootPrev} \\
+    & \text{StateRootNext} \\
     & \left(\begin{aligned}
-      & \text{StateSparseTreeRootPrev} \\
+      & \text{StateRootPrev} \\
       & \text{AccumDiffs}_n \\
       & \text{StateCommitPath}
     \end{aligned}\right) \\
@@ -434,15 +395,15 @@ $$
   \end{aligned} \right\} \\
   \\
   \text{WitnessCommitKeys} &= \left\{ \begin{aligned}
-    & \text{KeysPatriciaTrieRootPrev} \\
+    & \text{KeysRootPrev} \\
     & \text{AccumDiffs}_n \\
     & \text{KeysCommitPath}
   \end{aligned} \right\} \\
   \text{PubInputsCommitKeys} &= \left\{\begin{aligned}
-    & \text{KeysPatriciaTrieRootPrev} \\
-    & \text{KeysPatriciaTrieRootNext} \\
+    & \text{KeysRootPrev} \\
+    & \text{KeysRootNext} \\
     & \left(\begin{aligned}
-      & \text{KeysPatriciaTrieRootPrev} \\
+      & \text{KeysRootPrev} \\
       & \text{AccumDiffs}_n \\
       & \text{KeysCommitPath}
     \end{aligned}\right) \\
@@ -457,22 +418,22 @@ $$
 \begin{aligned}
   \text{WitnessBlock} &= \left\{ \begin{aligned}
     & \text{TxsRoot} \\
-    & \text{StateSparseTreeRootPrev} \\
-    & \text{StateSparseTreeRootNext} \\
-    & \text{KeysPatriciaTrieRootPrev} \\
-    & \text{KeysPatriciaTrieRootNext} \\
+    & \text{StateRootPrev} \\
+    & \text{StateRootNext} \\
+    & \text{KeysRootPrev} \\
+    & \text{KeysRootNext} \\
     & \text{AccumDiffsHash}_n \\
     & \text{ProofTxAgg}_{\{1:n\}} \\
     & \text{ProofCommitState} \\
     & \text{ProofCommitKeys}
   \end{aligned} \right\} \\
   \text{EntireRootPrev} &= h\left(\begin{aligned}
-    &\text{StateSparseTreeRootPrev} \\
-    & || \text{KeysPatriciaTrieRootPrev}
+    &\text{StateRootPrev} \\
+    & || \text{KeysRootPrev}
   \end{aligned}\right) \\
   \text{EntireRootNext} &= h\left(\begin{aligned}
-    &\text{StateSparseTreeRootNext} \\
-    & || \text{KeysPatriciaTrieRootNext}
+    &\text{StateRootNext} \\
+    & || \text{KeysRootNext}
   \end{aligned}\right) \\
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
   \text{AccumDiffsHashNext}_n &= \text{AccumDiffsHash}_n \\
@@ -487,14 +448,14 @@ $$
     \end{aligned}\right) \\
     & \text{ProofCommitState} \\
     & \left(\begin{aligned}
-      & \text{StateSparseTreeRootPrev} \\
-      & \text{StateSparseTreeRootNext} \\
+      & \text{StateRootPrev} \\
+      & \text{StateRootNext} \\
       & \text{AccumDiffsHash}_n
     \end{aligned}\right) \\
     & \text{ProofCommitKeys} \\
     & \left(\begin{aligned}
-      & \text{KeysPatriciaTrieRootPrev} \\
-      & \text{KeysPatriciaTrieRootNext} \\
+      & \text{KeysRootPrev} \\
+      & \text{KeysRootNext} \\
       & \text{AccumDiffsHash}_n
     \end{aligned}\right)
   \end{aligned} \right\} \\
