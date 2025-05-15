@@ -1,5 +1,4 @@
 use borsh::BorshDeserialize;
-use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -9,19 +8,20 @@ use super::{
 };
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
-pub enum NibblePatriciaTrieProofNode {
-    Branch(NibblePatriciaTrieNodeBranch),
-    Hash([u8; 32]),
-}
-
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct NibblePatriciaTrieProof {
-    pub nodes: BTreeMap<Vec<Nibble>, NibblePatriciaTrieProofNode>,
+    pub nodes_branch: BTreeMap<Vec<Nibble>, NibblePatriciaTrieNodeBranch>,
+    pub nodes_hashed: BTreeMap<Vec<Nibble>, [u8; 32]>,
 }
 
 impl NibblePatriciaTrieProof {
-    pub fn new(nodes: BTreeMap<Vec<Nibble>, NibblePatriciaTrieProofNode>) -> Self {
-        Self { nodes }
+    pub fn new(
+        nodes_branch: BTreeMap<Vec<Nibble>, NibblePatriciaTrieNodeBranch>,
+        nodes_hashed: BTreeMap<Vec<Nibble>, [u8; 32]>,
+    ) -> Self {
+        Self {
+            nodes_branch,
+            nodes_hashed,
+        }
     }
 
     fn get_node<Db: NibblePatriciaTrieDb>(
@@ -135,7 +135,7 @@ impl NibblePatriciaTrieProof {
         // get the depth of the deepest marked node
         let mut depth = *marked_nodes.keys().last().unwrap();
 
-        let mut slf = Self::new(BTreeMap::new());
+        let mut slf = Self::new(BTreeMap::new(), BTreeMap::new());
 
         loop {
             let marked_nodes_in_depth = marked_nodes.get(&depth);
@@ -165,10 +165,7 @@ impl NibblePatriciaTrieProof {
                             // only the non-marked child nodes are added to the proof
                             let child_node_hash = Self::get_node_hash(&child_key, node_hash_db)?;
 
-                            slf.nodes.insert(
-                                child_key,
-                                NibblePatriciaTrieProofNode::Hash(child_node_hash),
-                            );
+                            slf.nodes_hashed.insert(child_key, child_node_hash);
                         }
 
                         // add the parent node to the new marked nodes
@@ -188,10 +185,7 @@ impl NibblePatriciaTrieProof {
                         }
 
                         // add the marked node to the proof
-                        slf.nodes.insert(
-                            key.clone(),
-                            NibblePatriciaTrieProofNode::Branch(branch.clone()),
-                        );
+                        slf.nodes_branch.insert(key.clone(), branch.clone());
                     }
                 }
             }
@@ -214,17 +208,15 @@ impl NibblePatriciaTrieProof {
         for i in (0..key_len).rev() {
             let key_path = &leaf_key[..i];
 
-            let node = self.nodes.get(key_path);
+            let node = self.nodes_branch.get(key_path);
 
             if let Some(node) = node {
-                if let NibblePatriciaTrieProofNode::Branch(branch) = node {
-                    // to prove the non-inclusion, branch node must not have the child key index for the leaf to prove non-inclusion
-                    if !branch
-                        .child_key_fragments
-                        .contains_key(&Nibble::from(leaf_key[i]))
-                    {
-                        return Ok(());
-                    }
+                // to prove the non-inclusion, branch node must not have the child key index for the leaf to prove non-inclusion
+                if !node
+                    .child_key_fragments
+                    .contains_key(&Nibble::from(leaf_key[i]))
+                {
+                    return Ok(());
                 }
                 return Err(NibblePatriciaTrieError::InvalidProof);
             }
@@ -238,40 +230,37 @@ impl NibblePatriciaTrieProof {
         nodes_for_inclusion_proof: BTreeMap<Vec<Nibble>, NibblePatriciaTrieNodeLeaf>,
         branch_hash_callback: Option<Box<dyn Fn(&Vec<Nibble>, &[u8; 32])>>,
     ) -> Result<[u8; 32], NibblePatriciaTrieError> {
-        let mut branches =
+        let mut nodes_branch =
             BTreeMap::<usize, BTreeMap<Vec<Nibble>, NibblePatriciaTrieNodeBranch>>::new();
-        let mut hashes = BTreeMap::<usize, BTreeMap<Vec<Nibble>, [u8; 32]>>::new();
+        let mut nodes_hashed = BTreeMap::<usize, BTreeMap<Vec<Nibble>, [u8; 32]>>::new();
 
-        for (key, node) in self.nodes {
-            match node {
-                NibblePatriciaTrieProofNode::Branch(branch) => {
-                    branches
-                        .entry(key.len())
-                        .or_insert_with(BTreeMap::new)
-                        .insert(key, branch);
-                }
-                NibblePatriciaTrieProofNode::Hash(hash) => {
-                    hashes
-                        .entry(key.len())
-                        .or_insert_with(BTreeMap::new)
-                        .insert(key, hash);
-                }
-            }
+        for (key, node) in self.nodes_branch {
+            nodes_branch
+                .entry(key.len())
+                .or_insert_with(BTreeMap::new)
+                .insert(key, node);
+        }
+
+        for (key, node) in self.nodes_hashed {
+            nodes_hashed
+                .entry(key.len())
+                .or_insert_with(BTreeMap::new)
+                .insert(key, node);
         }
 
         for (key, node) in nodes_for_inclusion_proof {
-            hashes
+            nodes_hashed
                 .entry(key.len())
                 .or_insert_with(BTreeMap::new)
                 .insert(key, node.hash());
         }
 
-        if branches.is_empty() {
+        if nodes_branch.is_empty() {
             return Err(NibblePatriciaTrieError::EmptyProof);
         }
 
-        while let Some((depth, branches_at_depth)) = branches.pop_last() {
-            for (key, branch) in branches_at_depth {
+        while let Some((_depth, nodes_branch_at_depth)) = nodes_branch.pop_last() {
+            for (key, branch) in nodes_branch_at_depth {
                 let hash = branch
                     .hash(|index| {
                         let child_key_fragment = branch.child_key_fragments.get(&index).unwrap();
@@ -282,7 +271,8 @@ impl NibblePatriciaTrieProof {
                             .copied()
                             .collect::<Vec<_>>();
 
-                        let child_hash = hashes.get(&child_key.len())?.get(&child_key);
+                        let nodes_hashed_at_depth = nodes_hashed.get(&child_key.len())?;
+                        let child_hash = nodes_hashed_at_depth.get(&child_key);
 
                         child_hash.copied()
                     })
@@ -292,16 +282,14 @@ impl NibblePatriciaTrieProof {
                     branch_hash_callback(&key, &hash);
                 }
 
-                hashes
+                nodes_hashed
                     .entry(key.len())
                     .or_insert_with(BTreeMap::new)
                     .insert(key, hash);
             }
-            // remove unnecessary hashes of longer keys
-            hashes.retain(|&k, _| k <= depth);
         }
 
-        let root_hash = hashes
+        let root_hash = nodes_hashed
             .pop_first()
             .ok_or(NibblePatriciaTrieError::InvalidProof)?
             .1
@@ -315,6 +303,8 @@ impl NibblePatriciaTrieProof {
 
 #[cfg(test)]
 mod tests {
+    use borsh::BorshSerialize;
+
     use super::*;
     use crate::trie::db::NibblePatriciaTrieMemoryDb;
     use crate::trie::nibble::Nibble;
@@ -466,15 +456,15 @@ mod tests {
         let proof = NibblePatriciaTrieProof::from_leafs(leaf_keys, &node_db, &hash_db).unwrap();
         println!("proof: {:?}", proof);
 
-        assert!(proof.nodes.contains_key(&vec![Nibble::from(1)]));
+        assert!(proof.nodes_branch.contains_key(&vec![Nibble::from(1)]));
         assert!(!proof
-            .nodes
+            .nodes_hashed
             .contains_key(&vec![Nibble::from(1), Nibble::from(2)]));
         assert!(proof
-            .nodes
+            .nodes_hashed
             .contains_key(&vec![Nibble::from(1), Nibble::from(3)]));
         assert!(proof
-            .nodes
+            .nodes_hashed
             .contains_key(&vec![Nibble::from(2), Nibble::from(2)]));
     }
 
@@ -492,5 +482,30 @@ mod tests {
     }
 
     #[test]
-    fn test_inclusion_proof_and_root() {}
+    fn test_inclusion_proof_and_root() {
+        let (entries, node_db, hash_db, _root_node) = setup_trie_and_db();
+
+        let leaf_key = vec![Nibble::from(1), Nibble::from(2)];
+        let leaf_keys = BTreeSet::from([leaf_key.clone()]);
+        let proof = NibblePatriciaTrieProof::from_leafs(leaf_keys, &node_db, &hash_db).unwrap();
+        println!("proof: {:?}", proof);
+
+        let leaf_value = entries.get(&leaf_key).unwrap();
+        let root = proof
+            .root(
+                [(
+                    leaf_key.clone(),
+                    NibblePatriciaTrieNodeLeaf::new(vec![Nibble::from(2)], leaf_value.clone()),
+                )]
+                .into_iter()
+                .collect(),
+                None,
+            )
+            .unwrap();
+        println!("root: {:?}", root);
+
+        let root_hash: [u8; 32] = hash_db.get(&vec![]).unwrap().try_into().unwrap();
+
+        assert_eq!(root, root_hash);
+    }
 }
