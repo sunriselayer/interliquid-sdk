@@ -27,7 +27,7 @@ impl Msg for MsgAddKey {
     }
 }
 
-impl<'a> AuthKeeper<'a> {
+impl AuthKeeper {
     pub fn msg_add_key(
         &self,
         ctx: &mut dyn Context,

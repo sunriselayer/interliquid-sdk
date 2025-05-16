@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::anyhow;
 
 use crate::{
@@ -12,13 +14,13 @@ use crate::{
     },
 };
 
-pub struct SigVerifyAnteHandler<'a> {
-    auth_keeper: AuthKeeper<'a>,
-    crypto_keeper: CryptoKeeper,
+pub struct SigVerifyAnteHandler {
+    auth_keeper: Arc<AuthKeeper>,
+    crypto_keeper: Arc<CryptoKeeper>,
 }
 
-impl<'a> SigVerifyAnteHandler<'a> {
-    pub fn new(auth_keeper: AuthKeeper<'a>, crypto_keeper: CryptoKeeper) -> Self {
+impl SigVerifyAnteHandler {
+    pub fn new(auth_keeper: Arc<AuthKeeper>, crypto_keeper: Arc<CryptoKeeper>) -> Self {
         Self {
             auth_keeper,
             crypto_keeper,
@@ -26,7 +28,7 @@ impl<'a> SigVerifyAnteHandler<'a> {
     }
 }
 
-impl<'a> TxAnteHandler<StdTx> for SigVerifyAnteHandler<'a> {
+impl TxAnteHandler<StdTx> for SigVerifyAnteHandler {
     fn handle(
         &self,
         ctx: &mut dyn Context,

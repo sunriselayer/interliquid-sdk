@@ -27,7 +27,7 @@ impl Msg for MsgDelKey {
     }
 }
 
-impl<'a> AuthKeeper<'a> {
+impl AuthKeeper {
     pub fn msg_del_key(
         &self,
         ctx: &mut dyn Context,

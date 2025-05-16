@@ -42,4 +42,4 @@ sp1 = ["sha2-sp1", "sha3-sp1", "crypto-bigint-sp1", "p256-sp1"]
 [[example]]
 name = "basic_usage"
 path = "examples/basic_usage.rs"
-required-features = ["tokio", "axum", "base64", "serde", "crypto-bigint"]
+required-features = ["tokio", "axum", "base64", "serde"]

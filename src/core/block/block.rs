@@ -1,5 +1,5 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
-use sha2::{Digest, Sha256};
+use crate::sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct Header {

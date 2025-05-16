@@ -4,21 +4,21 @@ use crate::core::{Module, MsgHandlerRegistry, MsgRegistry};
 
 use super::keeper::AuthKeeper;
 
-pub struct AuthModule<'a> {
-    keeper: AuthKeeper<'a>,
+pub struct AuthModule {
+    keeper: Arc<AuthKeeper>,
 }
 
-impl<'a> AuthModule<'a> {
-    pub fn new(keeper: AuthKeeper<'a>) -> Self {
+impl AuthModule {
+    pub fn new(keeper: Arc<AuthKeeper>) -> Self {
         Self { keeper }
     }
 
-    pub fn keeper(&self) -> &AuthKeeper<'a> {
+    pub fn keeper(&self) -> &AuthKeeper {
         &self.keeper
     }
 }
 
-impl<'a> Module for AuthModule<'a> {
+impl Module for AuthModule {
     fn register_msgs(
         self: Arc<Self>,
         _msg_registry: &mut MsgRegistry,

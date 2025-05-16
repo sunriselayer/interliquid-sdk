@@ -63,7 +63,24 @@ It allows developers to iterate state in a key prefix based way because the key 
 However, IAVL has a mechanism of self-rebalancing tree, and it is not proper to prove with Zero Knowledge Proofs.
 If we try to remove the mechanism of self-rebalancing (it means it is simple binary tree), it causes an attack vector to make the inclusion proof of a certain key too large because the depth of the node in the tree can be operated by an attacker.
 
-## The challenge of InterLiquid SDK
+### Polkadot SDK (Substrate)
+
+Polkadot SDK's state is managed with Patricia Merkle Trie.
+It also supports key prefix based iteration with the unique way.
+In the Polkadot SDK, the key is separated into the prefix parts, and each prefix part is hashed.
+
+For example, if the application logic want to access the state with the key  `gov/votes/{proposal_id}/{voter_address}`, it is hashed with each prefix part like `gov/votes/{hash(proposal_id)}/{proposal_id}/{hash(voter_address)}/{voter_address}`.
+
+This design allows the application logic to iterate the state in a key prefix based way.
+However, there are two limitations.
+
+Firstly, the key is hashed, so it is not able to iterate with the sorted order.
+If we iterate all the state and sort them, the meaning of the iteration is lost because it can be achieved by storing the entire array in one key.
+
+Secondly, the key is hashed, so the proof of the inclusion of the iterated key is not ZK friendly.
+It is not possible to prove the completeness of the iterated key as we do in InterLiquid SDK.
+
+## Techincal: The challenge of InterLiquid SDK
 
 The challenge of InterLiquid SDK is to make key prefix based iteration and ZK friendliness coexisting.
 The architecture to achieve this is **Twin Radix Trees**.
@@ -93,9 +110,7 @@ Because zkVMs cannot access the storage directly, we need to give the state to a
 It is also enough to output only the diffs $$ \text{Diffs} $$ without entire state.
 To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state commit path $$ \text{StateCommitPath} $$ to allow zkVM to calculate the state root.
 
-By committing these three values $$\text{StateRootPrev}$$, $$\text{StateRootNext}$$ and $$\text{TxsRoot}$$:
-
-as the public input of the ZKP, it is possible to generate the verifiable validity proof of the state transition.
+By committing these three values $$\text{StateRootPrev}$$, $$\text{StateRootNext}$$ and $$\text{TxsRoot}$$ as the public input of the ZKP, it is possible to generate the verifiable validity proof of the state transition.
 
 $$
 \begin{aligned}
@@ -134,16 +149,22 @@ However, proving it for iter access (all keys which match the designated key pre
 
 Twin Radix Trees combines two tree components:
 
-- 8-bit-Radix Sparse Merkle Tree for state inclusion proof
-- 8-bit-Radix Patricia Trie for key indexing to enable key prefix based iteration
+- 4-bit-Radix State Patricia Trie for state inclusion proof
+- 4-bit-Radix Keys Patricia Trie for key indexing to enable key prefix based iteration
 
 The state root is calculated by the following equation where $$h$$ is the hash function:
 
 $$
-\text{EntireRoot} = h(\text{StateSparseTreeRoot} || \text{KeysPatriciaTrieRoot})
+\text{EntireRoot} = h(\text{StateRoot} || \text{KeysRoot})
 $$
 
-### 8-bit-Radix Sparse Merkle Tree
+<div class="mermaid">
+graph BT
+    State[StateRoot] --> Entire[EntireRoot]
+    Keys[KeysRoot] --> Entire
+</div>
+
+### 4-bit-Radix State Patricia Trie
 
 This tree works for the state inclusion proof.
 
@@ -151,28 +172,7 @@ It can be used for proving get access validity in the state transition, and also
 
 The leaf index is determined by the key hash, and the leaf value is the state hash.
 
-```rust
-pub enum OctRadSparseTreeNode {
-    Leaf(OctRadSparseTreeNodeLeaf),
-    Branch(OctRadSparseTreeNodeBranch),
-}
-
-pub struct OctRadSparseTreeNodeLeaf {
-    pub key_hash_fragment: u8,
-    pub value: Vec<u8>,
-}
-
-pub struct OctRadSparseTreeNodeBranch {
-    pub key_hash_fragment: u8,
-    pub child_hashes: BTreeMap<u8, [u8; HASH_BYTES]>,
-}
-
-pub struct OctRadSparseTreePath(BTreeMap<Vec<u8>, [u8; 32]>);
-```
-
 Thanks to the property of the hash function, the attack vector of increasing the inclusion proof size of the specific key is also reduced.
-
-Using an 8-bit radix reduces the maximum tree depth from 256 to 32.
 
 To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \text{ReadKVPairs} $$.
 
@@ -184,7 +184,7 @@ $$
     & \text{ReadProofPath}
   \end{aligned} \right\} \\
   \text{PubInputsRead} &= \left\{ \begin{aligned}
-    & \text{StateSparseTreeRootPrev} \\
+    & \text{StateRootPrev} \\
     & (\text{StateForAccess}, \text{ReadKVPairs}, \text{ReadProofPath}) \\
     & \text{ReadKVPairsHash}(\text{ReadKVPairs})
   \end{aligned} \right\}
@@ -193,35 +193,17 @@ $$
 
 It is also needed to prove the non-inclusion of the key which was tried to be be accessed in the STF but not found. To do this, it is enough to prove the inclusion of dead end node in the tree.
 
-### 8-bit-Radix Patricia Trie
+### 4-bit-Radix Keys Patricia Trie
 
 This trie works for the key indexing.
 
 It can be used for proving iter access validity in the state transition.
 
-```rust
-pub enum OctRadPatriciaTrieNode {
-    Leaf(OctRadPatriciaTrieNodeLeaf),
-    Branch(OctRadPatriciaTrieNodeBranch),
-}
-
-pub struct OctRadPatriciaTrieNodeLeaf {
-    pub key_fragment: Vec<u8>,
-}
-
-pub struct OctRadPatriciaTrieNodeBranch {
-    pub key_fragment: Vec<u8>,
-    pub child_hashes: BTreeMap<u8, [u8; HASH_BYTES]>,
-}
-
-pub struct OctRadPatriciaTriePath(BTreeMap<Vec<u8>, [u8; 32]>);
-```
-
 The node hash is calculated by the following equation where $$h$$ is the hash function:
 
 $$
 \begin{aligned}
-  &\text{KeyPatriciaNodeHash} \\
+  &\text{KeysNodeHash} \\
   &= \begin{cases}
     \begin{aligned}
       h(&\text{KeyFragment} \\
@@ -242,7 +224,7 @@ $$
     & \text{IterProofPath}
   \end{aligned} \right\} \\
   \text{PubInputsIter} &= \left\{ \begin{aligned}
-    & \text{KeysPatriciaTrieRootPrev} \\
+    & \text{KeysRootPrev} \\
     & (\text{StateForAccess}, \text{IterKVPairs}, \text{IterProofPath}) \\
     & \text{IterKVPairsHash}(\text{IterKVPairs})
   \end{aligned} \right\}
@@ -277,17 +259,17 @@ $$
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
   \text{WitnessTx}_i &= \left\{ \begin{aligned}
     & \text{Tx}_i \\
-    & \text{StateSparseTreeRoot} \\
-    & \text{KeysPatriciaTrieRoot} \\
+    & \text{StateRoot} \\
+    & \text{KeysRoot} \\
     & \text{StateForAccess}_i \\
     & \text{AccumDiffsPrev}_i \\
     & \text{ReadProofPath}_i \\
     & \text{IterProofPath}_i
   \end{aligned} \right\} \\
   \text{ConstraintsTx}_i &= \left\{ \begin{aligned}
-    & \text{StateSparseTreeRoot} \\
+    & \text{StateRoot} \\
     & (\text{StateForAccess}_i, g(\dots), \text{ReadProofPath}_i) \\
-    & \text{KeysPatriciaTrieRoot} \\
+    & \text{KeysRoot} \\
     & (\text{StateForAccess}_i, g(\dots), \text{IterProofPath}_i)
   \end{aligned} \right\} \\
   \text{PubInputsTx}_i &= \left\{\begin{aligned}
@@ -295,16 +277,16 @@ $$
     & \text{AccumDiffsHashPrev}_i(\text{AccumDiffsPrev}_i) \\
     & \text{AccumDiffsHashNext}_i(g(\dots)) \\
     & \text{EntireRoot} \\
-    & (\text{StateSparseTreeRoot}, \text{KeysPatriciaTrieRoot})
+    & (\text{StateRoot}, \text{KeysRoot})
   \end{aligned} \right\}
 \end{aligned}
 $$
 
-Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions respectively.
+Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions respectively. Some zkVMs already have the feature to divide the trace, but it is still effective to make the pipeline of proof generation described below.
 
 By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\text{ReadKVPairs}_i$$ and $$\text{IterKVPairs}_i$$ by itself.
 
-Needless to say, $$\text{StateSparseTreeRootPrev}$$ and $$\text{KeysPatriciaTrieRootPrev}$$ which need to be verified, also can be verified by using $$\text{PubInputsTx}_i$$ in the circuit.
+Needless to say, $$\text{StateRootPrev}$$ and $$\text{KeysRootPrev}$$ which need to be verified, also can be verified by using $$\text{PubInputsTx}_i$$ in the circuit.
 
 ### Divide and Conquer for Proof Aggregation
 
@@ -395,7 +377,20 @@ $$
 \end{aligned}
 $$
 
+<div class="mermaid">
+graph BT
+    Tx1[ProofTx1] --> TxAgg12[ProofTxAgg1,2]
+    Tx2[ProofTx2] --> TxAgg12
+
+    Tx3[ProofTx3] --> TxAgg34[ProofTxAgg3,4]
+    Tx4[ProofTx4] --> TxAgg34
+
+    TxAgg12 --> TxAgg3[ProofTxAgg#123;1:4#125;]
+    TxAgg34 --> TxAgg3
+</div>
+
 This approach can be further optimized by pipelining the aggregation process, starting the next aggregation as soon as adjacent proofs are available.
+For example if we have 4 txs in the block, $$\text{ProofTxAgg}_{1,2}$$ and $$\text{ProofTx}_3$$ are ready before the 4th tx is not processed yet.
 
 ### Block Proof Structure
 
@@ -405,15 +400,15 @@ Before proving the block, we also divide the circuit of state commitment and key
 $$
 \begin{aligned}
   \text{WitnessCommitState} &= \left\{ \begin{aligned}
-    & \text{StateSparseTreeRootPrev} \\
+    & \text{StateRootPrev} \\
     & \text{AccumDiffs}_n \\
     & \text{StateCommitPath}
   \end{aligned} \right\} \\
   \text{PubInputsCommitState} &= \left\{\begin{aligned}
-    & \text{StateSparseTreeRootPrev} \\
-    & \text{StateSparseTreeRootNext} \\
+    & \text{StateRootPrev} \\
+    & \text{StateRootNext} \\
     & \left(\begin{aligned}
-      & \text{StateSparseTreeRootPrev} \\
+      & \text{StateRootPrev} \\
       & \text{AccumDiffs}_n \\
       & \text{StateCommitPath}
     \end{aligned}\right) \\
@@ -421,15 +416,15 @@ $$
   \end{aligned} \right\} \\
   \\
   \text{WitnessCommitKeys} &= \left\{ \begin{aligned}
-    & \text{KeysPatriciaTrieRootPrev} \\
+    & \text{KeysRootPrev} \\
     & \text{AccumDiffs}_n \\
     & \text{KeysCommitPath}
   \end{aligned} \right\} \\
   \text{PubInputsCommitKeys} &= \left\{\begin{aligned}
-    & \text{KeysPatriciaTrieRootPrev} \\
-    & \text{KeysPatriciaTrieRootNext} \\
+    & \text{KeysRootPrev} \\
+    & \text{KeysRootNext} \\
     & \left(\begin{aligned}
-      & \text{KeysPatriciaTrieRootPrev} \\
+      & \text{KeysRootPrev} \\
       & \text{AccumDiffs}_n \\
       & \text{KeysCommitPath}
     \end{aligned}\right) \\
@@ -444,22 +439,22 @@ $$
 \begin{aligned}
   \text{WitnessBlock} &= \left\{ \begin{aligned}
     & \text{TxsRoot} \\
-    & \text{StateSparseTreeRootPrev} \\
-    & \text{StateSparseTreeRootNext} \\
-    & \text{KeysPatriciaTrieRootPrev} \\
-    & \text{KeysPatriciaTrieRootNext} \\
+    & \text{StateRootPrev} \\
+    & \text{StateRootNext} \\
+    & \text{KeysRootPrev} \\
+    & \text{KeysRootNext} \\
     & \text{AccumDiffsHash}_n \\
     & \text{ProofTxAgg}_{\{1:n\}} \\
     & \text{ProofCommitState} \\
     & \text{ProofCommitKeys}
   \end{aligned} \right\} \\
   \text{EntireRootPrev} &= h\left(\begin{aligned}
-    &\text{StateSparseTreeRootPrev} \\
-    & || \text{KeysPatriciaTrieRootPrev}
+    &\text{StateRootPrev} \\
+    & || \text{KeysRootPrev}
   \end{aligned}\right) \\
   \text{EntireRootNext} &= h\left(\begin{aligned}
-    &\text{StateSparseTreeRootNext} \\
-    & || \text{KeysPatriciaTrieRootNext}
+    &\text{StateRootNext} \\
+    & || \text{KeysRootNext}
   \end{aligned}\right) \\
   \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
   \text{AccumDiffsHashNext}_n &= \text{AccumDiffsHash}_n \\
@@ -474,14 +469,14 @@ $$
     \end{aligned}\right) \\
     & \text{ProofCommitState} \\
     & \left(\begin{aligned}
-      & \text{StateSparseTreeRootPrev} \\
-      & \text{StateSparseTreeRootNext} \\
+      & \text{StateRootPrev} \\
+      & \text{StateRootNext} \\
       & \text{AccumDiffsHash}_n
     \end{aligned}\right) \\
     & \text{ProofCommitKeys} \\
     & \left(\begin{aligned}
-      & \text{KeysPatriciaTrieRootPrev} \\
-      & \text{KeysPatriciaTrieRootNext} \\
+      & \text{KeysRootPrev} \\
+      & \text{KeysRootNext} \\
       & \text{AccumDiffsHash}_n
     \end{aligned}\right)
   \end{aligned} \right\} \\
@@ -493,9 +488,88 @@ $$
 \end{aligned}
 $$
 
+<div class="mermaid">
+graph BT
+    TxAgg[ProofTxAgg#123;1:n#125;] --> Block[ProofBlock]
+    CommitState[ProofCommitState] --> Block
+    CommitKeys[ProofCommitKeys] --> Block
+</div>
+
 Because the accumulated diffs are anchored by the $$\text{EntireRootNext}$$, we can omit the accumulated diffs from the public inputs.
 
 By pipelining the aggregation process, we can significantly reduce the overall proof generation time.
+
+## Performances of experimental implementation
+
+Because InterLiquid SDK makes the pipeline of proof generation, the proving time is dominated by these proof generation times:
+
+- n-th transaction proof generation and recursive aggregation for $$\log_2{n}$$ times
+- state commitment proof generation
+- keys commitment proof generation
+
+Here, we prepared the experimental implementation of state commitment proof generation which is one of the most heavy part in these processes, with our own implementation of 4-bit-Radix Patricia Merkle Trie.
+
+For the experimental implementation, we assumed a Patricia Merkle Trie with 1000 elements condensed within the top 3 levels from the root. This is reasonable because branch nodes closer to the root tend to have denser children, and the performance of computing the Merkle root is dominated by the number of elements near the root.
+
+This is the table of the number of SP1 zkVM program cycles for the number of keys to commit state change.
+
+|Keys to commit state change|Elements in the trie|SP1 zkVM program cycles|
+|---|---|---|
+|1|1,000|5,367,109|
+|2|1,000|5,554,284|
+|3|1,000|5,753,669|
+|4|1,000|5,787,398|
+|5|1,000|5,791,943|
+|6|1,000|5,767,738|
+|7|1,000|5,759,194|
+|8|1,000|5,787,806|
+|9|1,000|5,783,981|
+|96|1,000|7,122,345|
+|192|1,000|8,589,647|
+|384|1,000|9,445,028|
+
+The interesting thing is that the number of program cycle is decreasing in 6 commit keys in comparison with 5 commit keys. It can be attributed to the efficient implementation of our trie which reduces the number of zkVM program cycle if the many hashes can be shared.
+
+In typical tx with transferring one token from one account to another, it is needed to commit 3 keys.
+
+- The nonce of the account for the signature
+- The balance of the sender account
+- The balance of the receiver account
+
+From the data above, the program cycle of the block with 32 txs is about 7-8M, 64 txs is about 8-9M, and 128txs is about 9-10M.
+
+In the circuit of proving the state root transition, we need to calculate two merkle roots of previous and next state. It means that at least two times of program cycles are needed.
+Then the total number of the entire program cycles would be under 20,000,000.
+
+The table below shows the proving time experiment by SP1 team. Note that the data is of before SP1 Turbo.
+
+|Programs|SP1 zkVM program cycles|Proving time|
+|---|---|---|
+|Tendermint Light Client|29,348,142|270 secs|
+|zkEVM block with Reth|199,644,261|1417 secs|
+
+SP1 zkVM showed that due to its architecture, the proving time is almost linear in proportion to the number of cycles. Here, we can estimate the proving time of the block of InterLiquid SDK with 32 txs to be under 3 minutes.
+It can be further improved by SP1 Turbo.
+
+By SP1 team and Polygon team, the proving time for the same block of Ethereum is published.
+
+|zkEVM implementation|Block number|Transactions|Gas|Proving time|Proving cost per tx|
+|---|---|---|---|---|---|
+|SP1 Reth (before SP1 Turbo)|17106222|105|10,781,405|41.8 mins|$0.015|
+|Polygon type 1|17106222|105|10,781,405|44.2 mins|$0.002|
+|SP1 Reth (SP1 Turbo)|20600000|NaN|about 15M|23.6 secs|NaN|
+
+The proving cost per transaction of Polygon type 1 is better than SP1 Reth before SP1 Turbo, which can be attributed to Polygon type 1's use of a circuit DSL for zk-SNARKs.
+
+InterLiquid SDK's proving time per transaction will be significantly better than both Polygon type 1 and SP1 Reth, as it enables parallel proof generation through optimized zkVM program cycles.
+
+|Block proof implementation|ZKP type|Customizability|Proof generation pipeline|
+|---|---|---|---|
+|InterLiquid SDK|mainly SP1 zk-STARKs|✅|✅|
+|SP1 Reth|SP1 zk-STARKs|✅|❌|
+|Polygon type 1|Plonky zk-SNARKs|❌|❌|
+
+The comparison can be summarized in the table above. Polygon type 1 is the best in terms of proving cost per tx, but its DSL based circuit is not suitable for customizing the blockchain in the native level.
 
 ## Another topics
 
@@ -527,3 +601,13 @@ The innovative architecture Twin Radix Trees enables key prefix based iteration 
 With its customizable transaction authentication flow and seamless integration with Sunrise, InterLiquid SDK provides a robust foundation for building next-generation financial applications that combine the best of Web2 and Web3 technologies.
 
 InterLiquid SDK has great theoretical background and has a practical vision to realize the interoperable financial system with Web2 like UX and DX, to allow apps to interact with public DeFi ecosystem with the financial enterprise grade verifiability.
+
+## References
+
+- <https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/>
+- <https://blog.succinct.xyz/sp1-testnet/>
+- <https://www.succinct.xyz/blog-articles/introducing-sp1-reth-a-performant-type-1-zkevm-built-with-sp1>
+- <https://blog.succinct.xyz/sp1-turbo/>
+- <https://docs.polygon.technology/cdk/architecture/type-1-prover/testing-and-proving-costs/#proving-costs>
+- <https://borsh.io/>
+- <https://protobuf.dev/>

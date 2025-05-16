@@ -1,7 +1,7 @@
+use crate::p256::ecdsa::signature::Verifier;
+use crate::p256::ecdsa::{Signature, VerifyingKey as P256VerifyingKey};
+use crate::p256::EncodedPoint;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
-use p256::ecdsa::signature::Verifier;
-use p256::ecdsa::{Signature, VerifyingKey as P256VerifyingKey};
-use p256::EncodedPoint;
 
 use crate::types::{InterLiquidSdkError, NamedSerializableType};
 

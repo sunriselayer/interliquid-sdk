@@ -16,6 +16,7 @@
         integrity="sha384-KiWOvVjnN8qwAZbuQyWDIbfCLFhLXNETzBQjA/92pIowpC0d2O3nppDGQVgwd2nB" crossorigin="anonymous">
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Latin+Modern+Roman&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap">
     <style>
         body {
             font-family: "Latin Modern Roman", "Computer Modern Serif", Georgia, "Times New Roman", serif;
@@ -24,6 +25,7 @@
             margin: 2rem auto;
             padding: 0 1rem;
             font-size: 16px;
+            font-variant-numeric: tabular-nums;
         }
 
         h1,
@@ -32,15 +34,55 @@
             font-family: "Latin Modern Roman", "Computer Modern Serif", Georgia, serif;
         }
 
+        table,
         code,
         pre {
-            font-family: "Latin Modern Mono", "Courier New", monospace;
+            font-family: "Roboto Mono", monospace;
+            font-variant-numeric: tabular-nums;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            table-layout: auto;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 0.6em 1em;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #f9f9f9;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        caption {
+            caption-side: bottom;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #555;
+            margin-top: 0.5rem;
         }
     </style>
 </head>
 
 <body>
     {{ content }}
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.6.0/+esm'
+    </script>
 </body>
 
 </html>

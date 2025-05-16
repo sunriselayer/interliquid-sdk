@@ -1,6 +1,6 @@
+use crate::crypto_bigint::prelude::*;
+use crate::crypto_bigint::{Encoding, U256 as U256Lib};
 use borsh::{BorshDeserialize, BorshSerialize};
-use crypto_bigint::prelude::*;
-use crypto_bigint::{Encoding, U256 as U256Lib};
 
 use super::InterLiquidSdkError;
 
@@ -49,5 +49,23 @@ impl BorshDeserialize for U256 {
         let amount = U256Lib::from_le_bytes(amount_bytes);
 
         Ok(U256(amount))
+    }
+}
+
+impl From<U256Lib> for U256 {
+    fn from(value: U256Lib) -> Self {
+        U256(value)
+    }
+}
+
+impl From<U256> for U256Lib {
+    fn from(value: U256) -> Self {
+        value.0
+    }
+}
+
+impl From<u64> for U256 {
+    fn from(value: u64) -> Self {
+        U256(U256Lib::from_u64(value))
     }
 }
