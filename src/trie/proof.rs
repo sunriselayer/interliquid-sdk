@@ -436,6 +436,117 @@ mod tests {
         (entries, node_db, hash_db, root_node)
     }
 
+    fn setup_trie_and_db_large() -> (
+        BTreeMap<Vec<Nibble>, Vec<u8>>,
+        NibblePatriciaTrieMemoryDb,
+        NibblePatriciaTrieMemoryDb,
+        NibblePatriciaTrieNode,
+    ) {
+        // Prepare key-value pairs with 1000 elements
+        let mut entries = BTreeMap::new();
+        for i in 0..1000 {
+            let key = vec![
+                Nibble::from((i / 100) as u8),
+                Nibble::from(((i % 100) / 10) as u8),
+                Nibble::from((i % 10) as u8),
+            ];
+            let value = format!("value_{}", i).into_bytes();
+            entries.insert(key, value);
+        }
+
+        // Prepare node_db and hash_db
+        let mut node_db = NibblePatriciaTrieMemoryDb::new();
+        let mut hash_db = NibblePatriciaTrieMemoryDb::new();
+        let mut buf = Vec::new();
+
+        // Create and store all leaf nodes
+        for (key, value) in entries.iter() {
+            // All leaf nodes have a parent branch node at level 2, so use only the last nibble
+            let key_fragment = vec![key[2]];
+            let leaf = NibblePatriciaTrieNodeLeaf::new(key_fragment, value.clone());
+            buf.clear();
+            hash_db.set(key, &leaf.hash()[..]);
+            NibblePatriciaTrieNode::Leaf(leaf)
+                .serialize(&mut buf)
+                .unwrap();
+            node_db.set(key, &buf);
+        }
+
+        // Create branch nodes for each level
+        // Level 2 (last level before leaves)
+        for i in 0..10 {
+            for j in 0..10 {
+                let mut children = BTreeSet::new();
+                for k in 0..10 {
+                    children.insert(Nibble::from(k as u8));
+                }
+                // For level 2 branch nodes, key_fragment is the second nibble
+                let branch =
+                    NibblePatriciaTrieNodeBranch::new(vec![Nibble::from(j as u8)], children);
+                buf.clear();
+                let branch_hash = branch
+                    .hash(|nib| {
+                        let child_key = vec![Nibble::from(i as u8), Nibble::from(j as u8), *nib];
+                        Some(
+                            <[u8; 32]>::try_from(hash_db.get(&child_key).unwrap().as_slice())
+                                .unwrap(),
+                        )
+                    })
+                    .unwrap();
+                let branch_key = vec![Nibble::from(i as u8), Nibble::from(j as u8)];
+                hash_db.set(&branch_key, &branch_hash[..]);
+                NibblePatriciaTrieNode::Branch(branch)
+                    .serialize(&mut buf)
+                    .unwrap();
+                node_db.set(&branch_key, &buf);
+            }
+        }
+
+        // Level 1
+        for i in 0..10 {
+            let mut children = BTreeSet::new();
+            for j in 0..10 {
+                children.insert(Nibble::from(j as u8));
+            }
+            // For level 1 branch nodes, key_fragment is the first nibble
+            let branch = NibblePatriciaTrieNodeBranch::new(vec![Nibble::from(i as u8)], children);
+            buf.clear();
+            let branch_hash = branch
+                .hash(|nib| {
+                    let child_key = vec![Nibble::from(i as u8), *nib];
+                    Some(<[u8; 32]>::try_from(hash_db.get(&child_key).unwrap().as_slice()).unwrap())
+                })
+                .unwrap();
+            let branch_key = vec![Nibble::from(i as u8)];
+            hash_db.set(&branch_key, &branch_hash[..]);
+            NibblePatriciaTrieNode::Branch(branch)
+                .serialize(&mut buf)
+                .unwrap();
+            node_db.set(&branch_key, &buf);
+        }
+
+        // Root level
+        let mut root_children = BTreeSet::new();
+        for i in 0..10 {
+            root_children.insert(Nibble::from(i as u8));
+        }
+        // Root node has empty key_fragment
+        let root = NibblePatriciaTrieNodeBranch::new(vec![], root_children);
+        buf.clear();
+        let root_hash = root
+            .hash(|nib| {
+                let child_key = vec![*nib];
+                Some(<[u8; 32]>::try_from(hash_db.get(&child_key).unwrap().as_slice()).unwrap())
+            })
+            .unwrap();
+        hash_db.set(&[], &root_hash[..]);
+        let root_node = NibblePatriciaTrieNode::Branch(root);
+        root_node.serialize(&mut buf).unwrap();
+        node_db.set(&[], &buf);
+
+        (entries, node_db, hash_db, root_node)
+    }
+
     #[test]
     fn test_leaf_parent_key() {
         let (_entries, node_db, _hash_db, _root_node) = setup_trie_and_db();
@@ -453,6 +564,37 @@ mod tests {
         let (parent_key, _leaf_node) =
             leaf_parent_key(&vec![Nibble::from(2), Nibble::from(2)], &get_node).unwrap();
         assert_eq!(parent_key, vec![]);
+
+        let err = leaf_parent_key(&vec![Nibble::from(2), Nibble::from(3)], &get_node);
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn test_leaf_parent_key_large() {
+        let (_entries, node_db, _hash_db, _root_node) = setup_trie_and_db_large();
+
+        let get_node = |key: &[Nibble]| get_node_from_db(key, &node_db);
+
+        let (parent_key, _leaf_node) = leaf_parent_key(
+            &vec![Nibble::from(1), Nibble::from(2), Nibble::from(3)],
+            &get_node,
+        )
+        .unwrap();
+        assert_eq!(parent_key, vec![Nibble::from(1), Nibble::from(2)]);
+
+        let (parent_key, _leaf_node) = leaf_parent_key(
+            &vec![Nibble::from(1), Nibble::from(3), Nibble::from(4)],
+            &get_node,
+        )
+        .unwrap();
+        assert_eq!(parent_key, vec![Nibble::from(1), Nibble::from(3)]);
+
+        let (parent_key, _leaf_node) = leaf_parent_key(
+            &vec![Nibble::from(2), Nibble::from(2), Nibble::from(3)],
+            &get_node,
+        )
+        .unwrap();
+        assert_eq!(parent_key, vec![Nibble::from(2), Nibble::from(2)]);
 
         let err = leaf_parent_key(&vec![Nibble::from(2), Nibble::from(3)], &get_node);
         assert!(err.is_err());
@@ -536,6 +678,44 @@ mod tests {
                 [(
                     leaf_key.clone(),
                     NibblePatriciaTrieNodeLeaf::new(vec![Nibble::from(2)], leaf_value.clone()),
+                )]
+                .into_iter()
+                .collect(),
+                None,
+            )
+            .unwrap();
+        println!("root: {:?}", root);
+
+        let root_hash: [u8; 32] = hash_db.get(&vec![]).unwrap().try_into().unwrap();
+
+        assert_eq!(root, root_hash);
+    }
+
+    #[test]
+    fn test_inclusion_proof_and_root_large() {
+        let (entries, node_db, hash_db, _root_node) = setup_trie_and_db_large();
+
+        let get_node = |key: &[Nibble]| get_node_from_db(key, &node_db);
+        let get_child_node_fragment_and_hash = |key: &[Nibble], index: Nibble| {
+            get_child_node_fragment_and_hash_from_db(key, index, &hash_db)
+        };
+
+        let leaf_key = vec![Nibble::from(1), Nibble::from(2), Nibble::from(3)];
+        let leaf_keys = BTreeSet::from([leaf_key.clone()]);
+        let proof = NibblePatriciaTrieRootPath::from_leafs(
+            leaf_keys,
+            &get_node,
+            &get_child_node_fragment_and_hash,
+        )
+        .unwrap();
+        println!("proof: {:?}", proof);
+
+        let leaf_value = entries.get(&leaf_key).unwrap();
+        let root = proof
+            .root(
+                [(
+                    leaf_key.clone(),
+                    NibblePatriciaTrieNodeLeaf::new(vec![Nibble::from(3)], leaf_value.clone()),
                 )]
                 .into_iter()
                 .collect(),

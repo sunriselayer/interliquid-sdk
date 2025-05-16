@@ -33,6 +33,8 @@ pub fn leaf_parent_key(
 ) -> Result<(Vec<Nibble>, NibblePatriciaTrieNodeLeaf), NibblePatriciaTrieError> {
     let leaf_node = get_node(leaf_key)?;
 
+    println!("leaf_node: {:?}", leaf_node);
+
     if let NibblePatriciaTrieNode::Leaf(leaf) = leaf_node {
         let parent_key = leaf_key[..leaf_key.len() - leaf.key_fragment.len()].to_vec();
         Ok((parent_key, leaf))
