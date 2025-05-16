@@ -13,6 +13,12 @@ pub struct NibblePatriciaTrieRootPath {
 }
 
 impl NibblePatriciaTrieRootPath {
+    /// Creates a new NibblePatriciaTrieRootPath instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `nodes_branch` - A map of branch nodes in the trie, where the key is the path to the node
+    /// * `nodes_hashed` - A map of hashed nodes in the trie, where the key is the path to the node
     pub fn new(
         nodes_branch: BTreeMap<Vec<Nibble>, NibblePatriciaTrieNodeBranch>,
         nodes_hashed: BTreeMap<Vec<Nibble>, [u8; 32]>,
@@ -23,7 +29,23 @@ impl NibblePatriciaTrieRootPath {
         }
     }
 
-    /// Construct inclusion proof / non inclusion proof from the designated leafs
+    /// Constructs an inclusion proof or non-inclusion proof from the designated leafs.
+    ///
+    /// This function builds a proof by:
+    /// 1. Marking the leaf nodes and their parent nodes that need to be included in the proof
+    /// 2. For each marked branch node, adding its non-marked child nodes to the proof
+    /// 3. Recursively processing parent nodes until reaching the root
+    ///
+    /// # Arguments
+    ///
+    /// * `leaf_keys` - Set of leaf keys to include in the proof
+    /// * `get_node` - Function to retrieve a node from the trie
+    /// * `get_child_node_fragment_and_hash` - Function to get a child node's fragment and hash
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Self)` - A proof containing the necessary nodes and hashes
+    /// * `Err(NibblePatriciaTrieError)` - If the proof construction fails
     pub fn from_leafs(
         leaf_keys: BTreeSet<Vec<Nibble>>,
         get_node: impl Fn(&[Nibble]) -> Result<NibblePatriciaTrieNode, NibblePatriciaTrieError>,
@@ -143,7 +165,21 @@ impl NibblePatriciaTrieRootPath {
         Ok(slf)
     }
 
-    /// Verify the non inclusion of the leaf key
+    /// Verifies the non-inclusion of a leaf key in the trie.
+    ///
+    /// This function verifies that a key is not present in the trie by:
+    /// 1. Traversing the path from leaf to the root
+    /// 2. Checking if any branch node along the path doesn't have the next nibble in its child indices
+    /// 3. If such a branch node is found, the non-inclusion is proven
+    ///
+    /// # Arguments
+    ///
+    /// * `leaf_key` - The key to verify non-inclusion for
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - If non-inclusion is successfully proven
+    /// * `Err(NibblePatriciaTrieError)` - If the proof is invalid or non-inclusion cannot be proven
     pub fn verify_non_inclusion(&self, leaf_key: &[Nibble]) -> Result<(), NibblePatriciaTrieError> {
         let key_len = leaf_key.len();
 
@@ -164,6 +200,23 @@ impl NibblePatriciaTrieRootPath {
         Err(NibblePatriciaTrieError::InvalidProof)
     }
 
+    /// Computes the root hash of the trie using the proof and inclusion nodes.
+    ///
+    /// This function:
+    /// 1. Combines the proof's branch nodes and hashed nodes with the provided inclusion nodes
+    /// 2. Processes nodes from deepest to shallowest depth
+    /// 3. Computes hashes for each branch node using its children's hashes
+    /// 4. Returns the final root hash
+    ///
+    /// # Arguments
+    ///
+    /// * `nodes_for_inclusion_proof` - Map of leaf nodes to include in the proof
+    /// * `branch_hash_callback` - Optional callback function to be called when a branch node's hash is computed
+    ///
+    /// # Returns
+    ///
+    /// * `Ok([u8; 32])` - The computed root hash
+    /// * `Err(NibblePatriciaTrieError)` - If the root hash computation fails
     pub fn root(
         self,
         nodes_for_inclusion_proof: BTreeMap<Vec<Nibble>, NibblePatriciaTrieNodeLeaf>,
