@@ -2,9 +2,8 @@ use borsh_derive::{BorshDeserialize, BorshSerialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
-    get_node, get_node_hash, key::leaf_parent_key, Nibble, NibblePatriciaTrieDb,
-    NibblePatriciaTrieError, NibblePatriciaTrieNode, NibblePatriciaTrieNodeBranch,
-    NibblePatriciaTrieNodeLeaf,
+    key::leaf_parent_key, Nibble, NibblePatriciaTrieError, NibblePatriciaTrieNode,
+    NibblePatriciaTrieNodeBranch, NibblePatriciaTrieNodeLeaf,
 };
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
@@ -25,18 +24,18 @@ impl NibblePatriciaTrieRootPath {
     }
 
     /// Construct inclusion proof / non inclusion proof from the designated leafs
-    pub fn from_leafs<Db: NibblePatriciaTrieDb>(
+    pub fn from_leafs(
         leaf_keys: BTreeSet<Vec<Nibble>>,
-        node_db: &Db,
-        node_hash_db: &Db,
+        get_node: impl Fn(&[Nibble]) -> Result<NibblePatriciaTrieNode, NibblePatriciaTrieError>,
+        get_node_hash: impl Fn(&[Nibble]) -> Result<[u8; 32], NibblePatriciaTrieError>,
     ) -> Result<Self, NibblePatriciaTrieError> {
         // marked nodes means the nodes which are needed to be re-constructed in the inclusion proof
         let mut marked_nodes =
             BTreeMap::<usize, BTreeMap<Vec<Nibble>, NibblePatriciaTrieNode>>::new();
 
         for leaf_key in leaf_keys.iter() {
-            let (parent_key, leaf_node) = leaf_parent_key(leaf_key, node_db)?;
-            let parent_node = get_node(&parent_key, node_db)?;
+            let (parent_key, leaf_node) = leaf_parent_key(leaf_key, &get_node)?;
+            let parent_node = get_node(&parent_key)?;
 
             if let NibblePatriciaTrieNode::Branch(parent_branch) = parent_node {
                 marked_nodes
@@ -47,12 +46,10 @@ impl NibblePatriciaTrieRootPath {
                         NibblePatriciaTrieNode::Branch(parent_branch),
                     );
 
-                if let Some(leaf_node) = leaf_node {
-                    marked_nodes
-                        .entry(leaf_key.len())
-                        .or_insert_with(BTreeMap::new)
-                        .insert(leaf_key.to_owned(), NibblePatriciaTrieNode::Leaf(leaf_node));
-                }
+                marked_nodes
+                    .entry(leaf_key.len())
+                    .or_insert_with(BTreeMap::new)
+                    .insert(leaf_key.to_owned(), NibblePatriciaTrieNode::Leaf(leaf_node));
             } else {
                 return Err(NibblePatriciaTrieError::InvalidNode);
             }
@@ -93,14 +90,14 @@ impl NibblePatriciaTrieRootPath {
                             }
 
                             // only the non-marked child nodes are added to the proof
-                            let child_node_hash = get_node_hash(&child_key, node_hash_db)?;
+                            let child_node_hash = get_node_hash(&child_key)?;
 
                             slf.nodes_hashed.insert(child_key, child_node_hash);
                         }
 
                         // add the parent node to the new marked nodes
                         let parent_key = &key[..key.len() - branch.key_fragment.len()];
-                        let parent_node = get_node(parent_key, node_db)?;
+                        let parent_node = get_node(parent_key)?;
 
                         if let NibblePatriciaTrieNode::Branch(parent_branch) = parent_node {
                             new_marked_nodes
@@ -241,6 +238,7 @@ mod tests {
     use crate::trie::node::{
         NibblePatriciaTrieNode, NibblePatriciaTrieNodeBranch, NibblePatriciaTrieNodeLeaf,
     };
+    use crate::trie::{get_node_from_db, get_node_hash_from_db, NibblePatriciaTrieDb};
     use std::collections::BTreeMap;
 
     fn setup_trie_and_db() -> (
@@ -345,33 +343,34 @@ mod tests {
     fn test_leaf_parent_key() {
         let (_entries, node_db, _hash_db, _root_node) = setup_trie_and_db();
 
-        let (parent_key, leaf_node) =
-            leaf_parent_key(&vec![Nibble::from(1), Nibble::from(2)], &node_db).unwrap();
-        assert!(leaf_node.is_some());
+        let get_node = |key: &[Nibble]| get_node_from_db(key, &node_db);
+
+        let (parent_key, _leaf_node) =
+            leaf_parent_key(&vec![Nibble::from(1), Nibble::from(2)], &get_node).unwrap();
         assert_eq!(parent_key, vec![Nibble::from(1)]);
 
-        let (parent_key, leaf_node) =
-            leaf_parent_key(&vec![Nibble::from(1), Nibble::from(3)], &node_db).unwrap();
-        assert!(leaf_node.is_some());
+        let (parent_key, _leaf_node) =
+            leaf_parent_key(&vec![Nibble::from(1), Nibble::from(3)], &get_node).unwrap();
         assert_eq!(parent_key, vec![Nibble::from(1)]);
 
-        let (parent_key, leaf_node) =
-            leaf_parent_key(&vec![Nibble::from(2), Nibble::from(2)], &node_db).unwrap();
-        assert!(leaf_node.is_some());
+        let (parent_key, _leaf_node) =
+            leaf_parent_key(&vec![Nibble::from(2), Nibble::from(2)], &get_node).unwrap();
         assert_eq!(parent_key, vec![]);
 
-        let (parent_key, leaf_node) =
-            leaf_parent_key(&vec![Nibble::from(2), Nibble::from(3)], &node_db).unwrap();
-        assert!(leaf_node.is_none());
-        assert_eq!(parent_key, vec![]);
+        let err = leaf_parent_key(&vec![Nibble::from(2), Nibble::from(3)], &get_node);
+        assert!(err.is_err());
     }
 
     #[test]
     fn test_from_leafs() {
         let (_entries, node_db, hash_db, _root_node) = setup_trie_and_db();
 
+        let get_node = |key: &[Nibble]| get_node_from_db(key, &node_db);
+        let get_node_hash = |key: &[Nibble]| get_node_hash_from_db(key, &hash_db);
+
         let leaf_keys = BTreeSet::from([vec![Nibble::from(1), Nibble::from(2)]]);
-        let proof = NibblePatriciaTrieRootPath::from_leafs(leaf_keys, &node_db, &hash_db).unwrap();
+        let proof =
+            NibblePatriciaTrieRootPath::from_leafs(leaf_keys, &get_node, &get_node_hash).unwrap();
         println!("proof: {:?}", proof);
 
         assert!(proof.nodes_branch.contains_key(&vec![Nibble::from(1)]));
@@ -390,8 +389,12 @@ mod tests {
     fn test_verify_non_inclusion() {
         let (_entries, node_db, hash_db, _root_node) = setup_trie_and_db();
 
-        let leaf_keys = BTreeSet::from([vec![Nibble::from(1), Nibble::from(4)]]);
-        let proof = NibblePatriciaTrieRootPath::from_leafs(leaf_keys, &node_db, &hash_db).unwrap();
+        let get_node = |key: &[Nibble]| get_node_from_db(key, &node_db);
+        let get_node_hash = |key: &[Nibble]| get_node_hash_from_db(key, &hash_db);
+
+        let leaf_keys = BTreeSet::from([vec![Nibble::from(1), Nibble::from(3)]]);
+        let proof =
+            NibblePatriciaTrieRootPath::from_leafs(leaf_keys, &get_node, &get_node_hash).unwrap();
         println!("proof: {:?}", proof);
 
         assert!(proof
@@ -403,9 +406,13 @@ mod tests {
     fn test_inclusion_proof_and_root() {
         let (entries, node_db, hash_db, _root_node) = setup_trie_and_db();
 
+        let get_node = |key: &[Nibble]| get_node_from_db(key, &node_db);
+        let get_node_hash = |key: &[Nibble]| get_node_hash_from_db(key, &hash_db);
+
         let leaf_key = vec![Nibble::from(1), Nibble::from(2)];
         let leaf_keys = BTreeSet::from([leaf_key.clone()]);
-        let proof = NibblePatriciaTrieRootPath::from_leafs(leaf_keys, &node_db, &hash_db).unwrap();
+        let proof =
+            NibblePatriciaTrieRootPath::from_leafs(leaf_keys, &get_node, &get_node_hash).unwrap();
         println!("proof: {:?}", proof);
 
         let leaf_value = entries.get(&leaf_key).unwrap();

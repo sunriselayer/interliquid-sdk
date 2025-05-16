@@ -36,7 +36,7 @@ impl NibblePatriciaTrieDb for NibblePatriciaTrieMemoryDb {
     }
 }
 
-pub(super) fn get_node<Db: NibblePatriciaTrieDb>(
+pub fn get_node_from_db<Db: NibblePatriciaTrieDb>(
     key: &[Nibble],
     node_db: &Db,
 ) -> Result<NibblePatriciaTrieNode, NibblePatriciaTrieError> {
@@ -45,7 +45,7 @@ pub(super) fn get_node<Db: NibblePatriciaTrieDb>(
     Ok(node)
 }
 
-pub(super) fn get_node_hash<Db: NibblePatriciaTrieDb>(
+pub fn get_node_hash_from_db<Db: NibblePatriciaTrieDb>(
     key: &[Nibble],
     hash_db: &Db,
 ) -> Result<[u8; 32], NibblePatriciaTrieError> {
