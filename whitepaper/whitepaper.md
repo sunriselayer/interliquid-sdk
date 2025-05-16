@@ -158,11 +158,10 @@ $$
 \text{EntireRoot} = h(\text{StateRoot} || \text{KeysRoot})
 $$
 
-```mermaid
+<div class="mermaid">
 graph BT
     State[StateRoot] --> Entire[EntireRoot]
-    Keys[KeysRoot] --> Entire
-```
+</div>
 
 ### 4-bit-Radix State Patricia Trie
 
@@ -282,7 +281,7 @@ $$
 \end{aligned}
 $$
 
-Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions respectively. Some zkVMs already have the feature to divide the stack trace, but it is still effective to make the pipeline of proof generation described below.
+Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions respectively. Some zkVMs already have the feature to divide the trace, but it is still effective to make the pipeline of proof generation described below.
 
 By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\text{ReadKVPairs}_i$$ and $$\text{IterKVPairs}_i$$ by itself.
 
@@ -377,7 +376,7 @@ $$
 \end{aligned}
 $$
 
-```mermaid
+<div class="mermaid">
 graph BT
     Tx1[ProofTx1] --> TxAgg12[ProofTxAgg1,2]
     Tx2[ProofTx2] --> TxAgg12
@@ -387,7 +386,7 @@ graph BT
 
     TxAgg12 --> TxAgg3[ProofTxAgg#123;1:4#125;]
     TxAgg34 --> TxAgg3
-```
+</div>
 
 This approach can be further optimized by pipelining the aggregation process, starting the next aggregation as soon as adjacent proofs are available.
 For example if we have 4 txs in the block, $$\text{ProofTxAgg}_{1,2}$$ and $$\text{ProofTx}_3$$ are ready before the 4th tx is not processed yet.
@@ -488,12 +487,12 @@ $$
 \end{aligned}
 $$
 
-```mermaid
+<div class="mermaid">
 graph BT
     TxAgg[ProofTxAgg#123;1:n#125;] --> Block[ProofBlock]
     CommitState[ProofCommitState] --> Block
     CommitKeys[ProofCommitKeys] --> Block
-```
+</div>
 
 Because the accumulated diffs are anchored by the $$\text{EntireRootNext}$$, we can omit the accumulated diffs from the public inputs.
 
@@ -600,6 +599,9 @@ InterLiquid SDK has great theoretical background and has a practical vision to r
 
 ## References
 
+- <https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/>
 - <https://blog.succinct.xyz/sp1-testnet/>
 - <https://www.succinct.xyz/blog-articles/introducing-sp1-reth-a-performant-type-1-zkevm-built-with-sp1>
 - <https://docs.polygon.technology/cdk/architecture/type-1-prover/testing-and-proving-costs/#proving-costs>
+- <https://borsh.io/>
+- <https://protobuf.dev/>
