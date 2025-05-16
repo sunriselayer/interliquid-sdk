@@ -7,13 +7,8 @@ pub fn leaf_key_fragment_from_path(
     path: &NibblePatriciaTrieRootPath,
     leaf_key: &[Nibble],
 ) -> Result<Vec<Nibble>, NibblePatriciaTrieError> {
-    let parent_key = search_near_leaf_parent_key(leaf_key, |key| {
-        Ok(path
-            .nodes_branch
-            .get(key)
-            .cloned()
-            .ok_or(NibblePatriciaTrieError::NotFound)?)
-    })?;
+    let parent_key =
+        search_near_leaf_parent_key(leaf_key, |key| Ok(path.nodes_branch.get(key).cloned()))?;
 
     let key_fragment = leaf_key[parent_key.len()..].to_vec();
 

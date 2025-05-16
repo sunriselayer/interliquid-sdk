@@ -1,6 +1,6 @@
 use crate::sha2::{Digest, Sha256};
 use borsh_derive::{BorshDeserialize, BorshSerialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::{Nibble, NibblePatriciaTrieError};
 
@@ -37,24 +37,21 @@ pub struct NibblePatriciaTrieNodeBranch {
     pub key_fragment: Vec<Nibble>,
     /// key is the first nibble of the child key fragment which works as the index of the child node
     /// value is the key fragment of the child node (including first nibble)
-    pub child_key_fragments: BTreeMap<Nibble, Vec<Nibble>>,
+    pub child_key_indices: BTreeSet<Nibble>,
 }
 
 impl NibblePatriciaTrieNodeBranch {
-    pub fn new(
-        key_fragment: Vec<Nibble>,
-        child_key_fragments: BTreeMap<Nibble, Vec<Nibble>>,
-    ) -> Self {
+    pub fn new(key_fragment: Vec<Nibble>, child_key_indices: BTreeSet<Nibble>) -> Self {
         Self {
             key_fragment,
-            child_key_fragments,
+            child_key_indices,
         }
     }
 
     pub fn hash(&self, child_hash: impl Fn(&Nibble) -> Option<[u8; 32]>) -> Option<[u8; 32]> {
         let child_hashes = self
-            .child_key_fragments
-            .keys()
+            .child_key_indices
+            .iter()
             .map(|index| {
                 let child_hash = child_hash(index);
                 (index, child_hash)
@@ -79,13 +76,14 @@ impl NibblePatriciaTrieNodeBranch {
     pub fn build_branch_nodes(
         entries: BTreeMap<Vec<Nibble>, Vec<u8>>,
     ) -> Result<BTreeMap<Vec<Nibble>, NibblePatriciaTrieNodeBranch>, NibblePatriciaTrieError> {
+        #[derive(Debug)]
         struct StackItem<'a> {
-            key_fragments: Vec<Nibble>,
+            key_fragments: Vec<Vec<Nibble>>,
             remaining_key_values: BTreeMap<&'a [Nibble], &'a Vec<u8>>,
         }
 
         let mut stack = vec![StackItem {
-            key_fragments: vec![],
+            key_fragments: vec![vec![]],
             remaining_key_values: entries
                 .iter()
                 .map(|(key, value)| (&key[..], value))
@@ -94,7 +92,7 @@ impl NibblePatriciaTrieNodeBranch {
         let mut result = BTreeMap::new();
 
         while let Some(stack_item) = stack.pop() {
-            let items = (0..Nibble::MAX)
+            let items = (0..=Nibble::MAX)
                 .into_iter()
                 .filter_map(|i| {
                     let index = Nibble::from(i);
@@ -112,28 +110,39 @@ impl NibblePatriciaTrieNodeBranch {
                         return None;
                     }
 
-                    let item = if len == 1 {
-                        StackItem {
-                            key_fragments: stack_item
-                                .key_fragments
-                                .iter()
-                                .cloned()
-                                .chain([index])
-                                .collect(),
-                            remaining_key_values: remaining_key_values,
-                        }
+                    let mut key_fragments = stack_item.key_fragments.clone();
+
+                    if len == 1 {
+                        // always possible to unwrap because initial key_fragments is not empty
+                        key_fragments.last_mut().unwrap().push(index);
                     } else {
-                        StackItem {
-                            key_fragments: vec![index],
-                            remaining_key_values: remaining_key_values,
-                        }
+                        key_fragments.push(vec![index]);
+                    }
+
+                    let item = StackItem {
+                        key_fragments,
+                        remaining_key_values: remaining_key_values,
                     };
 
                     Some((index, item))
                 })
                 .collect::<BTreeMap<_, _>>();
 
-            let node = NibblePatriciaTrieNodeBranch::new(stack_item.key_fragments, BTreeMap::new());
+            let node = NibblePatriciaTrieNodeBranch::new(
+                stack_item.key_fragments.last().cloned().unwrap_or(vec![]),
+                items.keys().cloned().collect(),
+            );
+
+            for item in items.into_values() {
+                stack.push(item);
+            }
+
+            if stack_item.remaining_key_values.len() > 1 {
+                result.insert(
+                    stack_item.key_fragments.iter().flatten().cloned().collect(),
+                    node,
+                );
+            }
         }
 
         Ok(result)
@@ -142,13 +151,12 @@ impl NibblePatriciaTrieNodeBranch {
 
 #[cfg(test)]
 mod tests {
-    use crate::trie::nibbles_from_bytes;
 
     use super::*;
     use std::collections::BTreeMap;
 
     #[test]
-    fn test_build_trie_simple() {
+    fn test_build_branch_nodes() {
         let mut entries = BTreeMap::new();
         entries.insert(vec![Nibble::from(1), Nibble::from(2)], b"a".to_vec());
         entries.insert(vec![Nibble::from(1), Nibble::from(3)], b"b".to_vec());
@@ -156,22 +164,17 @@ mod tests {
 
         let node_map = NibblePatriciaTrieNodeBranch::build_branch_nodes(entries.clone()).unwrap();
 
+        println!("node_map: {:?}", node_map);
+
         assert_eq!(node_map.len(), 2);
+        assert_eq!(node_map.get(&vec![]).unwrap().child_key_indices.len(), 2);
         assert_eq!(
             node_map
                 .get(&vec![Nibble::from(1)])
                 .unwrap()
-                .child_key_fragments
+                .child_key_indices
                 .len(),
             2
-        );
-        assert_eq!(
-            node_map
-                .get(&vec![Nibble::from(2)])
-                .unwrap()
-                .child_key_fragments
-                .len(),
-            1
         );
     }
 }
