@@ -63,7 +63,24 @@ It allows developers to iterate state in a key prefix based way because the key 
 However, IAVL has a mechanism of self-rebalancing tree, and it is not proper to prove with Zero Knowledge Proofs.
 If we try to remove the mechanism of self-rebalancing (it means it is simple binary tree), it causes an attack vector to make the inclusion proof of a certain key too large because the depth of the node in the tree can be operated by an attacker.
 
-## The challenge of InterLiquid SDK
+### Polkadot SDK (Substrate)
+
+Polkadot SDK's state is managed with Patricia Merkle Trie.
+It also supports key prefix based iteration with the unique way.
+In the Polkadot SDK, the key is separated into the prefix parts, and each prefix part is hashed.
+
+For example, if the application logic want to access the state with the key  `gov/votes/{proposal_id}/{voter_address}`, it is hashed with each prefix part like `gov/votes/{hash(proposal_id)}/{proposal_id}/{hash(voter_address)}/{voter_address}`.
+
+This design allows the application logic to iterate the state in a key prefix based way.
+However, there are two limitations.
+
+Firstly, the key is hashed, so it is not able to iterate with the sorted order.
+If we iterate all the state and sort them, the meaning of the iteration is lost because it can be achieved by storing the entire array in one key.
+
+Secondly, the key is hashed, so the proof of the inclusion of the iterated key is not ZK friendly.
+It is not possible to prove the completeness of the iterated key as we do in InterLiquid SDK.
+
+## Techincal: The challenge of InterLiquid SDK
 
 The challenge of InterLiquid SDK is to make key prefix based iteration and ZK friendliness coexisting.
 The architecture to achieve this is **Twin Radix Trees**.
@@ -93,9 +110,7 @@ Because zkVMs cannot access the storage directly, we need to give the state to a
 It is also enough to output only the diffs $$ \text{Diffs} $$ without entire state.
 To calculate the $$ \text{StateRootNext} $$, it is also needed to give the state commit path $$ \text{StateCommitPath} $$ to allow zkVM to calculate the state root.
 
-By committing these three values $$\text{StateRootPrev}$$, $$\text{StateRootNext}$$ and $$\text{TxsRoot}$$:
-
-as the public input of the ZKP, it is possible to generate the verifiable validity proof of the state transition.
+By committing these three values $$\text{StateRootPrev}$$, $$\text{StateRootNext}$$ and $$\text{TxsRoot}$$ as the public input of the ZKP, it is possible to generate the verifiable validity proof of the state transition.
 
 $$
 \begin{aligned}
@@ -142,6 +157,12 @@ The state root is calculated by the following equation where $$h$$ is the hash f
 $$
 \text{EntireRoot} = h(\text{StateRoot} || \text{KeysRoot})
 $$
+
+```mermaid
+graph BT
+    State[StateRoot] --> Entire[EntireRoot]
+    Keys[KeysRoot] --> Entire
+```
 
 ### 4-bit-Radix State Patricia Trie
 
@@ -478,6 +499,74 @@ Because the accumulated diffs are anchored by the $$\text{EntireRootNext}$$, we 
 
 By pipelining the aggregation process, we can significantly reduce the overall proof generation time.
 
+## Performances of experimental implementation
+
+Because InterLiquid SDK makes the pipeline of proof generation, the proving time is dominated by these proof generation times:
+
+- n-th transaction proof generation and recursive aggregation for $$\log_2{n}$$ times
+- state commitment proof generation
+- keys commitment proof generation
+
+Here, we prepared the experimental implementation of state commitment proof generation which is one of the most heavy part in these processes, with our own implementation of 4-bit-Radix Patricia Merkle Trie.
+
+For the experimental implementation, we assumed a Patricia Merkle Trie with 1000 elements condensed within the top 3 levels from the root. This is reasonable because branch nodes closer to the root tend to have denser children, and the performance of computing the Merkle root is dominated by the number of elements near the root.
+
+This is the table of the number of SP1 zkVM program cycles for the number of keys to commit state change.
+
+|Keys to commit state change|Elements in the trie|SP1 zkVM program cycles|
+|---|---|---|
+|1|1,000|5,270,237|
+|2|1,000|5,420,718|
+|3|1,000|5,559,648|
+|4|1,000|5,559,648|
+|5|1,000|5,559,648|
+|6|1,000|5,543,082|
+|7|1,000|5,555,885|
+|8|1,000|5,605,410|
+|9|1,000|5,640,794|
+
+The interesting thing is that the number of program cycle is decreasing in 6 commit keys in comparison with 5 commit keys. It can be attributed to the fact that the number of zkVM program cycle is not only increasing linearly in proportion to the number of commit keys, but also affected by the structure of the trie.
+
+For example, if the trie is sparse, the program cycles will decrease, and if the common prefix of the keys is more, the program cycles will decrease.
+
+In typical tx with transferring one token from one account to another, it is needed to commit 3 keys.
+
+- The nonce of the account for the signature
+- The balance of the sender account
+- The balance of the receiver account
+
+From the data above, if we assume that each tx consumes 100,000 program cycles, the program cycle of the block with 32 txs can be estimated to be about 8,500,000.
+
+In the circuit of proving the state root transition, we need to calculate two merkle roots of previous and next state. It means that at least two times of about 8,500,000 program cycles are needed.
+Then the total number of the entire program cycles would be under 20,000,000.
+
+The table below shows the proving time experiment by SP1 team.
+
+|Programs|SP1 zkVM program cycles|Proving time|
+|---|---|---|
+|Tendermint Light Client|29,348,142|270 secs|
+|zkEVM block with Reth|199,644,261|1417 secs|
+
+SP1 zkVM showed that due to its architecture, the proving time is almost linear in proportion to the number of cycles. Here, we can estimate the proving time of the block of InterLiquid SDK with 32 txs to be under 3 minutes.
+
+By SP1 team and Polygon team, the proving time for the same block of Ethereum is published.
+
+|zkEVM implementation|Block number|Transactions|Proving time|Proving cost per tx|
+|---|---|---|---|---|
+|SP1 Reth|17106222|105|41.8 mins|$0.015|
+|Polygon type 1|17106222|105|44.2 mins|$0.002|
+
+It can be said that proving cost per tx of Polygon type 1 is better than SP1 Reth. It can be attributed to the fact that Polygon type 1 is made with a circuit DSL for zk-SNARKs.
+However, the proving time per tx of both would not be  superior to InterLiquid SDK, and the reason would be the possibility of making the pipeline of parallel proof generation.
+
+|Block proof implementation|ZKP type|Customizability|Proof generation pipeline|
+|---|---|---|---|
+|InterLiquid SDK|mainly SP1 zk-STARKs|✅|✅|
+|SP1 Reth|SP1 zk-STARKs|✅|❌|
+|Polygon type 1|Plonky zk-SNARKs|❌|❌|
+
+The comparison can be summarized in the table above. Polygon type 1 is the best in terms of proving cost per tx, but its DSL based circuit is not suitable for customizing the blockchain in the native level.
+
 ## Another topics
 
 ### Interoperability
@@ -508,3 +597,9 @@ The innovative architecture Twin Radix Trees enables key prefix based iteration 
 With its customizable transaction authentication flow and seamless integration with Sunrise, InterLiquid SDK provides a robust foundation for building next-generation financial applications that combine the best of Web2 and Web3 technologies.
 
 InterLiquid SDK has great theoretical background and has a practical vision to realize the interoperable financial system with Web2 like UX and DX, to allow apps to interact with public DeFi ecosystem with the financial enterprise grade verifiability.
+
+## References
+
+- <https://blog.succinct.xyz/sp1-testnet/>
+- <https://www.succinct.xyz/blog-articles/introducing-sp1-reth-a-performant-type-1-zkevm-built-with-sp1>
+- <https://docs.polygon.technology/cdk/architecture/type-1-prover/testing-and-proving-costs/#proving-costs>
