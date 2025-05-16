@@ -515,19 +515,20 @@ This is the table of the number of SP1 zkVM program cycles for the number of key
 
 |Keys to commit state change|Elements in the trie|SP1 zkVM program cycles|
 |---|---|---|
-|1|1,000|5,270,237|
-|2|1,000|5,420,718|
-|3|1,000|5,559,648|
-|4|1,000|5,559,648|
-|5|1,000|5,559,648|
-|6|1,000|5,543,082|
-|7|1,000|5,555,885|
-|8|1,000|5,605,410|
-|9|1,000|5,640,794|
+|1|1,000|5,367,109|
+|2|1,000|5,554,284|
+|3|1,000|5,753,669|
+|4|1,000|5,787,398|
+|5|1,000|5,791,943|
+|6|1,000|5,767,738|
+|7|1,000|5,759,194|
+|8|1,000|5,787,806|
+|9|1,000|5,783,981|
+|96|1,000|7,122,345|
+|192|1,000|8,589,647|
+|384|1,000|9,445,028|
 
-The interesting thing is that the number of program cycle is decreasing in 6 commit keys in comparison with 5 commit keys. It can be attributed to the fact that the number of zkVM program cycle is not only increasing linearly in proportion to the number of commit keys, but also affected by the structure of the trie.
-
-For example, if the trie is sparse, the program cycles will decrease, and if the common prefix of the keys is more, the program cycles will decrease.
+The interesting thing is that the number of program cycle is decreasing in 6 commit keys in comparison with 5 commit keys. It can be attributed to the efficient implementation of our trie which reduces the number of zkVM program cycle if the many hashes can be shared.
 
 In typical tx with transferring one token from one account to another, it is needed to commit 3 keys.
 
@@ -535,12 +536,12 @@ In typical tx with transferring one token from one account to another, it is nee
 - The balance of the sender account
 - The balance of the receiver account
 
-From the data above, if we assume that each tx consumes 100,000 program cycles, the program cycle of the block with 32 txs can be estimated to be about 8,500,000.
+From the data above, the program cycle of the block with 32 txs is about 7-8M, 64 txs is about 8-9M, and 128txs is about 9-10M.
 
-In the circuit of proving the state root transition, we need to calculate two merkle roots of previous and next state. It means that at least two times of about 8,500,000 program cycles are needed.
+In the circuit of proving the state root transition, we need to calculate two merkle roots of previous and next state. It means that at least two times of program cycles are needed.
 Then the total number of the entire program cycles would be under 20,000,000.
 
-The table below shows the proving time experiment by SP1 team.
+The table below shows the proving time experiment by SP1 team. Note that the data is of before SP1 Turbo.
 
 |Programs|SP1 zkVM program cycles|Proving time|
 |---|---|---|
@@ -548,16 +549,19 @@ The table below shows the proving time experiment by SP1 team.
 |zkEVM block with Reth|199,644,261|1417 secs|
 
 SP1 zkVM showed that due to its architecture, the proving time is almost linear in proportion to the number of cycles. Here, we can estimate the proving time of the block of InterLiquid SDK with 32 txs to be under 3 minutes.
+It can be further improved by SP1 Turbo.
 
 By SP1 team and Polygon team, the proving time for the same block of Ethereum is published.
 
-|zkEVM implementation|Block number|Transactions|Proving time|Proving cost per tx|
-|---|---|---|---|---|
-|SP1 Reth|17106222|105|41.8 mins|$0.015|
-|Polygon type 1|17106222|105|44.2 mins|$0.002|
+|zkEVM implementation|Block number|Transactions|Gas|Proving time|Proving cost per tx|
+|---|---|---|---|---|---|
+|SP1 Reth (before SP1 Turbo)|17106222|105|10,781,405|41.8 mins|$0.015|
+|Polygon type 1|17106222|105|10,781,405|44.2 mins|$0.002|
+|SP1 Reth (SP1 Turbo)|20600000|NaN|about 15M|23.6 secs|NaN|
 
-It can be said that proving cost per tx of Polygon type 1 is better than SP1 Reth. It can be attributed to the fact that Polygon type 1 is made with a circuit DSL for zk-SNARKs.
-However, the proving time per tx of both would not be  superior to InterLiquid SDK, and the reason would be the possibility of making the pipeline of parallel proof generation.
+The proving cost per transaction of Polygon type 1 is better than SP1 Reth before SP1 Turbo, which can be attributed to Polygon type 1's use of a circuit DSL for zk-SNARKs.
+
+InterLiquid SDK's proving time per transaction will be significantly better than both Polygon type 1 and SP1 Reth, as it enables parallel proof generation through optimized zkVM program cycles.
 
 |Block proof implementation|ZKP type|Customizability|Proof generation pipeline|
 |---|---|---|---|
@@ -603,6 +607,7 @@ InterLiquid SDK has great theoretical background and has a practical vision to r
 - <https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/>
 - <https://blog.succinct.xyz/sp1-testnet/>
 - <https://www.succinct.xyz/blog-articles/introducing-sp1-reth-a-performant-type-1-zkevm-built-with-sp1>
+- <https://blog.succinct.xyz/sp1-turbo/>
 - <https://docs.polygon.technology/cdk/architecture/type-1-prover/testing-and-proving-costs/#proving-costs>
 - <https://borsh.io/>
 - <https://protobuf.dev/>
