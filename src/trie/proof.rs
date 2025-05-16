@@ -2,8 +2,9 @@ use borsh_derive::{BorshDeserialize, BorshSerialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
-    key::leaf_parent_key, Nibble, NibblePatriciaTrieError, NibblePatriciaTrieNode,
-    NibblePatriciaTrieNodeBranch, NibblePatriciaTrieNodeLeaf,
+    key::leaf_parent_key, nibbles_from_bytes, search_near_leaf_parent_key, Nibble,
+    NibblePatriciaTrieError, NibblePatriciaTrieNode, NibblePatriciaTrieNodeBranch,
+    NibblePatriciaTrieNodeLeaf,
 };
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
@@ -200,6 +201,32 @@ impl NibblePatriciaTrieRootPath {
         Err(NibblePatriciaTrieError::InvalidProof)
     }
 
+    pub fn leaf_key_fragment_from_path(
+        &self,
+        leaf_key: &[Nibble],
+    ) -> Result<Vec<Nibble>, NibblePatriciaTrieError> {
+        let parent_key =
+            search_near_leaf_parent_key(leaf_key, |key| Ok(self.nodes_branch.get(key).cloned()))?;
+
+        let key_fragment = leaf_key[parent_key.len()..].to_vec();
+
+        Ok(key_fragment)
+    }
+
+    pub fn nodes_for_inclusion_proof(
+        &self,
+        leaf_key: &[u8],
+        leaf_value: Vec<u8>,
+    ) -> Result<(Vec<Nibble>, NibblePatriciaTrieNodeLeaf), NibblePatriciaTrieError> {
+        let leaf_key = nibbles_from_bytes(leaf_key);
+        let leaf_key_fragment = self.leaf_key_fragment_from_path(&leaf_key)?;
+
+        Ok((
+            leaf_key,
+            NibblePatriciaTrieNodeLeaf::new(leaf_key_fragment, leaf_value),
+        ))
+    }
+
     /// Computes the root hash of the trie using the proof and inclusion nodes.
     ///
     /// This function:
@@ -210,7 +237,7 @@ impl NibblePatriciaTrieRootPath {
     ///
     /// # Arguments
     ///
-    /// * `nodes_for_inclusion_proof` - Map of leaf nodes to include in the proof
+    /// * `nodes_for_inclusion_proof` - Map of leaf values to include in the proof
     /// * `branch_hash_callback` - Optional callback function to be called when a branch node's hash is computed
     ///
     /// # Returns

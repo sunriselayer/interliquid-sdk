@@ -8,8 +8,6 @@ use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::{state::CompressedDiffs, types::InterLiquidSdkError};
 
-use super::trie::node_for_inclusion_proof;
-
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct PublicInputCommitState {
     pub state_root_prev: [u8; 32],
@@ -72,7 +70,11 @@ pub fn circuit_commit_state(
                 None
             }
         })
-        .map(|(k, v)| node_for_inclusion_proof(&witness.state_commit_path, &k, v.clone()))
+        .map(|(k, v)| {
+            witness
+                .state_commit_path
+                .nodes_for_inclusion_proof(&k, v.clone())
+        })
         .collect::<Result<_, _>>()?;
     let state_root_prev = witness
         .state_commit_path
@@ -97,7 +99,11 @@ pub fn circuit_commit_state(
                 None
             }
         })
-        .map(|(k, v)| node_for_inclusion_proof(&witness.state_commit_path, &k, v.clone()))
+        .map(|(k, v)| {
+            witness
+                .state_commit_path
+                .nodes_for_inclusion_proof(&k, v.clone())
+        })
         .collect::<Result<_, _>>()?;
     let state_root_next = witness
         .state_commit_path

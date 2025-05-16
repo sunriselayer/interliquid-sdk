@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use borsh::BorshDeserialize;
+use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use super::{Nibble, NibblePatriciaTrieError, NibblePatriciaTrieNode};
 
@@ -15,6 +16,7 @@ pub trait NibblePatriciaTrieDb {
     ) -> Box<dyn Iterator<Item = Result<(Vec<Nibble>, Vec<u8>), NibblePatriciaTrieError>> + 'a>;
 }
 
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct NibblePatriciaTrieMemoryDb {
     db: BTreeMap<Vec<Nibble>, Vec<u8>>,
 }
