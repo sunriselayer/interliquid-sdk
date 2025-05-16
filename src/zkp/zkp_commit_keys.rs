@@ -1,6 +1,6 @@
 use crate::{
     sha2::{Digest, Sha256},
-    trie::NibblePatriciaTrieRootPath,
+    trie::{nibbles_from_bytes, NibblePatriciaTrieError, NibblePatriciaTrieRootPath},
 };
 use anyhow::anyhow;
 use borsh::BorshSerialize;
@@ -69,8 +69,14 @@ pub fn circuit_commit_keys(
                 None
             }
         })
-        .map(|(k, v)| witness.keys_commit_path.nodes_for_inclusion_proof(&k, v))
-        .collect::<Result<_, _>>()?;
+        .map(|(k, v)| {
+            let leaf_key = nibbles_from_bytes(&k);
+            let leaf_node = witness
+                .keys_commit_path
+                .node_for_inclusion_proof(&leaf_key, v)?;
+            Ok((leaf_key, leaf_node))
+        })
+        .collect::<Result<_, NibblePatriciaTrieError>>()?;
     let keys_root_prev = witness
         .keys_commit_path
         .clone()
@@ -93,8 +99,14 @@ pub fn circuit_commit_keys(
                 None
             }
         })
-        .map(|(k, v)| witness.keys_commit_path.nodes_for_inclusion_proof(&k, v))
-        .collect::<Result<_, _>>()?;
+        .map(|(k, v)| {
+            let leaf_key = nibbles_from_bytes(&k);
+            let leaf_node = witness
+                .keys_commit_path
+                .node_for_inclusion_proof(&leaf_key, v)?;
+            Ok((leaf_key, leaf_node))
+        })
+        .collect::<Result<_, NibblePatriciaTrieError>>()?;
     let keys_root_next = witness
         .keys_commit_path
         .root(nodes_for_inclusion_proof_next, None)?;

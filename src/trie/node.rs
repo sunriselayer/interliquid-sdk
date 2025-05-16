@@ -121,7 +121,7 @@ impl NibblePatriciaTrieNodeBranch {
 
                     let item = StackItem {
                         key_fragments,
-                        remaining_key_values: remaining_key_values,
+                        remaining_key_values,
                     };
 
                     Some((index, item))
