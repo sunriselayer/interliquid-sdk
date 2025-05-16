@@ -1,10 +1,11 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::trie::nibble_prefix_range;
+
 use super::{
-    key::leaf_parent_key, nibbles_from_bytes, search_near_leaf_parent_key, Nibble,
-    NibblePatriciaTrieError, NibblePatriciaTrieNode, NibblePatriciaTrieNodeBranch,
-    NibblePatriciaTrieNodeLeaf,
+    key::leaf_parent_key, search_near_leaf_parent_key, Nibble, NibblePatriciaTrieError,
+    NibblePatriciaTrieNode, NibblePatriciaTrieNodeBranch, NibblePatriciaTrieNodeLeaf,
 };
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
@@ -110,9 +111,11 @@ impl NibblePatriciaTrieRootPath {
                     if let NibblePatriciaTrieNode::Branch(branch) = branch {
                         // add non-marked child nodes of the marked branch node to the proof
                         for index in branch.child_key_indices.iter() {
-                            let marked_child_node = marked_nodes
-                                .range(key.iter().copied().chain([*index]).collect::<Vec<_>>()..)
-                                .next();
+                            let marked_child_node = nibble_prefix_range(
+                                &marked_nodes,
+                                key.iter().copied().chain([*index]).collect::<Vec<_>>(),
+                            )
+                            .next();
 
                             // only the non-marked child nodes are added to the proof
                             if marked_child_node.is_some() {
@@ -291,14 +294,17 @@ impl NibblePatriciaTrieRootPath {
                 let branch = nodes_branch
                     .get(&key)
                     .ok_or(NibblePatriciaTrieError::NotFound)?;
+
                 let hash = branch.hash(|index| {
-                    let hashed_child_node = nodes_hashed
-                        .range(key.iter().copied().chain([*index]).collect::<Vec<_>>()..)
-                        .next()?;
+                    let hashed_child_node = nibble_prefix_range(
+                        &nodes_hashed,
+                        key.iter().copied().chain([*index]).collect::<Vec<_>>(),
+                    )
+                    .next()?;
 
                     let (_key, hash) = hashed_child_node;
 
-                    Some(*hash)
+                    Some(hash)
                 });
 
                 if let Some(hash) = hash {
@@ -459,20 +465,19 @@ mod tests {
         let mut hash_db = NibblePatriciaTrieMemoryDb::new();
         let mut buf = Vec::new();
 
-        // Create and store all leaf nodes
+        // Create and store all leaf nodes first
         for (key, value) in entries.iter() {
-            // All leaf nodes have a parent branch node at level 2, so use only the last nibble
-            let key_fragment = vec![key[2]];
-            let leaf = NibblePatriciaTrieNodeLeaf::new(key_fragment, value.clone());
+            let leaf = NibblePatriciaTrieNodeLeaf::new(vec![key[2]], value.clone());
             buf.clear();
-            hash_db.set(key, &leaf.hash()[..]);
+            let leaf_hash = leaf.hash();
+            hash_db.set(key, &leaf_hash[..]);
             NibblePatriciaTrieNode::Leaf(leaf)
                 .serialize(&mut buf)
                 .unwrap();
             node_db.set(key, &buf);
         }
 
-        // Create branch nodes for each level
+        // Create branch nodes for each level, starting from the deepest level
         // Level 2 (last level before leaves)
         for i in 0..10 {
             for j in 0..10 {
@@ -480,7 +485,6 @@ mod tests {
                 for k in 0..10 {
                     children.insert(Nibble::from(k as u8));
                 }
-                // For level 2 branch nodes, key_fragment is the second nibble
                 let branch =
                     NibblePatriciaTrieNodeBranch::new(vec![Nibble::from(j as u8)], children);
                 buf.clear();
@@ -508,7 +512,6 @@ mod tests {
             for j in 0..10 {
                 children.insert(Nibble::from(j as u8));
             }
-            // For level 1 branch nodes, key_fragment is the first nibble
             let branch = NibblePatriciaTrieNodeBranch::new(vec![Nibble::from(i as u8)], children);
             buf.clear();
             let branch_hash = branch
@@ -530,7 +533,6 @@ mod tests {
         for i in 0..10 {
             root_children.insert(Nibble::from(i as u8));
         }
-        // Root node has empty key_fragment
         let root = NibblePatriciaTrieNodeBranch::new(vec![], root_children);
         buf.clear();
         let root_hash = root
@@ -702,6 +704,18 @@ mod tests {
 
         let leaf_key = vec![Nibble::from(1), Nibble::from(2), Nibble::from(3)];
         let leaf_keys = BTreeSet::from([leaf_key.clone()]);
+
+        // Debug: Print the leaf value
+        println!("Leaf value: {:?}", entries.get(&leaf_key));
+
+        // Debug: Print the node structure
+        println!(
+            "Node at [1,2]: {:?}",
+            get_node(&vec![Nibble::from(1), Nibble::from(2)])
+        );
+        println!("Node at [1]: {:?}", get_node(&vec![Nibble::from(1)]));
+        println!("Node at []: {:?}", get_node(&vec![]));
+
         let proof = NibblePatriciaTrieRootPath::from_leafs(
             leaf_keys,
             &get_node,
@@ -711,20 +725,16 @@ mod tests {
         println!("proof: {:?}", proof);
 
         let leaf_value = entries.get(&leaf_key).unwrap();
+        let leaf_node = NibblePatriciaTrieNodeLeaf::new(vec![Nibble::from(3)], leaf_value.clone());
+        println!("leaf_node: {:?}", leaf_node);
+
         let root = proof
-            .root(
-                [(
-                    leaf_key.clone(),
-                    NibblePatriciaTrieNodeLeaf::new(vec![Nibble::from(3)], leaf_value.clone()),
-                )]
-                .into_iter()
-                .collect(),
-                None,
-            )
+            .root([(leaf_key.clone(), leaf_node)].into_iter().collect(), None)
             .unwrap();
-        println!("root: {:?}", root);
+        println!("Computed root: {:?}", root);
 
         let root_hash: [u8; 32] = hash_db.get(&vec![]).unwrap().try_into().unwrap();
+        println!("Expected root: {:?}", root_hash);
 
         assert_eq!(root, root_hash);
     }

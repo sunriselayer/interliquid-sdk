@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use borsh::BorshDeserialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use super::{Nibble, NibblePatriciaTrieError, NibblePatriciaTrieNode};
+use super::{nibble_prefix_range, Nibble, NibblePatriciaTrieError, NibblePatriciaTrieNode};
 
 pub trait NibblePatriciaTrieDb {
     fn get(&self, key: &[Nibble]) -> Option<Vec<u8>>;
@@ -13,7 +13,7 @@ pub trait NibblePatriciaTrieDb {
     fn iter<'a>(
         &'a self,
         key_prefix: Vec<Nibble>,
-    ) -> Box<dyn Iterator<Item = Result<(Vec<Nibble>, Vec<u8>), NibblePatriciaTrieError>> + 'a>;
+    ) -> Box<dyn Iterator<Item = (Vec<Nibble>, Vec<u8>)> + 'a>;
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
@@ -45,27 +45,8 @@ impl NibblePatriciaTrieDb for NibblePatriciaTrieMemoryDb {
     fn iter<'a>(
         &'a self,
         key_prefix: Vec<Nibble>,
-    ) -> Box<dyn Iterator<Item = Result<(Vec<Nibble>, Vec<u8>), NibblePatriciaTrieError>> + 'a>
-    {
-        if key_prefix.len() == 0 {
-            Box::new(self.db.iter().map(|(k, v)| Ok((k.clone(), v.clone()))))
-        } else if key_prefix.iter().all(|&b| b == Nibble::from(Nibble::MAX)) {
-            Box::new(
-                self.db
-                    .range(key_prefix..)
-                    .map(|(k, v)| Ok((k.clone(), v.clone()))),
-            )
-        } else {
-            let mut key_prefix_next = key_prefix.clone();
-            *key_prefix_next.last_mut().unwrap() =
-                Nibble::from(key_prefix_next.last().unwrap().as_u8() + 1); // len > 0
-
-            Box::new(
-                self.db
-                    .range(key_prefix..key_prefix_next)
-                    .map(|(k, v)| Ok((k.clone(), v.clone()))),
-            )
-        }
+    ) -> Box<dyn Iterator<Item = (Vec<Nibble>, Vec<u8>)> + 'a> {
+        nibble_prefix_range(&self.db, key_prefix)
     }
 }
 
@@ -87,7 +68,7 @@ pub fn get_child_node_fragment_and_hash_from_db<Db: NibblePatriciaTrieDb>(
     let (child_node_key, child_node_hash) = hash_db
         .iter(child_key_prefix)
         .next()
-        .ok_or(NibblePatriciaTrieError::NotFound)??;
+        .ok_or(NibblePatriciaTrieError::NotFound)?;
 
     let child_node_fragment = child_node_key[key.len()..].to_vec();
 
