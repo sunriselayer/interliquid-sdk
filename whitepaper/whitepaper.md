@@ -161,6 +161,7 @@ $$
 <div class="mermaid">
 graph BT
     State[StateRoot] --> Entire[EntireRoot]
+    Keys[KeysRoot] --> Entire
 </div>
 
 ### 4-bit-Radix State Patricia Trie
