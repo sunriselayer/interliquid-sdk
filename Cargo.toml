@@ -34,8 +34,14 @@ default = []
 no_std = ["sha2", "sha3", "crypto-bigint", "p256"]
 no_std_sp1 = ["sha2-sp1", "sha3-sp1", "crypto-bigint-sp1", "p256-sp1"]
 
-full = ["no_std", "tokio", "axum", "base64", "serde"]
+runner = ["no_std", "tokio", "axum", "base64", "serde"]
 runner_sp1 = ["sp1-sdk"]
+
+[profile.dev.package.interliquid-sdk]
+features = ["runner", "runner_sp1"]
+
+[profile.test.package.interliquid-sdk]
+features = ["runner", "runner_sp1"]
 
 [[example]]
 name = "basic_usage"

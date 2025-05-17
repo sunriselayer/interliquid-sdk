@@ -1,4 +1,4 @@
-name: Rust
+name: Rust (no_std_sp1)
 
 on:
   push:
@@ -16,6 +16,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build
-        run: cargo build --verbose --features runner,runner_sp1
-      - name: Run tests
-        run: cargo test --verbose --features runner,runner_sp1
+        run: cargo build --verbose --features no_std_sp1

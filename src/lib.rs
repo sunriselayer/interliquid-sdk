@@ -6,7 +6,7 @@ pub mod utils;
 pub mod x;
 pub mod zkp;
 
-#[cfg(feature = "full")]
+#[cfg(feature = "runner")]
 pub mod runner;
 
 #[cfg(feature = "no_std")]

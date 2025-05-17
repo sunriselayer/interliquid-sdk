@@ -50,7 +50,7 @@ pub enum InterLiquidSdkError {
 
     // P256
     #[error("P256")]
-    P256Key(#[from] p256::ecdsa::Error),
+    P256Key(#[from] crate::p256::ecdsa::Error),
 
     // Other
     #[error(transparent)]
