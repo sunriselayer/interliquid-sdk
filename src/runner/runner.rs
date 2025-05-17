@@ -1,5 +1,3 @@
-#![cfg(not(feature = "sp1"))]
-
 use std::sync::Arc;
 
 use tokio::sync::{broadcast::channel, Mutex, RwLock};

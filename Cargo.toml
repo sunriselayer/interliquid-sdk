@@ -21,27 +21,23 @@ crypto-bigint-sp1 = { tag = "patch-0.5.5-sp1-4.0.0", git = "https://github.com/s
 p256 = { version = "0.13.2", optional = true }
 p256-sp1 = { tag = "patch-p256-13.2-sp1-4.1.0", git = "https://github.com/sp1-patches/elliptic-curves", package = "p256", optional = true }
 
-sp1-sdk = { version = "4.2.0", optional = true }
 tokio = { version = "1.45.0", features = ["full"], optional = true }
 axum = { version = "0.8.4", features = ["macros"], optional = true }
 base64 = { version = "0.22.1", optional = true }
 serde = { version = "1.0.219", features = ["derive"], optional = true }
 
+sp1-sdk = { version = "4.2.0", optional = true }
+
 [features]
-default = [
-    "sha2",
-    "sha3",
-    "crypto-bigint",
-    "p256",
-    "sp1-sdk",
-    "tokio",
-    "axum",
-    "base64",
-    "serde",
-]
-sp1 = ["sha2-sp1", "sha3-sp1", "crypto-bigint-sp1", "p256-sp1"]
+default = []
+
+no_std = ["sha2", "sha3", "crypto-bigint", "p256"]
+no_std_sp1 = ["sha2-sp1", "sha3-sp1", "crypto-bigint-sp1", "p256-sp1"]
+
+full = ["no_std", "tokio", "axum", "base64", "serde"]
+runner_sp1 = ["sp1-sdk"]
 
 [[example]]
 name = "basic_usage"
 path = "examples/basic_usage.rs"
-required-features = ["tokio", "axum", "base64", "serde"]
+required-features = ["full"]
