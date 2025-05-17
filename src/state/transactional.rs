@@ -1,16 +1,17 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{state::TracableStateManager, types::InterLiquidSdkError};
 
 use super::{
     log::{StateLog, StateLogIter, StateLogRead},
-    CompressedDiffs, StateLogDiff, StateManager, ValueDiff,
+    AccumulatedLogs, StateLogDiff, StateManager, ValueDiff,
 };
 
 pub struct TransactionalStateManager<'s, S: StateManager> {
     pub state_manager: &'s S,
     pub logs: Vec<StateLog>,
-    pub diffs: CompressedDiffs,
+    pub accum_logs_prev: AccumulatedLogs,
+    pub accum_logs_next: AccumulatedLogs,
 }
 
 impl<'s, S: StateManager> TransactionalStateManager<'s, S> {
@@ -18,20 +19,40 @@ impl<'s, S: StateManager> TransactionalStateManager<'s, S> {
         Self {
             state_manager,
             logs: Vec::new(),
-            diffs: CompressedDiffs::default(),
+            accum_logs_prev: AccumulatedLogs::default(),
+            accum_logs_next: AccumulatedLogs::default(),
         }
     }
 
-    pub fn from_diffs(state_manager: &'s S, diffs: CompressedDiffs) -> Self {
+    pub fn from_accum_logs_prev(state_manager: &'s S, accum_logs_prev: AccumulatedLogs) -> Self {
+        let accum_logs_next = accum_logs_prev.clone();
+
         Self {
             state_manager,
             logs: Vec::new(),
-            diffs,
+            accum_logs_prev,
+            accum_logs_next,
         }
     }
 
-    fn get_without_logging(&self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
-        let val = if let Some(diff) = self.diffs.map().get(key) {
+    fn get_without_logging_from_prev(
+        &self,
+        key: &[u8],
+    ) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
+        let val = if let Some(diff) = self.accum_logs_prev.diff().get(key) {
+            diff.after.clone()
+        } else {
+            self.state_manager.get(key)?
+        };
+
+        Ok(val)
+    }
+
+    fn get_without_logging_from_next(
+        &self,
+        key: &[u8],
+    ) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
+        let val = if let Some(diff) = self.accum_logs_next.diff().get(key) {
             diff.after.clone()
         } else {
             self.state_manager.get(key)?
@@ -41,7 +62,7 @@ impl<'s, S: StateManager> TransactionalStateManager<'s, S> {
     }
 
     pub fn commit(&self, state_manager: &mut S) -> Result<(), InterLiquidSdkError> {
-        for (key, diff) in self.diffs.map() {
+        for (key, diff) in self.accum_logs_next.diff() {
             match &diff.after {
                 Some(value) => state_manager.set(key, value)?,
                 None => state_manager.del(key)?,
@@ -50,11 +71,36 @@ impl<'s, S: StateManager> TransactionalStateManager<'s, S> {
 
         Ok(())
     }
+
+    pub fn state_for_access_from_log(
+        &self,
+    ) -> Result<BTreeMap<Vec<u8>, Vec<u8>>, InterLiquidSdkError> {
+        let mut map = BTreeMap::new();
+        for log in &self.logs {
+            match log {
+                StateLog::Read(read) => {
+                    if let Some(value) = self.get_without_logging_from_prev(&read.key)? {
+                        map.entry(read.key.clone()).or_insert(value);
+                    }
+                }
+                StateLog::Iter(iter) => {
+                    for key in &iter.keys {
+                        if let Some(value) = self.get_without_logging_from_prev(&key)? {
+                            map.entry(key.clone()).or_insert(value);
+                        }
+                    }
+                }
+                StateLog::Diff(_diff) => {}
+            }
+        }
+
+        Ok(map)
+    }
 }
 
 impl<'s, S: StateManager> TracableStateManager for TransactionalStateManager<'s, S> {
     fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, InterLiquidSdkError> {
-        let val = self.get_without_logging(key)?;
+        let val = self.get_without_logging_from_next(key)?;
 
         self.logs.push(StateLog::Read(StateLogRead {
             key: key.to_vec(),
@@ -65,7 +111,7 @@ impl<'s, S: StateManager> TracableStateManager for TransactionalStateManager<'s,
     }
 
     fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), InterLiquidSdkError> {
-        let before = self.get_without_logging(key)?;
+        let before = self.get_without_logging_from_next(key)?;
         let log = StateLog::Diff(StateLogDiff {
             key: key.to_vec(),
             diff: ValueDiff {
@@ -74,14 +120,14 @@ impl<'s, S: StateManager> TracableStateManager for TransactionalStateManager<'s,
             },
         });
 
-        self.diffs.apply_logs([&log].into_iter())?;
+        self.accum_logs_next.apply_logs([log.clone()].into_iter())?;
         self.logs.push(log);
 
         Ok(())
     }
 
     fn del(&mut self, key: &[u8]) -> Result<(), InterLiquidSdkError> {
-        let before = self.get_without_logging(key)?;
+        let before = self.get_without_logging_from_next(key)?;
         let log = StateLog::Diff(StateLogDiff {
             key: key.to_vec(),
             diff: ValueDiff {
@@ -90,7 +136,7 @@ impl<'s, S: StateManager> TracableStateManager for TransactionalStateManager<'s,
             },
         });
 
-        self.diffs.apply_logs([&log].into_iter())?;
+        self.accum_logs_next.apply_logs([log.clone()].into_iter())?;
         self.logs.push(log);
 
         Ok(())
@@ -100,24 +146,28 @@ impl<'s, S: StateManager> TracableStateManager for TransactionalStateManager<'s,
         &'a mut self,
         key_prefix: Vec<u8>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
-        let iter = self.state_manager.iter(key_prefix).filter_map(|result| {
-            let (key, value) = match result {
-                Ok((key, value)) => (key, value),
-                Err(e) => return Some(Err(e)),
-            };
+        let iter = self
+            .state_manager
+            .iter(key_prefix.clone())
+            .filter_map(|result| {
+                let (key, value) = match result {
+                    Ok((key, value)) => (key, value),
+                    Err(e) => return Some(Err(e)),
+                };
 
-            if let Some(diff) = self.diffs.map().get(&key) {
-                match &diff.after {
-                    Some(value) => Some(Ok((key, value.clone()))),
-                    None => None,
+                if let Some(diff) = self.accum_logs_next.diff().get(&key) {
+                    match &diff.after {
+                        Some(value) => Some(Ok((key, value.clone()))),
+                        None => None,
+                    }
+                } else {
+                    Some(Ok((key, value)))
                 }
-            } else {
-                Some(Ok((key, value)))
-            }
-        });
+            });
 
         let record_index = self.logs.len();
-        self.logs.push(StateLog::Iter(StateLogIter::new()));
+        self.logs
+            .push(StateLog::Iter(StateLogIter::new(key_prefix)));
 
         if let StateLog::Iter(recorder) = &mut self.logs[record_index] {
             Box::new(TransactionalStateIterator::new(recorder, Box::new(iter)))

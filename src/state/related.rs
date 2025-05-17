@@ -39,23 +39,27 @@ impl StateManager for RelatedState {
         &'a self,
         key_prefix: Vec<u8>,
     ) -> Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), InterLiquidSdkError>> + 'a> {
-        if key_prefix.len() == 0 {
-            Box::new(self.map.iter().map(|(k, v)| Ok((k.clone(), v.clone()))))
-        } else if key_prefix.iter().all(|&b| b == 0xFF) {
-            Box::new(
-                self.map
-                    .range(key_prefix..)
-                    .map(|(k, v)| Ok((k.clone(), v.clone()))),
-            )
-        } else {
-            let mut key_prefix_next = key_prefix.clone();
-            *key_prefix_next.last_mut().unwrap() += 1; // len > 0
+        let iter = bytes_prefix_range(&self.map, key_prefix);
 
-            Box::new(
-                self.map
-                    .range(key_prefix..key_prefix_next)
-                    .map(|(k, v)| Ok((k.clone(), v.clone()))),
-            )
-        }
+        Box::new(iter.map(|(k, v)| Ok((k, v))))
+    }
+}
+
+pub fn bytes_prefix_range<'a, T: Clone>(
+    map: &'a BTreeMap<Vec<u8>, T>,
+    key_prefix: Vec<u8>,
+) -> Box<dyn Iterator<Item = (Vec<u8>, T)> + 'a> {
+    if key_prefix.len() == 0 {
+        Box::new(map.iter().map(|(k, v)| (k.clone(), v.clone())))
+    } else if key_prefix.iter().all(|&b| b == 0xFF) {
+        Box::new(map.range(key_prefix..).map(|(k, v)| (k.clone(), v.clone())))
+    } else {
+        let mut key_prefix_next = key_prefix.clone();
+        *key_prefix_next.last_mut().unwrap() += 1; // len > 0
+
+        Box::new(
+            map.range(key_prefix..key_prefix_next)
+                .map(|(k, v)| (k.clone(), v.clone())),
+        )
     }
 }

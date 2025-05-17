@@ -1,8 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use anyhow::anyhow;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 use crate::types::InterLiquidSdkError;
+
+use super::bytes_prefix_range;
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum StateLog {
@@ -19,12 +22,14 @@ pub struct StateLogRead {
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct StateLogIter {
+    pub key_prefix: Vec<u8>,
     pub keys: BTreeSet<Vec<u8>>,
 }
 
 impl StateLogIter {
-    pub fn new() -> Self {
+    pub fn new(key_prefix: Vec<u8>) -> Self {
         Self {
+            key_prefix,
             keys: BTreeSet::new(),
         }
     }
@@ -43,50 +48,92 @@ pub struct ValueDiff {
 }
 
 #[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize)]
-pub struct CompressedDiffs {
-    pub diffs: BTreeMap<Vec<u8>, ValueDiff>,
+pub struct AccumulatedLogs {
+    pub read: BTreeMap<Vec<u8>, bool>,
+    pub iter: BTreeMap<Vec<u8>, BTreeSet<Vec<u8>>>,
+    pub diff: BTreeMap<Vec<u8>, ValueDiff>,
 }
 
-impl CompressedDiffs {
-    pub fn new(diffs: BTreeMap<Vec<u8>, ValueDiff>) -> Self {
-        Self { diffs }
+impl AccumulatedLogs {
+    pub fn new() -> Self {
+        Self {
+            read: BTreeMap::new(),
+            iter: BTreeMap::new(),
+            diff: BTreeMap::new(),
+        }
     }
 
-    pub fn from_logs<'a>(
-        logs: impl Iterator<Item = &'a StateLog>,
-    ) -> Result<Self, InterLiquidSdkError> {
-        let mut diffs = Self::default();
-        diffs.apply_logs(logs)?;
-
-        Ok(diffs)
-    }
-
-    pub fn apply_logs<'a>(
+    pub fn apply_logs(
         &mut self,
-        logs: impl Iterator<Item = &'a StateLog>,
+        logs: impl Iterator<Item = StateLog>,
     ) -> Result<(), InterLiquidSdkError> {
         for log in logs {
             match log {
+                StateLog::Read(read) => {
+                    if let Some(diff) = self.diff.get(&read.key) {
+                        if read.found {
+                            if diff.after.is_none() {
+                                return Err(InterLiquidSdkError::Other(anyhow!(
+                                    "inconsistent state log: read found after deletion diff"
+                                )));
+                            }
+
+                            if diff.before.is_none() {
+                                continue;
+                            }
+                        } else {
+                            if diff.after.is_some() {
+                                return Err(InterLiquidSdkError::Other(anyhow!(
+                                    "inconsistent state log: read not found after insertion diff"
+                                )));
+                            }
+                            if diff.before.is_some() {
+                                continue;
+                            }
+                        }
+                    }
+
+                    // do not overwrite
+                    self.read.entry(read.key).or_insert(read.found);
+                }
+                StateLog::Iter(mut iter) => {
+                    let diffs_under_prefix =
+                        bytes_prefix_range(&self.diff, iter.key_prefix.clone());
+
+                    for (key, diff) in diffs_under_prefix {
+                        if diff.before.is_none() && diff.after.is_some() {
+                            iter.keys.remove(&key);
+                        } else if diff.before.is_some() && diff.after.is_none() {
+                            iter.keys.insert(key);
+                        }
+                    }
+
+                    // do not overwrite
+                    self.iter.entry(iter.key_prefix).or_insert(iter.keys);
+                }
                 StateLog::Diff(diff) => {
-                    self.diffs
+                    self.diff
                         .entry(diff.key.clone())
                         .and_modify(|v: &mut ValueDiff| {
                             v.after = diff.diff.after.clone();
                         })
                         .or_insert(diff.diff.clone());
                 }
-                _ => {}
             }
         }
 
         Ok(())
     }
 
-    pub fn map(&self) -> &BTreeMap<Vec<u8>, ValueDiff> {
-        &self.diffs
+    pub fn read(&self) -> &BTreeMap<Vec<u8>, bool> {
+        &self.read
     }
 
-    pub fn map_mut(&mut self) -> &mut BTreeMap<Vec<u8>, ValueDiff> {
-        &mut self.diffs
+    pub fn iter(&self) -> &BTreeMap<Vec<u8>, BTreeSet<Vec<u8>>> {
+        &self.iter
+    }
+
+    pub fn diff(&self) -> &BTreeMap<Vec<u8>, ValueDiff> {
+        &self.diff
     }
 }

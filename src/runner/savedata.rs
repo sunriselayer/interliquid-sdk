@@ -1,16 +1,16 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::state::{CompressedDiffs, StateLog};
+use crate::state::{AccumulatedLogs, StateLog};
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct TxExecutionSnapshot {
     pub logs: Vec<StateLog>,
-    pub accum_diffs: CompressedDiffs,
+    pub accum_logs: AccumulatedLogs,
 }
 
 impl TxExecutionSnapshot {
-    pub fn new(logs: Vec<StateLog>, accum_diffs: CompressedDiffs) -> Self {
-        Self { logs, accum_diffs }
+    pub fn new(logs: Vec<StateLog>, accum_logs: AccumulatedLogs) -> Self {
+        Self { logs, accum_logs }
     }
 }
 

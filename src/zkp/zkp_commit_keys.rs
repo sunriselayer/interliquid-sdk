@@ -6,25 +6,25 @@ use anyhow::anyhow;
 use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::{state::CompressedDiffs, types::InterLiquidSdkError};
+use crate::{state::AccumulatedLogs, types::InterLiquidSdkError};
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct PublicInputCommitKeys {
     pub keys_root_prev: [u8; 32],
     pub keys_root_next: [u8; 32],
-    pub accum_diffs_hash_final: [u8; 32],
+    pub accum_logs_hash_final: [u8; 32],
 }
 
 impl PublicInputCommitKeys {
     pub fn new(
         keys_root_prev: [u8; 32],
         keys_root_next: [u8; 32],
-        accum_diffs_hash_final: [u8; 32],
+        accum_logs_hash_final: [u8; 32],
     ) -> Self {
         Self {
             keys_root_prev,
             keys_root_next,
-            accum_diffs_hash_final,
+            accum_logs_hash_final,
         }
     }
 }
@@ -32,19 +32,19 @@ impl PublicInputCommitKeys {
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct WitnessCommitKeys {
     pub keys_root_prev: [u8; 32],
-    pub accum_diffs_final: CompressedDiffs,
+    pub accum_logs_final: AccumulatedLogs,
     pub keys_commit_path: NibblePatriciaTrieRootPath,
 }
 
 impl WitnessCommitKeys {
     pub fn new(
         keys_root_prev: [u8; 32],
-        accum_diffs_final: CompressedDiffs,
+        accum_logs_final: AccumulatedLogs,
         keys_commit_path: NibblePatriciaTrieRootPath,
     ) -> Self {
         Self {
             keys_root_prev,
-            accum_diffs_final,
+            accum_logs_final,
             keys_commit_path,
         }
     }
@@ -53,14 +53,14 @@ impl WitnessCommitKeys {
 pub fn circuit_commit_keys(
     witness: WitnessCommitKeys,
 ) -> Result<PublicInputCommitKeys, InterLiquidSdkError> {
-    let mut accum_diffs_bytes_final = Vec::new();
+    let mut accum_logs_bytes_final = Vec::new();
     witness
-        .accum_diffs_final
-        .serialize(&mut accum_diffs_bytes_final)?;
+        .accum_logs_final
+        .serialize(&mut accum_logs_bytes_final)?;
 
     let nodes_for_inclusion_proof_prev = witness
-        .accum_diffs_final
-        .diffs
+        .accum_logs_final
+        .diff()
         .iter()
         .filter_map(|(key, diff)| {
             if diff.before.is_some() {
@@ -89,8 +89,8 @@ pub fn circuit_commit_keys(
     }
 
     let nodes_for_inclusion_proof_next = witness
-        .accum_diffs_final
-        .diffs
+        .accum_logs_final
+        .diff()
         .iter()
         .filter_map(|(key, diff)| {
             if diff.after.is_some() {
@@ -111,12 +111,14 @@ pub fn circuit_commit_keys(
         .keys_commit_path
         .root(nodes_for_inclusion_proof_next, None)?;
 
-    let accum_diffs_hash_final = Sha256::digest(&accum_diffs_bytes_final).into();
+    // TODO: prove iter keys
+
+    let accum_logs_hash_final = Sha256::digest(&accum_logs_bytes_final).into();
 
     let input = PublicInputCommitKeys::new(
         witness.keys_root_prev,
         keys_root_next,
-        accum_diffs_hash_final,
+        accum_logs_hash_final,
     );
 
     Ok(input)

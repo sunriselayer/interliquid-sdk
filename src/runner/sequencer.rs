@@ -92,15 +92,16 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
         let state_manager_lock = self.state.state_manager.read().await;
         let state_manager = state_manager_lock.deref();
 
-        let accum_diffs = savedata
+        let accum_logs = savedata
             .tx_snapshots
             .last()
-            .and_then(|snapshot| Some(snapshot.accum_diffs.clone()))
+            .and_then(|snapshot| Some(snapshot.accum_logs.clone()))
             .unwrap_or_default();
 
-        let accum_diffs_prev = accum_diffs.clone();
+        let accum_logs_prev = accum_logs;
 
-        let mut transactional = TransactionalStateManager::from_diffs(state_manager, accum_diffs);
+        let mut transactional =
+            TransactionalStateManager::from_accum_logs_prev(state_manager, accum_logs_prev);
 
         let mut ctx = SdkContext::new(
             savedata.chain_id.clone(),
@@ -111,22 +112,24 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
 
         app.execute_tx(&mut ctx, &tx)?;
 
+        let state_for_access = transactional.state_for_access_from_log()?;
+
         let TransactionalStateManager {
-            state_manager,
             logs,
-            diffs,
+            accum_logs_prev,
+            accum_logs_next,
+            ..
         } = transactional;
 
-        let witness = WitnessTx::from(
+        let witness = WitnessTx::new(
             tx,
             savedata.state_sparse_tree_root,
             savedata.keys_patricia_trie_root,
-            &logs,
-            accum_diffs_prev,
-            state_manager,
+            state_for_access,
+            accum_logs_prev,
         );
 
-        let snapshot = TxExecutionSnapshot::new(logs, diffs);
+        let snapshot = TxExecutionSnapshot::new(logs, accum_logs_next);
 
         self.sender
             .send(RunnerMessage::TxProofReady(MessageTxProofReady::new(
@@ -134,7 +137,7 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
                 savedata.block_height,
                 savedata.block_time_unix_secs,
                 savedata.tx_snapshots.len() - 1,
-                witness?,
+                witness,
             )))
             .map_err(|e| InterLiquidSdkError::Other(anyhow::anyhow!(e)))?;
 
