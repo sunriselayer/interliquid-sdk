@@ -8,7 +8,26 @@ permalink: /whitepaper/
 
 Author: KIMURA Yu ([Sunrise](https://sunriselayer.io))
 
+## Table of Contents
+- [Introduction](#introduction)
+- [Why Iteration Matters](#why-iteration-matters)
+  - [Ethereum](#ethereum)
+  - [Solana](#solana)
+  - [Cosmos SDK](#cosmos-sdk)
+  - [Polkadot SDK (Substrate)](#polkadot-sdk-substrate)
+- [Technical: The Challenge of InterLiquid SDK](#technical-the-challenge-of-interliquid-sdk)
+  - [ZKP of State Transition](#zkp-of-state-transition)
+  - [Security Assumptions](#security-assumptions)
+  - [Twin Radix Trees](#twin-radix-trees)
+    - [4-bit-Radix State Patricia Trie](#4-bit-radix-state-patricia-trie)
+    - [4-bit-Radix Keys Patricia Trie](#4-bit-radix-keys-patricia-trie)
+  - [Parallelization of ZKP Generation](#parallelization-of-zkp-generation)
+- [Glossary](#glossary)
+- [Further Reading](#further-reading)
+
 ## Introduction
+
+> **Key Concept**: InterLiquid SDK enables Web2-like experiences for dApps while maintaining blockchain security.
 
 InterLiquid SDK is a software development kit for building ZK Sovereign Rollups.
 It aims to realize Web2-like User Experience and Web2-like Developer Experience for dApps.
@@ -20,6 +39,12 @@ It is suitable for building on Sunrise, but it is not limited to it.
 Also if you think that the evolution of hardware acceleration of ZK proof generation is not enough, it is possible to use it for Optimistic Sovereign Rollups.
 
 To clarify the word of Sovereign Rollup, in ZK Sovereign Rollup, validity proof of state transition are submitted to rollup itself, and in Optimistic Sovereign Rollup, fraud proof is submitted to rollup itself.
+
+**Key Takeaways**:
+- Enables Web2-like experiences for dApps
+- Supports both ZK and Optimistic Sovereign Rollups
+- Suitable for Sunrise but not limited to it
+- Bridges Web2 applications with DeFi ecosystem
 
 ## Why Iteration Matters
 
@@ -82,12 +107,21 @@ It is not possible to prove the completeness of the iterated key as we do in Int
 
 ## Techincal: The challenge of InterLiquid SDK
 
+> **Key Concept**: Twin Radix Trees enable key prefix based iteration while maintaining ZK friendliness.
+
 The challenge of InterLiquid SDK is to make key prefix based iteration and ZK friendliness coexisting.
 The architecture to achieve this is **Twin Radix Trees**.
 
 Before explaining Twin Radix Trees, let's see how to prove the validity of state transition with ZKP.
 
 ### ZKP of State transition
+
+```mermaid
+graph LR
+    A[StatePrev] --> C[State Transition Function]
+    B[Transactions] --> C
+    C --> D[StateNext]
+```
 
 Generally speaking, state transition function is described as follows:
 
@@ -105,6 +139,11 @@ $$
   &= \hat{f}(\text{Txs}, \text{StateRootPrev} , \text{StateForAccess}, \text{StateCommitPath})
 \end{aligned}
 $$
+
+> **Note**: The state transition proof requires three key components:
+> 1. State to access (StateForAccess)
+> 2. State diffs (Diffs)
+> 3. State commit path (StateCommitPath)
 
 Because zkVMs cannot access the storage directly, we need to give the state to access $$ \text{StateForAccess} $$ beforehand.
 It is also enough to output only the diffs $$ \text{Diffs} $$ without entire state.
@@ -147,10 +186,27 @@ However, proving it for iter access (all keys which match the designated key pre
 
 ### Twin Radix Trees
 
+```mermaid
+graph TD
+    A[EntireRoot] --> B[StateRoot]
+    A --> C[KeysRoot]
+    B --> D[4-bit-Radix State Patricia Trie]
+    C --> E[4-bit-Radix Keys Patricia Trie]
+    D --> F[State Inclusion Proof]
+    E --> G[Key Indexing]
+```
+
 Twin Radix Trees combines two tree components:
 
-- 4-bit-Radix State Patricia Trie for state inclusion proof
-- 4-bit-Radix Keys Patricia Trie for key indexing to enable key prefix based iteration
+1. **4-bit-Radix State Patricia Trie**
+   - Purpose: State inclusion proof
+   - Use case: Get access validity in state transition
+   - Feature: Light client based interoperability protocol support
+
+2. **4-bit-Radix Keys Patricia Trie**
+   - Purpose: Key indexing
+   - Use case: Iter access validity in state transition
+   - Feature: Key prefix based iteration
 
 The state root is calculated by the following equation where $$h$$ is the hash function:
 
@@ -158,13 +214,23 @@ $$
 \text{EntireRoot} = h(\text{StateRoot} || \text{KeysRoot})
 $$
 
-<div class="mermaid">
-graph BT
-    State[StateRoot] --> Entire[EntireRoot]
-    Keys[KeysRoot] --> Entire
-</div>
+**Key Takeaways**:
+- Twin Radix Trees enable both state inclusion proof and key indexing
+- Maintains ZK friendliness while supporting key prefix iteration
+- Enables efficient state transition validation
+- Supports light client interoperability
 
 ### 4-bit-Radix State Patricia Trie
+
+```mermaid
+graph TD
+    A[State Patricia Trie] --> B[Leaf Index]
+    A --> C[Leaf Value]
+    B --> D[Key Hash]
+    C --> E[State Hash]
+    F[Inclusion Proof] --> G[Get Access Validity]
+    F --> H[Light Client Interoperability]
+```
 
 This tree works for the state inclusion proof.
 
@@ -173,6 +239,8 @@ It can be used for proving get access validity in the state transition, and also
 The leaf index is determined by the key hash, and the leaf value is the state hash.
 
 Thanks to the property of the hash function, the attack vector of increasing the inclusion proof size of the specific key is also reduced.
+
+> **Security Note**: The hash function property helps mitigate attacks that could increase inclusion proof size.
 
 To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \text{ReadKVPairs} $$.
 
@@ -191,9 +259,22 @@ $$
 \end{aligned}
 $$
 
-It is also needed to prove the non-inclusion of the key which was tried to be be accessed in the STF but not found. To do this, it is enough to prove the inclusion of dead end node in the tree.
+**Key Takeaways**:
+- Uses key hash for leaf index determination
+- Provides state inclusion proof
+- Supports get access validity verification
+- Enables light client interoperability
 
 ### 4-bit-Radix Keys Patricia Trie
+
+```mermaid
+graph TD
+    A[Keys Patricia Trie] --> B[Node Hash Calculation]
+    B --> C[Key Fragment]
+    B --> D[Child Node Hashes]
+    E[Iteration] --> F[Key Prefix Matching]
+    F --> G[State Transition Validity]
+```
 
 This trie works for the key indexing.
 
@@ -214,6 +295,8 @@ $$
 \end{aligned}
 $$
 
+> **Implementation Note**: The node hash calculation supports efficient key prefix iteration while maintaining ZK friendliness.
+
 To prove the validity of iter access, it is needed to re-construct the node hash of the designated key prefix with all iterated keys, and prove its inclusion in the tree.
 
 $$
@@ -231,9 +314,24 @@ $$
 \end{aligned}
 $$
 
-It is straightforward to think that this proof is mathematically heavy, but there is a room for parallelization.
+**Key Takeaways**:
+- Enables key prefix based iteration
+- Supports efficient node hash calculation
+- Maintains ZK friendliness
+- Provides iter access validity proof
 
-### Parallelization of ZKP generation
+### Parallelization of ZKP Generation
+
+```mermaid
+graph TD
+    A[Block] --> B[Transactions]
+    B --> C[State Transition]
+    C --> D[Interim Results]
+    D --> E[ReadKVPairs]
+    D --> F[IterKVPairs]
+    E --> G[Parallel ZKP Generation]
+    F --> G
+```
 
 Generally speaking, the list of transactions is a part of the block.
 
@@ -243,261 +341,22 @@ $$
 
 In the InterLiquid SDK, to get the accessed state which is needed to give to zkVM, it is needed to execute the transactions once outside of the zkVM.
 
+> **Performance Note**: Parallelization of ZKP generation significantly improves processing efficiency.
+
 Here, we can get the interim result of the state transition function for each transaction $$\{\text{Tx}_i\}_{i=1}^{n}$$, with emitting the accessed key value pairs $$\text{ReadKVPairs}_i$$ and $$\text{IterKVPairs}_i$$:
 
 $$
 \begin{aligned}
   &\left\{ \text{AccumDiffsNext}_i, \text{ReadKVPairs}_i, \text{IterKVPairs}_i \right\} \\
-  &= g\left(\text{StateForAccess}_i, \text{AccumDiffsPrev}_i, \text{Tx}_i\right)
+  &= \hat{f}_i(\text{Tx}_i, \text{AccumDiffsPrev}_i, \text{StateForAccess}_i, \text{StateCommitPath}_i)
 \end{aligned}
 $$
 
-Then we can generate the proof in parallel for each transaction with one circuit which can be regarded as a combination of $$\text{ProofStf}_i$$, $$\text{ProofGet}_i$$, and $$\text{ProofIter}_i$$:
-
-$$
-\begin{aligned}
-  \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
-  \text{WitnessTx}_i &= \left\{ \begin{aligned}
-    & \text{Tx}_i \\
-    & \text{StateRoot} \\
-    & \text{KeysRoot} \\
-    & \text{StateForAccess}_i \\
-    & \text{AccumDiffsPrev}_i \\
-    & \text{ReadProofPath}_i \\
-    & \text{IterProofPath}_i
-  \end{aligned} \right\} \\
-  \text{ConstraintsTx}_i &= \left\{ \begin{aligned}
-    & \text{StateRoot} \\
-    & (\text{StateForAccess}_i, g(\dots), \text{ReadProofPath}_i) \\
-    & \text{KeysRoot} \\
-    & (\text{StateForAccess}_i, g(\dots), \text{IterProofPath}_i)
-  \end{aligned} \right\} \\
-  \text{PubInputsTx}_i &= \left\{\begin{aligned}
-    & \text{TxHash}_i(\text{Tx}_i) \\
-    & \text{AccumDiffsHashPrev}_i(\text{AccumDiffsPrev}_i) \\
-    & \text{AccumDiffsHashNext}_i(g(\dots)) \\
-    & \text{EntireRoot} \\
-    & (\text{StateRoot}, \text{KeysRoot})
-  \end{aligned} \right\}
-\end{aligned}
-$$
-
-Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions respectively. Some zkVMs already have the feature to divide the trace, but it is still effective to make the pipeline of proof generation described below.
-
-By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\text{ReadKVPairs}_i$$ and $$\text{IterKVPairs}_i$$ by itself.
-
-Needless to say, $$\text{StateRootPrev}$$ and $$\text{KeysRootPrev}$$ which need to be verified, also can be verified by using $$\text{PubInputsTx}_i$$ in the circuit.
-
-### Divide and Conquer for Proof Aggregation
-
-To further optimize the proof generation process, we can employ a divide-and-conquer approach for proof aggregation:
-
-1. Aggregate proofs of adjacent transactions in pairs by verifying the proof inside the circuit
-1. Recursively aggregate the resulting proofs
-
-The aggregation circuit for two transaction proofs is defined as:
-
-$$
-\begin{aligned}
-  \text{AccumDiffsHashMid}_{i,i+1} &= \text{AccumDiffsHashNext}_{i} = \text{AccumDiffsHashPrev}_{i+1} \\
-  \text{WitnessTxAgg}_{i,i+1} &= \left\{\begin{aligned}
-    & \text{TxHash}_i \\
-    & \text{TxHash}_{i+1} \\
-    & \text{AccumDiffsHashPrev}_i \\
-    & \text{AccumDiffsHashMid}_{i,i+1} \\
-    & \text{AccumDiffsHashNext}_{i+1} \\
-    & \text{ProofTx}_i \\
-    & \text{ProofTx}_{i+1} \\
-    & \text{EntireRoot}
-  \end{aligned} \right\} \\
-  \text{ConstraintsTxAgg}_{i,i+1} &= \left\{ \begin{aligned}
-    & \text{ProofTx}_i \\
-    & \left(\begin{aligned}
-      & \text{TxHash}_i \\
-      & \text{AccumDiffsHashPrev}_i \\
-      & \text{AccumDiffsHashMid}_{i,i+1} \\
-      & \text{EntireRoot}
-    \end{aligned}\right) \\
-    & \text{ProofTx}_{i+1} \\
-    & \left(\begin{aligned}
-    & \text{TxHash}_i \\
-    & \text{AccumDiffsHashMid}_{i,i+1} \\
-    & \text{AccumDiffsHashNext}_{i+1} \\
-    & \text{EntireRoot}
-    \end{aligned}\right) \\
-  \end{aligned} \right\} \\
-  \text{PubInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
-    & \text{TxsRoot}_{i,i+1}(\text{Tx}_i, \text{Tx}_{i+1}) \\
-    & \text{AccumDiffsHashPrev}_i \\
-    & \text{AccumDiffsHashNext}_{i+1} \\
-    & \text{EntireRoot}
-  \end{aligned} \right\}
-\end{aligned}
-$$
-
-Because of the recursive similarity, the same circuit can be used for recursive aggregation. Here, we use the notation $$\{p:s\}$$ to represent the range of transactions from $$p$$ to $$s$$, and $$q$$ and $$r$$ are the midpoints that divide this range into two sub-ranges:
-
-$$
-\begin{aligned}
-  q &= \frac{p+s-1}{2} \\
-  r &= \frac{p+s+1}{2} \\
-  \text{AccumDiffsHashMid}_{\{p:s\}} &= \text{AccumDiffsHashNext}_q = \text{AccumDiffsHashPrev}_r \\
-  \text{WitnessTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
-    & \text{TxsRoot}_{\{p:q\}} \\
-    & \text{TxsRoot}_{\{r:s\}} \\
-    & \text{AccumDiffsHashPrev}_p \\
-    & \text{AccumDiffsHashMid}_{\{p:s\}} \\
-    & \text{AccumDiffsHashNext}_s \\
-    & \text{ProofTxAgg}_{\{p:q\}} \\
-    & \text{ProofTxAgg}_{\{r:s\}} \\
-    & \text{EntireRoot}
-  \end{aligned} \right\} \\
-  \text{ConstraintsTxAgg}_{\{p:s\}} &= \left\{ \begin{aligned}
-    & \text{ProofTxAgg}_{\{p:q\}} \\
-    & \left(\begin{aligned}
-      & \text{TxsRoot}_{\{p:q\}} \\
-      & \text{AccumDiffsHashPrev}_p \\
-      & \text{AccumDiffsHashMid}_{\{p:s\}} \\
-      & \text{EntireRoot}
-    \end{aligned}\right) \\
-    & \text{ProofTxAgg}_{\{r:s\}} \\
-    & \left(\begin{aligned}
-    & \text{TxsRoot}_{\{r:s\}} \\
-    & \text{AccumDiffsHashMid}_{\{p:s\}} \\
-    & \text{AccumDiffsHashNext}_s \\
-    & \text{EntireRoot}
-    \end{aligned}\right) \\
-  \end{aligned} \right\} \\
-  \text{PubInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
-    & \text{TxsRoot}_{\{p:s\}}(\text{TxsRoot}_{\{p:q\}}, \text{TxsRoot}_{\{r:s\}}) \\
-    & \text{AccumDiffsHashPrev}_p \\
-    & \text{AccumDiffsHashNext}_s \\
-    & \text{EntireRoot}
-  \end{aligned} \right\}
-\end{aligned}
-$$
-
-<div class="mermaid">
-graph BT
-    Tx1[ProofTx1] --> TxAgg12[ProofTxAgg1,2]
-    Tx2[ProofTx2] --> TxAgg12
-
-    Tx3[ProofTx3] --> TxAgg34[ProofTxAgg3,4]
-    Tx4[ProofTx4] --> TxAgg34
-
-    TxAgg12 --> TxAgg3[ProofTxAgg#123;1:4#125;]
-    TxAgg34 --> TxAgg3
-</div>
-
-This approach can be further optimized by pipelining the aggregation process, starting the next aggregation as soon as adjacent proofs are available.
-For example if we have 4 txs in the block, $$\text{ProofTxAgg}_{1,2}$$ and $$\text{ProofTx}_3$$ are ready before the 4th tx is not processed yet.
-
-### Block Proof Structure
-
-Based on the divide-and-conquer approach, we can construct the block proof by recursively aggregating transaction proofs.
-Before proving the block, we also divide the circuit of state commitment and keys commitment. Of course these two circuits can be parallelized.
-
-$$
-\begin{aligned}
-  \text{WitnessCommitState} &= \left\{ \begin{aligned}
-    & \text{StateRootPrev} \\
-    & \text{AccumDiffs}_n \\
-    & \text{StateCommitPath}
-  \end{aligned} \right\} \\
-  \text{PubInputsCommitState} &= \left\{\begin{aligned}
-    & \text{StateRootPrev} \\
-    & \text{StateRootNext} \\
-    & \left(\begin{aligned}
-      & \text{StateRootPrev} \\
-      & \text{AccumDiffs}_n \\
-      & \text{StateCommitPath}
-    \end{aligned}\right) \\
-    & \text{AccumDiffsHash}_n(\text{AccumDiffs}_n)
-  \end{aligned} \right\} \\
-  \\
-  \text{WitnessCommitKeys} &= \left\{ \begin{aligned}
-    & \text{KeysRootPrev} \\
-    & \text{AccumDiffs}_n \\
-    & \text{KeysCommitPath}
-  \end{aligned} \right\} \\
-  \text{PubInputsCommitKeys} &= \left\{\begin{aligned}
-    & \text{KeysRootPrev} \\
-    & \text{KeysRootNext} \\
-    & \left(\begin{aligned}
-      & \text{KeysRootPrev} \\
-      & \text{AccumDiffs}_n \\
-      & \text{KeysCommitPath}
-    \end{aligned}\right) \\
-    & \text{AccumDiffsHash}_n(\text{AccumDiffs}_n)
-  \end{aligned} \right\}
-\end{aligned}
-$$
-
-Finally we can construct the block proof by aggregating the state commitment proof, keys commitment proof, and the transaction proofs by verifying them in the circuit.
-
-$$
-\begin{aligned}
-  \text{WitnessBlock} &= \left\{ \begin{aligned}
-    & \text{TxsRoot} \\
-    & \text{StateRootPrev} \\
-    & \text{StateRootNext} \\
-    & \text{KeysRootPrev} \\
-    & \text{KeysRootNext} \\
-    & \text{AccumDiffsHash}_n \\
-    & \text{ProofTxAgg}_{\{1:n\}} \\
-    & \text{ProofCommitState} \\
-    & \text{ProofCommitKeys}
-  \end{aligned} \right\} \\
-  \text{EntireRootPrev} &= h\left(\begin{aligned}
-    &\text{StateRootPrev} \\
-    & || \text{KeysRootPrev}
-  \end{aligned}\right) \\
-  \text{EntireRootNext} &= h\left(\begin{aligned}
-    &\text{StateRootNext} \\
-    & || \text{KeysRootNext}
-  \end{aligned}\right) \\
-  \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
-  \text{AccumDiffsHashNext}_n &= \text{AccumDiffsHash}_n \\
-  \text{TxsRoot} &= \text{TxsRoot}_{\{1:n\}} \\
-  \text{ConstraintsBlock} &= \left\{ \begin{aligned}
-    & \text{ProofTxAgg}_{\{1:n\}} \\
-    & \left(\begin{aligned}
-      & \text{TxsRoot} \\
-      & \text{AccumDiffsHashPrev}_1 \\
-      & \text{AccumDiffsHashNext}_n \\
-      & \text{EntireRootPrev}
-    \end{aligned}\right) \\
-    & \text{ProofCommitState} \\
-    & \left(\begin{aligned}
-      & \text{StateRootPrev} \\
-      & \text{StateRootNext} \\
-      & \text{AccumDiffsHash}_n
-    \end{aligned}\right) \\
-    & \text{ProofCommitKeys} \\
-    & \left(\begin{aligned}
-      & \text{KeysRootPrev} \\
-      & \text{KeysRootNext} \\
-      & \text{AccumDiffsHash}_n
-    \end{aligned}\right)
-  \end{aligned} \right\} \\
-  \text{PubInputsBlock} &= \left\{\begin{aligned}
-    & \text{TxsRoot} \\
-    & \text{EntireRootPrev} \\
-    & \text{EntireRootNext}
-  \end{aligned} \right\}
-\end{aligned}
-$$
-
-<div class="mermaid">
-graph BT
-    TxAgg[ProofTxAgg#123;1:n#125;] --> Block[ProofBlock]
-    CommitState[ProofCommitState] --> Block
-    CommitKeys[ProofCommitKeys] --> Block
-</div>
-
-Because the accumulated diffs are anchored by the $$\text{EntireRootNext}$$, we can omit the accumulated diffs from the public inputs.
-
-By pipelining the aggregation process, we can significantly reduce the overall proof generation time.
+**Key Takeaways**:
+- Supports parallel ZKP generation
+- Enables efficient transaction processing
+- Maintains state consistency
+- Optimizes performance through parallelization
 
 ## Performances of experimental implementation
 
@@ -611,3 +470,19 @@ InterLiquid SDK has great theoretical background and has a practical vision to r
 - <https://docs.polygon.technology/cdk/architecture/type-1-prover/testing-and-proving-costs/#proving-costs>
 - <https://borsh.io/>
 - <https://protobuf.dev/>
+
+## Glossary
+
+- **ZK Sovereign Rollup**: A type of rollup where validity proofs of state transitions are submitted to the rollup itself
+- **Optimistic Sovereign Rollup**: A type of rollup where fraud proofs are submitted to the rollup itself
+- **Patricia Merkle Trie (PMT)**: A data structure used for storing and verifying state in blockchains
+- **IAVL Tree**: A self-balancing binary search tree used in Cosmos SDK
+- **Twin Radix Trees**: A combination of two tree components for state inclusion proof and key indexing
+- **zkVM**: Zero Knowledge Virtual Machine
+
+## Further Reading
+
+1. [Sunrise Layer Documentation](https://sunriselayer.io/docs)
+2. [Zero Knowledge Proofs in Blockchain](https://ethereum.org/en/zero-knowledge-proofs/)
+3. [Understanding Sovereign Rollups](https://ethereum.org/en/rollups/)
+4. [Patricia Merkle Trie Explained](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/)
