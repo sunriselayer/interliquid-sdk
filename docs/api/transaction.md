@@ -97,20 +97,10 @@ pub struct App<TX: Tx> {
 ### Creating a Transaction
 
 ```rust
-// Define a transaction type
-#[derive(BorshSerialize, BorshDeserialize)]
-struct MyTx {
-    msgs: Vec<Msg>,
-}
-
-impl Tx for MyTx {
-    fn msgs(&self) -> &[Msg] {
-        &self.msgs
-    }
-}
+use auth::StdTx;
 
 // Create a transaction
-let tx = MyTx {
+let tx = StdTx {
     msgs: vec![
         Msg {
             type_: "send".to_string(),
