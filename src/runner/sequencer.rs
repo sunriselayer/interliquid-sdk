@@ -128,8 +128,8 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
             env,
             savedata.state_sparse_tree_root,
             savedata.keys_patricia_trie_root,
-            state_for_access,
             accum_logs_prev,
+            state_for_access,
         );
 
         let snapshot = TxExecutionSnapshot::new(logs, accum_logs_next);

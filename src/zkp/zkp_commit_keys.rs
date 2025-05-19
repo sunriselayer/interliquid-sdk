@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::{
     sha2::{Digest, Sha256},
     trie::{nibbles_from_bytes, NibblePatriciaTrieError, NibblePatriciaTrieRootPath},
@@ -33,6 +35,7 @@ impl PublicInputCommitKeys {
 pub struct WitnessCommitKeys {
     pub keys_root_prev: [u8; 32],
     pub accum_logs_final: AccumulatedLogs,
+    pub state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
     pub keys_commit_path: NibblePatriciaTrieRootPath,
 }
 
@@ -40,11 +43,13 @@ impl WitnessCommitKeys {
     pub fn new(
         keys_root_prev: [u8; 32],
         accum_logs_final: AccumulatedLogs,
+        state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
         keys_commit_path: NibblePatriciaTrieRootPath,
     ) -> Self {
         Self {
             keys_root_prev,
             accum_logs_final,
+            state_for_access,
             keys_commit_path,
         }
     }

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::{
     sha2::{Digest, Sha256},
     trie::{nibbles_from_bytes, NibblePatriciaTrieError, NibblePatriciaTrieRootPath},
@@ -33,6 +35,7 @@ impl PublicInputCommitState {
 pub struct WitnessCommitState {
     pub state_root_prev: [u8; 32],
     pub accum_logs_final: AccumulatedLogs,
+    pub state_for_read: BTreeMap<Vec<u8>, Option<Vec<u8>>>,
     pub state_commit_path: NibblePatriciaTrieRootPath,
 }
 
@@ -40,11 +43,13 @@ impl WitnessCommitState {
     pub fn new(
         state_root_prev: [u8; 32],
         accum_logs_final: AccumulatedLogs,
+        state_for_read: BTreeMap<Vec<u8>, Option<Vec<u8>>>,
         state_commit_path: NibblePatriciaTrieRootPath,
     ) -> Self {
         Self {
             state_root_prev,
             accum_logs_final,
+            state_for_read,
             state_commit_path,
         }
     }
@@ -58,18 +63,39 @@ pub fn circuit_commit_state(
         .accum_logs_final
         .serialize(&mut accum_logs_bytes_final)?;
 
+    // non-inclusion proof for not found keys
+    for (k, _) in witness.state_for_read.iter().filter(|(_, v)| v.is_none()) {
+        witness
+            .state_commit_path
+            .verify_non_inclusion(&nibbles_from_bytes(k))?;
+    }
+
+    // prev
     let nodes_for_inclusion_proof_prev = witness
-        .accum_logs_final
-        .diff()
+        .state_for_read
         .iter()
-        .filter_map(|(key, diff)| {
-            if let Some(before) = &diff.before {
-                let key_hash: [u8; 32] = Sha256::digest(key).into();
-                Some((key_hash, before))
+        .filter_map(|(k, v)| {
+            if let Some(v) = v {
+                let key_hash: [u8; 32] = Sha256::digest(k).into();
+                Some((key_hash, v))
             } else {
                 None
             }
         })
+        .chain(
+            witness
+                .accum_logs_final
+                .diff()
+                .iter()
+                .filter_map(|(key, diff)| {
+                    if let Some(before) = &diff.before {
+                        let key_hash: [u8; 32] = Sha256::digest(key).into();
+                        Some((key_hash, before))
+                    } else {
+                        None
+                    }
+                }),
+        )
         .map(|(k, v)| {
             let leaf_key = nibbles_from_bytes(&k);
             let leaf_node = witness
@@ -89,18 +115,32 @@ pub fn circuit_commit_state(
         )));
     }
 
+    // next
     let nodes_for_inclusion_proof_next = witness
-        .accum_logs_final
-        .diff()
+        .state_for_read
         .iter()
-        .filter_map(|(key, diff)| {
-            if let Some(after) = &diff.after {
-                let key_hash: [u8; 32] = Sha256::digest(key).into();
-                Some((key_hash, after))
+        .filter_map(|(k, v)| {
+            if let Some(v) = v {
+                let key_hash: [u8; 32] = Sha256::digest(k).into();
+                Some((key_hash, v))
             } else {
                 None
             }
         })
+        .chain(
+            witness
+                .accum_logs_final
+                .diff()
+                .iter()
+                .filter_map(|(key, diff)| {
+                    if let Some(after) = &diff.after {
+                        let key_hash: [u8; 32] = Sha256::digest(key).into();
+                        Some((key_hash, after))
+                    } else {
+                        None
+                    }
+                }),
+        )
         .map(|(k, v)| {
             let leaf_key = nibbles_from_bytes(&k);
             let leaf_node = witness
@@ -112,8 +152,6 @@ pub fn circuit_commit_state(
     let state_root_next = witness
         .state_commit_path
         .root(nodes_for_inclusion_proof_next, None)?;
-
-    // TODO: prove read keys
 
     let accum_logs_hash_final = Sha256::digest(&accum_logs_bytes_final).into();
 

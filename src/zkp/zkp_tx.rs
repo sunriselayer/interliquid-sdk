@@ -47,8 +47,8 @@ pub struct WitnessTx {
     pub env: Environment,
     pub state_root: [u8; 32],
     pub keys_root: [u8; 32],
-    pub state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
     pub accum_logs_prev: AccumulatedLogs,
+    pub state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
 }
 
 impl WitnessTx {
@@ -57,16 +57,16 @@ impl WitnessTx {
         env: Environment,
         state_root: [u8; 32],
         keys_root: [u8; 32],
-        state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
         accum_logs_prev: AccumulatedLogs,
+        state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
     ) -> Self {
         Self {
             tx,
             env,
             state_root,
             keys_root,
-            state_for_access,
             accum_logs_prev,
+            state_for_access,
         }
     }
 }
