@@ -67,7 +67,7 @@ impl TxAnteHandler<StdTx> for SigVerifyAnteHandler {
 
             let verifying_key = self.crypto_keeper.unpack_verifying_key(&verifying_key)?;
 
-            let sign_doc = SignDoc::new(&tx.body, &tx.auth_info, ctx.chain_id());
+            let sign_doc = SignDoc::new(&tx.body, &tx.auth_info, &ctx.env().chain_id);
 
             let signature = tx
                 .signature

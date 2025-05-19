@@ -4,7 +4,9 @@ mod error;
 mod token;
 mod tokens;
 mod uint;
+mod environment;
 
+pub use environment::*;
 pub use address::*;
 pub use any::*;
 pub use error::InterLiquidSdkError;

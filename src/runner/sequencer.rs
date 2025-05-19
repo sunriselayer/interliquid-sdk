@@ -15,7 +15,7 @@ use super::{
 use crate::{
     core::{App, SdkContext, Tx},
     state::{StateManager, TransactionalStateManager},
-    types::InterLiquidSdkError,
+    types::{Environment, InterLiquidSdkError},
     zkp::WitnessTx,
 };
 
@@ -103,14 +103,16 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
         let mut transactional =
             TransactionalStateManager::from_accum_logs_prev(state_manager, accum_logs_prev);
 
-        let mut ctx = SdkContext::new(
+        let env = Environment::new(
             savedata.chain_id.clone(),
             savedata.block_height,
             savedata.block_time_unix_secs,
-            &mut transactional,
         );
 
+        let mut ctx = SdkContext::new(env, &mut transactional);
+
         app.execute_tx(&mut ctx, &tx)?;
+        let SdkContext { env, .. } = ctx;
 
         let state_for_access = transactional.state_for_access_from_log()?;
 
@@ -123,6 +125,7 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
 
         let witness = WitnessTx::new(
             tx,
+            env,
             savedata.state_sparse_tree_root,
             savedata.keys_patricia_trie_root,
             state_for_access,

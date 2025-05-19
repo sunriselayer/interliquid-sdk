@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::{
     sha2::{Digest, Sha256},
     state::AccumulatedLogs,
+    types::Environment,
 };
 use borsh::BorshSerialize;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
@@ -16,6 +17,7 @@ use crate::{
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct PublicInputTx {
     pub tx_hash: [u8; 32],
+    pub env_hash: [u8; 32],
     pub accum_logs_hash_prev: [u8; 32],
     pub accum_logs_hash_next: [u8; 32],
     pub entire_root: [u8; 32],
@@ -24,12 +26,14 @@ pub struct PublicInputTx {
 impl PublicInputTx {
     pub fn new(
         tx_hash: [u8; 32],
+        env_hash: [u8; 32],
         accum_logs_hash_prev: [u8; 32],
         accum_logs_hash_next: [u8; 32],
         entire_root: [u8; 32],
     ) -> Self {
         Self {
             tx_hash,
+            env_hash,
             accum_logs_hash_prev,
             accum_logs_hash_next,
             entire_root,
@@ -40,6 +44,7 @@ impl PublicInputTx {
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct WitnessTx {
     pub tx: Vec<u8>,
+    pub env: Environment,
     pub state_root: [u8; 32],
     pub keys_root: [u8; 32],
     pub state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
@@ -49,6 +54,7 @@ pub struct WitnessTx {
 impl WitnessTx {
     pub fn new(
         tx: Vec<u8>,
+        env: Environment,
         state_root: [u8; 32],
         keys_root: [u8; 32],
         state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
@@ -56,6 +62,7 @@ impl WitnessTx {
     ) -> Self {
         Self {
             tx,
+            env,
             state_root,
             keys_root,
             state_for_access,
@@ -77,7 +84,12 @@ pub fn circuit_tx<TX: Tx>(
     let related_state = RelatedState::new(witness.state_for_access);
     let mut transactional =
         TransactionalStateManager::from_accum_logs_prev(&related_state, witness.accum_logs_prev);
-    let mut ctx = SdkContext::new("".to_owned(), 0, 0, &mut transactional);
+
+    let mut env_bytes = Vec::new();
+    witness.env.serialize(&mut env_bytes)?;
+    let env_hash = Sha256::digest(&env_bytes).into();
+
+    let mut ctx = SdkContext::new(witness.env, &mut transactional);
 
     app.execute_tx(&mut ctx, &witness.tx)?;
 
@@ -101,6 +113,7 @@ pub fn circuit_tx<TX: Tx>(
 
     let public = PublicInputTx::new(
         tx_hash,
+        env_hash,
         accum_logs_hash_prev,
         accum_logs_hash_next,
         entire_root,

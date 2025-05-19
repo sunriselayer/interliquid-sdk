@@ -6,6 +6,7 @@ use crate::types::InterLiquidSdkError;
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct PublicInputTxAgg {
     pub txs_root: [u8; 32],
+    pub env_hash: [u8; 32],
     pub accum_diffs_hash_left_prev: [u8; 32],
     pub accum_diffs_hash_right_next: [u8; 32],
     pub entire_root: [u8; 32],
@@ -14,12 +15,14 @@ pub struct PublicInputTxAgg {
 impl PublicInputTxAgg {
     pub fn new(
         txs_root: [u8; 32],
+        env_hash: [u8; 32],
         accum_diffs_hash_left_prev: [u8; 32],
         accum_diffs_hash_right_next: [u8; 32],
         entire_root: [u8; 32],
     ) -> Self {
         Self {
             txs_root,
+            env_hash,
             accum_diffs_hash_left_prev,
             accum_diffs_hash_right_next,
             entire_root,
@@ -31,6 +34,7 @@ impl PublicInputTxAgg {
 pub struct WitnessTxAgg {
     pub txs_root_left: [u8; 32],
     pub txs_root_right: [u8; 32],
+    pub env_hash: [u8; 32],
     pub accum_diffs_hash_left_prev: [u8; 32],
     pub accum_diffs_hash_mid: [u8; 32],
     pub accum_diffs_hash_right_next: [u8; 32],
@@ -43,6 +47,7 @@ impl WitnessTxAgg {
     pub fn new(
         txs_root_left: [u8; 32],
         txs_root_right: [u8; 32],
+        env_hash: [u8; 32],
         accum_diffs_hash_left_prev: [u8; 32],
         accum_diffs_hash_mid: [u8; 32],
         accum_diffs_hash_right_next: [u8; 32],
@@ -53,6 +58,7 @@ impl WitnessTxAgg {
         Self {
             txs_root_left,
             txs_root_right,
+            env_hash,
             accum_diffs_hash_left_prev,
             accum_diffs_hash_mid,
             accum_diffs_hash_right_next,
@@ -71,6 +77,7 @@ pub fn circuit_tx_agg(witness: WitnessTxAgg) -> Result<PublicInputTxAgg, InterLi
 
     let input = PublicInputTxAgg::new(
         tx_root,
+        witness.env_hash,
         witness.accum_diffs_hash_left_prev,
         witness.accum_diffs_hash_right_next,
         witness.entire_root,
