@@ -35,7 +35,7 @@ impl PublicInputCommitKeys {
 pub struct WitnessCommitKeys {
     pub keys_root_prev: [u8; 32],
     pub accum_logs_final: AccumulatedLogs,
-    pub state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
+    pub state_for_iter: BTreeMap<Vec<u8>, BTreeMap<Vec<u8>, Vec<u8>>>,
     pub keys_commit_path: NibblePatriciaTrieRootPath,
 }
 
@@ -43,13 +43,13 @@ impl WitnessCommitKeys {
     pub fn new(
         keys_root_prev: [u8; 32],
         accum_logs_final: AccumulatedLogs,
-        state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
+        state_for_iter: BTreeMap<Vec<u8>, BTreeMap<Vec<u8>, Vec<u8>>>,
         keys_commit_path: NibblePatriciaTrieRootPath,
     ) -> Self {
         Self {
             keys_root_prev,
             accum_logs_final,
-            state_for_access,
+            state_for_iter,
             keys_commit_path,
         }
     }
@@ -64,16 +64,22 @@ pub fn circuit_commit_keys(
         .serialize(&mut accum_logs_bytes_final)?;
 
     let nodes_for_inclusion_proof_prev = witness
-        .accum_logs_final
-        .diff()
+        .state_for_iter
         .iter()
-        .filter_map(|(key, diff)| {
-            if diff.before.is_some() {
-                Some((key, vec![]))
-            } else {
-                None
-            }
-        })
+        .flat_map(|(_, v)| v.iter().map(|(k, v)| (k, v.clone())))
+        .chain(
+            witness
+                .accum_logs_final
+                .diff()
+                .iter()
+                .filter_map(|(key, diff)| {
+                    if diff.before.is_some() {
+                        Some((key, vec![]))
+                    } else {
+                        None
+                    }
+                }),
+        )
         .map(|(k, v)| {
             let leaf_key = nibbles_from_bytes(&k);
             let leaf_node = witness
@@ -94,16 +100,22 @@ pub fn circuit_commit_keys(
     }
 
     let nodes_for_inclusion_proof_next = witness
-        .accum_logs_final
-        .diff()
+        .state_for_iter
         .iter()
-        .filter_map(|(key, diff)| {
-            if diff.after.is_some() {
-                Some((key, vec![]))
-            } else {
-                None
-            }
-        })
+        .flat_map(|(_, v)| v.iter().map(|(k, v)| (k, v.clone())))
+        .chain(
+            witness
+                .accum_logs_final
+                .diff()
+                .iter()
+                .filter_map(|(key, diff)| {
+                    if diff.after.is_some() {
+                        Some((key, vec![]))
+                    } else {
+                        None
+                    }
+                }),
+        )
         .map(|(k, v)| {
             let leaf_key = nibbles_from_bytes(&k);
             let leaf_node = witness
@@ -115,8 +127,6 @@ pub fn circuit_commit_keys(
     let keys_root_next = witness
         .keys_commit_path
         .root(nodes_for_inclusion_proof_next, None)?;
-
-    // TODO: prove iter keys
 
     let accum_logs_hash_final = Sha256::digest(&accum_logs_bytes_final).into();
 
