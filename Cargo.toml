@@ -22,11 +22,16 @@ p256 = { version = "0.13.2", optional = true }
 p256-sp1 = { tag = "patch-p256-13.2-sp1-4.1.0", git = "https://github.com/sp1-patches/elliptic-curves", package = "p256", optional = true }
 
 tokio = { version = "1.45.0", features = ["full"], optional = true }
-axum = { default-features = false, version = "0.8.4", features = ["macros", "json", "tokio", "http1"], optional = true }
+axum = { version = "0.8.4", default-features = false, features = [
+    "macros",
+    "json",
+    "tokio",
+    "http1",
+], optional = true }
 base64 = { version = "0.22.1", optional = true }
 serde = { version = "1.0.219", features = ["derive"], optional = true }
 
-sp1-sdk = { default-features = false, version = "4.2.0", optional = true }
+sp1-sdk = { version = "4.2.0", default-features = false, optional = true }
 
 [features]
 default = []
