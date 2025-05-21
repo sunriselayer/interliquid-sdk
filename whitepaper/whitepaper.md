@@ -183,6 +183,10 @@ It is also needed to prove the non-inclusion of the key which was tried to be be
 This trie works for the key indexing.
 
 It can be used for proving iter access validity in the state transition.
+To prove this, the inclusion proofs of all iterated keys are not enough because the possibility of lacking the key in the iterated keys is not negligible.
+
+To prevent this, we need to prove the completeness of the iterated keys.
+It is not achievable with the State Patricia Trie because all keys are hashed, but with the Keys Patricia Trie, the keys are not hashed so it is possible to prove the completeness of the iterated keys.
 
 ### Parallelization of ZKP generation
 
