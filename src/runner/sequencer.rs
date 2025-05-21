@@ -3,6 +3,7 @@ use std::{
     sync::Arc,
 };
 
+use sha2::{Digest, Sha256};
 use tokio::sync::{
     broadcast::{Receiver, Sender},
     Mutex, RwLock,
@@ -123,14 +124,12 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
             ..
         } = transactional;
 
-        let witness = WitnessTx::new(
-            tx,
-            env,
-            savedata.state_sparse_tree_root,
-            savedata.keys_patricia_trie_root,
-            accum_logs_prev,
-            state_for_access,
-        );
+        let mut hasher = Sha256::new();
+        hasher.update(&savedata.state_sparse_tree_root);
+        hasher.update(&savedata.keys_patricia_trie_root);
+        let entire_root = hasher.finalize().into();
+
+        let witness = WitnessTx::new(tx, env, entire_root, state_for_access, accum_logs_prev);
 
         let snapshot = TxExecutionSnapshot::new(logs, accum_logs_next);
 

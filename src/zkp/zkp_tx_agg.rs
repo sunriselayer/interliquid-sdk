@@ -7,25 +7,28 @@ use crate::types::InterLiquidSdkError;
 pub struct PublicInputTxAgg {
     pub txs_root: [u8; 32],
     pub env_hash: [u8; 32],
+    pub entire_root: [u8; 32],
+    pub state_for_access_hash: [u8; 32],
     pub accum_diffs_hash_left_prev: [u8; 32],
     pub accum_diffs_hash_right_next: [u8; 32],
-    pub entire_root: [u8; 32],
 }
 
 impl PublicInputTxAgg {
     pub fn new(
         txs_root: [u8; 32],
         env_hash: [u8; 32],
+        entire_root: [u8; 32],
+        state_for_access_hash: [u8; 32],
         accum_diffs_hash_left_prev: [u8; 32],
         accum_diffs_hash_right_next: [u8; 32],
-        entire_root: [u8; 32],
     ) -> Self {
         Self {
             txs_root,
             env_hash,
+            entire_root,
+            state_for_access_hash,
             accum_diffs_hash_left_prev,
             accum_diffs_hash_right_next,
-            entire_root,
         }
     }
 }
@@ -35,10 +38,11 @@ pub struct WitnessTxAgg {
     pub txs_root_left: [u8; 32],
     pub txs_root_right: [u8; 32],
     pub env_hash: [u8; 32],
+    pub entire_root: [u8; 32],
+    pub state_for_access_hash: [u8; 32],
     pub accum_diffs_hash_left_prev: [u8; 32],
     pub accum_diffs_hash_mid: [u8; 32],
     pub accum_diffs_hash_right_next: [u8; 32],
-    pub entire_root: [u8; 32],
     pub proof_left: Vec<u8>,
     pub proof_right: Vec<u8>,
 }
@@ -48,10 +52,11 @@ impl WitnessTxAgg {
         txs_root_left: [u8; 32],
         txs_root_right: [u8; 32],
         env_hash: [u8; 32],
+        entire_root: [u8; 32],
+        state_for_access_hash: [u8; 32],
         accum_diffs_hash_left_prev: [u8; 32],
         accum_diffs_hash_mid: [u8; 32],
         accum_diffs_hash_right_next: [u8; 32],
-        entire_root: [u8; 32],
         proof_left: Vec<u8>,
         proof_right: Vec<u8>,
     ) -> Self {
@@ -59,10 +64,11 @@ impl WitnessTxAgg {
             txs_root_left,
             txs_root_right,
             env_hash,
+            entire_root,
+            state_for_access_hash,
             accum_diffs_hash_left_prev,
             accum_diffs_hash_mid,
             accum_diffs_hash_right_next,
-            entire_root,
             proof_left,
             proof_right,
         }
@@ -78,9 +84,10 @@ pub fn circuit_tx_agg(witness: WitnessTxAgg) -> Result<PublicInputTxAgg, InterLi
     let input = PublicInputTxAgg::new(
         tx_root,
         witness.env_hash,
+        witness.entire_root,
+        witness.state_for_access_hash,
         witness.accum_diffs_hash_left_prev,
         witness.accum_diffs_hash_right_next,
-        witness.entire_root,
     );
 
     Ok(input)

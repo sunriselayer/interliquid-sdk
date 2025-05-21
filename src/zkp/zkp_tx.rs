@@ -18,25 +18,28 @@ use crate::{
 pub struct PublicInputTx {
     pub tx_hash: [u8; 32],
     pub env_hash: [u8; 32],
+    pub entire_root: [u8; 32],
+    pub state_for_access_hash: [u8; 32],
     pub accum_logs_hash_prev: [u8; 32],
     pub accum_logs_hash_next: [u8; 32],
-    pub entire_root: [u8; 32],
 }
 
 impl PublicInputTx {
     pub fn new(
         tx_hash: [u8; 32],
         env_hash: [u8; 32],
+        entire_root: [u8; 32],
+        state_for_access_hash: [u8; 32],
         accum_logs_hash_prev: [u8; 32],
         accum_logs_hash_next: [u8; 32],
-        entire_root: [u8; 32],
     ) -> Self {
         Self {
             tx_hash,
             env_hash,
+            entire_root,
+            state_for_access_hash,
             accum_logs_hash_prev,
             accum_logs_hash_next,
-            entire_root,
         }
     }
 }
@@ -45,28 +48,25 @@ impl PublicInputTx {
 pub struct WitnessTx {
     pub tx: Vec<u8>,
     pub env: Environment,
-    pub state_root: [u8; 32],
-    pub keys_root: [u8; 32],
-    pub accum_logs_prev: AccumulatedLogs,
+    pub entire_root: [u8; 32],
     pub state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
+    pub accum_logs_prev: AccumulatedLogs,
 }
 
 impl WitnessTx {
     pub fn new(
         tx: Vec<u8>,
         env: Environment,
-        state_root: [u8; 32],
-        keys_root: [u8; 32],
-        accum_logs_prev: AccumulatedLogs,
+        entire_root: [u8; 32],
         state_for_access: BTreeMap<Vec<u8>, Vec<u8>>,
+        accum_logs_prev: AccumulatedLogs,
     ) -> Self {
         Self {
             tx,
             env,
-            state_root,
-            keys_root,
-            accum_logs_prev,
+            entire_root,
             state_for_access,
+            accum_logs_prev,
         }
     }
 }
@@ -80,6 +80,12 @@ pub fn circuit_tx<TX: Tx>(
         .accum_logs_prev
         .serialize(&mut accum_logs_bytes_prev)?;
     let accum_logs_hash_prev = Sha256::digest(&accum_logs_bytes_prev).into();
+
+    let mut state_for_access_bytes = Vec::new();
+    witness
+        .state_for_access
+        .serialize(&mut state_for_access_bytes)?;
+    let state_for_access_hash = Sha256::digest(&state_for_access_bytes).into();
 
     let related_state = RelatedState::new(witness.state_for_access);
     let mut transactional =
@@ -106,17 +112,13 @@ pub fn circuit_tx<TX: Tx>(
     accum_logs_next.serialize(&mut accum_logs_bytes_next)?;
     let accum_logs_hash_next = Sha256::digest(&accum_logs_bytes_next).into();
 
-    let mut hasher = Sha256::new();
-    hasher.update(witness.state_root);
-    hasher.update(witness.keys_root);
-    let entire_root = hasher.finalize().into();
-
     let public = PublicInputTx::new(
         tx_hash,
         env_hash,
+        witness.entire_root,
+        state_for_access_hash,
         accum_logs_hash_prev,
         accum_logs_hash_next,
-        entire_root,
     );
 
     Ok(public)

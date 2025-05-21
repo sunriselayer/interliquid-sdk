@@ -102,7 +102,7 @@ To prove this, the state transition function is adjusted as follows:
 $$
 \begin{aligned}
   &\{\text{StateRootNext}, \text{Diffs}\} \\
-  &= \hat{f}(\text{Txs}, \text{StateRootPrev} , \text{StateForAccess}, \text{StateCommitPath})
+  &= \hat{f}(\text{Txs}, \text{StateForAccess}, \text{StateRootPrev}, \text{StateCommitPath})
 \end{aligned}
 $$
 
@@ -174,22 +174,7 @@ The leaf index is determined by the key hash, and the leaf value is the state ha
 
 Thanks to the property of the hash function, the attack vector of increasing the inclusion proof size of the specific key is also reduced.
 
-To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \text{ReadKVPairs} $$.
-
-$$
-\begin{aligned}
-  \text{WitnessRead} &= \left\{ \begin{aligned}
-    & \text{StateForAccess} \\
-    & \text{ReadKVPairs} \\
-    & \text{ReadProofPath}
-  \end{aligned} \right\} \\
-  \text{PubInputsRead} &= \left\{ \begin{aligned}
-    & \text{StateRootPrev} \\
-    & (\text{StateForAccess}, \text{ReadKVPairs}, \text{ReadProofPath}) \\
-    & \text{ReadKVPairsHash}(\text{ReadKVPairs})
-  \end{aligned} \right\}
-\end{aligned}
-$$
+To prove the validity of get access, it is needed to prove the inclusion of the key in the tree for $$ \text{StateForAccess} $$.
 
 It is also needed to prove the non-inclusion of the key which was tried to be be accessed in the STF but not found. To do this, it is enough to prove the inclusion of dead end node in the tree.
 
@@ -198,40 +183,6 @@ It is also needed to prove the non-inclusion of the key which was tried to be be
 This trie works for the key indexing.
 
 It can be used for proving iter access validity in the state transition.
-
-The node hash is calculated by the following equation where $$h$$ is the hash function:
-
-$$
-\begin{aligned}
-  &\text{KeysNodeHash} \\
-  &= \begin{cases}
-    \begin{aligned}
-      h(&\text{KeyFragment} \\
-        &|| \text{ChildNodeHash}_1 || ... || \text{ChildNodeHash}_{256})
-    \end{aligned} & \text{if } \text{ChildBitmap} \neq 0\\
-    \text{EmptyByte} & \text{if } \text{ChildBitmap} = 0
-  \end{cases}
-\end{aligned}
-$$
-
-To prove the validity of iter access, it is needed to re-construct the node hash of the designated key prefix with all iterated keys, and prove its inclusion in the tree.
-
-$$
-\begin{aligned}
-  \text{WitnessIter} &= \left\{ \begin{aligned}
-    & \text{StateForAccess} \\
-    & \text{IterKVPairs} \\
-    & \text{IterProofPath}
-  \end{aligned} \right\} \\
-  \text{PubInputsIter} &= \left\{ \begin{aligned}
-    & \text{KeysRootPrev} \\
-    & (\text{StateForAccess}, \text{IterKVPairs}, \text{IterProofPath}) \\
-    & \text{IterKVPairsHash}(\text{IterKVPairs})
-  \end{aligned} \right\}
-\end{aligned}
-$$
-
-It is straightforward to think that this proof is mathematically heavy, but there is a room for parallelization.
 
 ### Parallelization of ZKP generation
 
@@ -243,50 +194,40 @@ $$
 
 In the InterLiquid SDK, to get the accessed state which is needed to give to zkVM, it is needed to execute the transactions once outside of the zkVM.
 
-Here, we can get the interim result of the state transition function for each transaction $$\{\text{Tx}_i\}_{i=1}^{n}$$, with emitting the accessed key value pairs $$\text{ReadKVPairs}_i$$ and $$\text{IterKVPairs}_i$$:
+Here, we can get the interim result of the state transition function for each transaction $$\{\text{Tx}_i\}_{i=1}^{n}$$:
 
 $$
 \begin{aligned}
-  &\left\{ \text{AccumDiffsNext}_i, \text{ReadKVPairs}_i, \text{IterKVPairs}_i \right\} \\
-  &= g\left(\text{StateForAccess}_i, \text{AccumDiffsPrev}_i, \text{Tx}_i\right)
+  &\left\{ \text{AccumDiffsNext}_i \right\} \\
+  &= g\left(\text{Tx}_i, \text{StateForAccess}, \text{AccumDiffsPrev}_i\right)
 \end{aligned}
 $$
 
-Then we can generate the proof in parallel for each transaction with one circuit which can be regarded as a combination of $$\text{ProofStf}_i$$, $$\text{ProofGet}_i$$, and $$\text{ProofIter}_i$$:
+where $$\text{AccumDiffsHashPrev}_1 = \text{EmptyByte}$$.
+
+With assuming environment variables $$\text{Env}=\left\{\text{ChainId}, \text{BlockHeight}, \text{BlockTime}\right\}$$ which can be used in the application logic, we can generate the proof for each transaction with one circuit:
 
 $$
 \begin{aligned}
-  \text{AccumDiffsHashPrev}_1 &= \text{EmptyByte} \\
   \text{WitnessTx}_i &= \left\{ \begin{aligned}
     & \text{Tx}_i \\
-    & \text{StateRoot} \\
-    & \text{KeysRoot} \\
-    & \text{StateForAccess}_i \\
-    & \text{AccumDiffsPrev}_i \\
-    & \text{ReadProofPath}_i \\
-    & \text{IterProofPath}_i
-  \end{aligned} \right\} \\
-  \text{ConstraintsTx}_i &= \left\{ \begin{aligned}
-    & \text{StateRoot} \\
-    & (\text{StateForAccess}_i, g(\dots), \text{ReadProofPath}_i) \\
-    & \text{KeysRoot} \\
-    & (\text{StateForAccess}_i, g(\dots), \text{IterProofPath}_i)
+    & \text{Env} \\
+    & \text{EntireRoot} \\
+    & \text{StateForAccess} \\
+    & \text{AccumDiffsPrev}_i
   \end{aligned} \right\} \\
   \text{PubInputsTx}_i &= \left\{\begin{aligned}
     & \text{TxHash}_i(\text{Tx}_i) \\
-    & \text{AccumDiffsHashPrev}_i(\text{AccumDiffsPrev}_i) \\
-    & \text{AccumDiffsHashNext}_i(g(\dots)) \\
+    & \text{EnvHash} \\
     & \text{EntireRoot} \\
-    & (\text{StateRoot}, \text{KeysRoot})
+    & \text{StateForAccessHash} \\
+    & \text{AccumDiffsHashPrev}_i(\text{AccumDiffsPrev}_i) \\
+    & \text{AccumDiffsHashNext}_i(g(\dots))
   \end{aligned} \right\}
 \end{aligned}
 $$
 
 Not only for the parallelization but also the fact that the proof of ZK-STARK requires quasi-linear time $$\mathcal{O}(n \log{n})$$ in proportion to the number of traces, it is meaningful to process transactions respectively. Some zkVMs already have the feature to divide the trace, but it is still effective to make the pipeline of proof generation described below.
-
-By combining these three circuits, we can omit $$\text{KeysHash}$$ and $$\text{KeyPrefixesHash}$$ in the public inputs of the ZKP because fundamentally STF $$g$$ can generate $$\text{ReadKVPairs}_i$$ and $$\text{IterKVPairs}_i$$ by itself.
-
-Needless to say, $$\text{StateRootPrev}$$ and $$\text{KeysRootPrev}$$ which need to be verified, also can be verified by using $$\text{PubInputsTx}_i$$ in the circuit.
 
 ### Divide and Conquer for Proof Aggregation
 
@@ -299,38 +240,47 @@ The aggregation circuit for two transaction proofs is defined as:
 
 $$
 \begin{aligned}
-  \text{AccumDiffsHashMid}_{i,i+1} &= \text{AccumDiffsHashNext}_{i} = \text{AccumDiffsHashPrev}_{i+1} \\
+  \text{AccumDiffsHashMid}_{i,i+1} &= \text{AccumDiffsHashNext}_{i} \\
+                                   &= \text{AccumDiffsHashPrev}_{i+1} \\
   \text{WitnessTxAgg}_{i,i+1} &= \left\{\begin{aligned}
     & \text{TxHash}_i \\
     & \text{TxHash}_{i+1} \\
+    & \text{EnvHash} \\
+    & \text{EntireRoot} \\
+    & \text{StateForAccessHash} \\
     & \text{AccumDiffsHashPrev}_i \\
     & \text{AccumDiffsHashMid}_{i,i+1} \\
     & \text{AccumDiffsHashNext}_{i+1} \\
     & \text{ProofTx}_i \\
-    & \text{ProofTx}_{i+1} \\
-    & \text{EntireRoot}
+    & \text{ProofTx}_{i+1}
   \end{aligned} \right\} \\
   \text{ConstraintsTxAgg}_{i,i+1} &= \left\{ \begin{aligned}
     & \text{ProofTx}_i \\
     & \left(\begin{aligned}
       & \text{TxHash}_i \\
+      & \text{EnvHash} \\
+      & \text{EntireRoot} \\
+      & \text{StateForAccessHash} \\
       & \text{AccumDiffsHashPrev}_i \\
-      & \text{AccumDiffsHashMid}_{i,i+1} \\
-      & \text{EntireRoot}
+      & \text{AccumDiffsHashMid}_{i,i+1}
     \end{aligned}\right) \\
     & \text{ProofTx}_{i+1} \\
     & \left(\begin{aligned}
     & \text{TxHash}_i \\
+    & \text{EnvHash} \\
+    & \text{EntireRoot} \\
+    & \text{StateForAccessHash} \\
     & \text{AccumDiffsHashMid}_{i,i+1} \\
-    & \text{AccumDiffsHashNext}_{i+1} \\
-    & \text{EntireRoot}
+    & \text{AccumDiffsHashNext}_{i+1}
     \end{aligned}\right) \\
   \end{aligned} \right\} \\
   \text{PubInputsTxAgg}_{i,i+1} &= \left\{\begin{aligned}
     & \text{TxsRoot}_{i,i+1}(\text{Tx}_i, \text{Tx}_{i+1}) \\
+    & \text{EnvHash} \\
+    & \text{EntireRoot} \\
+    & \text{StateForAccessHash} \\
     & \text{AccumDiffsHashPrev}_i \\
-    & \text{AccumDiffsHashNext}_{i+1} \\
-    & \text{EntireRoot}
+    & \text{AccumDiffsHashNext}_{i+1}
   \end{aligned} \right\}
 \end{aligned}
 $$
@@ -345,34 +295,42 @@ $$
   \text{WitnessTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
     & \text{TxsRoot}_{\{p:q\}} \\
     & \text{TxsRoot}_{\{r:s\}} \\
+    & \text{EnvHash} \\
+    & \text{EntireRoot} \\
+    & \text{StateForAccessHash} \\
     & \text{AccumDiffsHashPrev}_p \\
     & \text{AccumDiffsHashMid}_{\{p:s\}} \\
     & \text{AccumDiffsHashNext}_s \\
     & \text{ProofTxAgg}_{\{p:q\}} \\
-    & \text{ProofTxAgg}_{\{r:s\}} \\
-    & \text{EntireRoot}
+    & \text{ProofTxAgg}_{\{r:s\}}
   \end{aligned} \right\} \\
   \text{ConstraintsTxAgg}_{\{p:s\}} &= \left\{ \begin{aligned}
     & \text{ProofTxAgg}_{\{p:q\}} \\
     & \left(\begin{aligned}
       & \text{TxsRoot}_{\{p:q\}} \\
+      & \text{EnvHash} \\
+      & \text{EntireRoot} \\
+      & \text{StateForAccessHash} \\
       & \text{AccumDiffsHashPrev}_p \\
-      & \text{AccumDiffsHashMid}_{\{p:s\}} \\
-      & \text{EntireRoot}
+      & \text{AccumDiffsHashMid}_{\{p:s\}}
     \end{aligned}\right) \\
     & \text{ProofTxAgg}_{\{r:s\}} \\
     & \left(\begin{aligned}
     & \text{TxsRoot}_{\{r:s\}} \\
+    & \text{EnvHash} \\
+    & \text{EntireRoot} \\
+    & \text{StateForAccessHash} \\
     & \text{AccumDiffsHashMid}_{\{p:s\}} \\
-    & \text{AccumDiffsHashNext}_s \\
-    & \text{EntireRoot}
+    & \text{AccumDiffsHashNext}_s
     \end{aligned}\right) \\
   \end{aligned} \right\} \\
   \text{PubInputsTxAgg}_{\{p:s\}} &= \left\{\begin{aligned}
     & \text{TxsRoot}_{\{p:s\}}(\text{TxsRoot}_{\{p:q\}}, \text{TxsRoot}_{\{r:s\}}) \\
+    & \text{EnvHash} \\
+    & \text{EntireRoot} \\
+    & \text{StateForAccessHash} \\
     & \text{AccumDiffsHashPrev}_p \\
-    & \text{AccumDiffsHashNext}_s \\
-    & \text{EntireRoot}
+    & \text{AccumDiffsHashNext}_s
   \end{aligned} \right\}
 \end{aligned}
 $$
@@ -401,6 +359,7 @@ $$
 \begin{aligned}
   \text{WitnessCommitState} &= \left\{ \begin{aligned}
     & \text{StateRootPrev} \\
+    & \text{StateForAccess} \\
     & \text{AccumDiffs}_n \\
     & \text{StateCommitPath}
   \end{aligned} \right\} \\
@@ -409,14 +368,17 @@ $$
     & \text{StateRootNext} \\
     & \left(\begin{aligned}
       & \text{StateRootPrev} \\
+      & \text{StateForAccess} \\
       & \text{AccumDiffs}_n \\
       & \text{StateCommitPath}
     \end{aligned}\right) \\
+    & \text{StateForAccessHash} \\
     & \text{AccumDiffsHash}_n(\text{AccumDiffs}_n)
   \end{aligned} \right\} \\
   \\
   \text{WitnessCommitKeys} &= \left\{ \begin{aligned}
     & \text{KeysRootPrev} \\
+    & \text{StateForAccess} \\
     & \text{AccumDiffs}_n \\
     & \text{KeysCommitPath}
   \end{aligned} \right\} \\
@@ -425,9 +387,11 @@ $$
     & \text{KeysRootNext} \\
     & \left(\begin{aligned}
       & \text{KeysRootPrev} \\
+      & \text{StateForAccess} \\
       & \text{AccumDiffs}_n \\
       & \text{KeysCommitPath}
     \end{aligned}\right) \\
+    & \text{StateForAccessHash} \\
     & \text{AccumDiffsHash}_n(\text{AccumDiffs}_n)
   \end{aligned} \right\}
 \end{aligned}
@@ -439,10 +403,12 @@ $$
 \begin{aligned}
   \text{WitnessBlock} &= \left\{ \begin{aligned}
     & \text{TxsRoot} \\
+    & \text{EnvHash} \\
     & \text{StateRootPrev} \\
     & \text{StateRootNext} \\
     & \text{KeysRootPrev} \\
     & \text{KeysRootNext} \\
+    & \text{StateForAccessHash} \\
     & \text{AccumDiffsHash}_n \\
     & \text{ProofTxAgg}_{\{1:n\}} \\
     & \text{ProofCommitState} \\
@@ -463,25 +429,30 @@ $$
     & \text{ProofTxAgg}_{\{1:n\}} \\
     & \left(\begin{aligned}
       & \text{TxsRoot} \\
+      & \text{EnvHash} \\
+      & \text{EntireRootPrev} \\
+      & \text{StateForAccessHash} \\
       & \text{AccumDiffsHashPrev}_1 \\
-      & \text{AccumDiffsHashNext}_n \\
-      & \text{EntireRootPrev}
+      & \text{AccumDiffsHashNext}_n
     \end{aligned}\right) \\
     & \text{ProofCommitState} \\
     & \left(\begin{aligned}
       & \text{StateRootPrev} \\
       & \text{StateRootNext} \\
+      & \text{StateForAccessHash} \\
       & \text{AccumDiffsHash}_n
     \end{aligned}\right) \\
     & \text{ProofCommitKeys} \\
     & \left(\begin{aligned}
       & \text{KeysRootPrev} \\
       & \text{KeysRootNext} \\
+      & \text{StateForAccessHash} \\
       & \text{AccumDiffsHash}_n
     \end{aligned}\right)
   \end{aligned} \right\} \\
   \text{PubInputsBlock} &= \left\{\begin{aligned}
     & \text{TxsRoot} \\
+    & \text{EnvHash} \\
     & \text{EntireRootPrev} \\
     & \text{EntireRootNext}
   \end{aligned} \right\}
@@ -541,7 +512,7 @@ From the data above, the program cycle of the block with 32 txs is about 7-8M, 6
 In the circuit of proving the state root transition, we need to calculate two merkle roots of previous and next state. It means that at least two times of program cycles are needed.
 Then the total number of the entire program cycles would be under 20,000,000.
 
-The table below shows the proving time experiment by SP1 team. Note that the data is of before SP1 Turbo.
+The table below shows the proving time experiment by SP1 team. Note that the data is of before SP1 Turbo / SP1 Hypercube.
 
 |Programs|SP1 zkVM program cycles|Proving time|
 |---|---|---|
@@ -549,7 +520,7 @@ The table below shows the proving time experiment by SP1 team. Note that the dat
 |zkEVM block with Reth|199,644,261|1417 secs|
 
 SP1 zkVM showed that due to its architecture, the proving time is almost linear in proportion to the number of cycles. Here, we can estimate the proving time of the block of InterLiquid SDK with 32 txs to be under 3 minutes.
-It can be further improved by SP1 Turbo.
+It can be further improved by SP1 Turbo / SP1 Hypercube.
 
 By SP1 team and Polygon team, the proving time for the same block of Ethereum is published.
 
