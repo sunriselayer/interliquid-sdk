@@ -10,7 +10,8 @@ Author: KIMURA Yu ([Sunrise](https://sunriselayer.io))
 
 ## Introduction
 
-InterLiquid SDK is a software development kit for building ZK Sovereign Rollups.
+InterLiquid SDK is a software development kit for building general-purpose deterministic state machines whose state transitions can be proven with Zero-Knowledge Proofs, leveraging ZK Sovereign Rollup and zkVM technologies.
+
 It aims to realize Web2-like User Experience and Web2-like Developer Experience for dApps.
 In other words, it aims to serve a capability for non-Web3 applications to interact with public DeFi ecosystem.
 The term "apps" encompasses not only web applications but also application logic of financial systems.
