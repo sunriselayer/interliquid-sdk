@@ -35,6 +35,22 @@ impl U256 {
         }
         Ok(U256(option.unwrap()))
     }
+
+    pub fn checked_mul(&self, rhs: &U256) -> Result<U256, InterLiquidSdkError> {
+        let option = self.0.checked_mul(&rhs.0);
+        if option.is_none().into() {
+            return Err(InterLiquidSdkError::Overflow);
+        }
+        Ok(U256(option.unwrap()))
+    }
+
+    pub fn checked_div(&self, rhs: &U256) -> Result<U256, InterLiquidSdkError> {
+        let option = self.0.checked_div(&rhs.0);
+        if option.is_none().into() {
+            return Err(InterLiquidSdkError::DivisionByZero);
+        }
+        Ok(U256(option.unwrap()))
+    }
 }
 
 impl BorshSerialize for U256 {

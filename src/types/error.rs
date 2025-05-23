@@ -29,6 +29,8 @@ pub enum InterLiquidSdkError {
     Overflow,
     #[error("Underflow")]
     Underflow,
+    #[error("Division by zero")]
+    DivisionByZero,
     #[error("Insufficient balance")]
     InsufficientBalance,
 
