@@ -9,7 +9,7 @@ use crate::{
 
 use super::{BankKeeper, BankKeeperI};
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct MsgSend {
     pub from_address: Address,
     pub to_address: Address,
