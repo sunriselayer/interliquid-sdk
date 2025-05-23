@@ -21,7 +21,7 @@ crypto-bigint-sp1 = { tag = "patch-0.5.5-sp1-4.0.0", git = "https://github.com/s
 p256 = { version = "0.13.2", optional = true }
 p256-sp1 = { tag = "patch-p256-13.2-sp1-4.1.0", git = "https://github.com/sp1-patches/elliptic-curves", package = "p256", optional = true }
 
-tokio = { version = "1.45.0", features = ["full"], optional = true }
+tokio = { version = "1.44.2", features = ["full"], optional = true }
 axum = { version = "0.8.4", default-features = false, features = [
     "macros",
     "json",
