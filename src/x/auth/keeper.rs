@@ -14,13 +14,13 @@ use super::{
 
 /// The AuthKeeper interface defines the core authentication functionality.
 /// It manages user accounts and their associated verification keys.
-pub trait AuthKeeperI {
+pub trait AuthKeeperI: Send + Sync {
     /// Retrieves an account by its address.
-    /// 
+    ///
     /// # Arguments
     /// * `ctx` - The execution context
     /// * `address` - The address of the account to retrieve
-    /// 
+    ///
     /// # Returns
     /// * `Some(Account)` if the account exists
     /// * `None` if the account does not exist
@@ -31,7 +31,7 @@ pub trait AuthKeeperI {
     ) -> Result<Option<Account>, InterLiquidSdkError>;
 
     /// Stores or updates an account in the state.
-    /// 
+    ///
     /// # Arguments
     /// * `ctx` - The execution context
     /// * `address` - The address of the account
@@ -44,12 +44,12 @@ pub trait AuthKeeperI {
     ) -> Result<(), InterLiquidSdkError>;
 
     /// Retrieves a specific verifying key for an address.
-    /// 
+    ///
     /// # Arguments
     /// * `ctx` - The execution context
     /// * `address` - The address associated with the key
     /// * `key_index` - The index of the verifying key
-    /// 
+    ///
     /// # Returns
     /// * `Some(SerializableAny)` containing the verifying key if it exists
     /// * `None` if the key does not exist
@@ -62,7 +62,7 @@ pub trait AuthKeeperI {
 
     /// Adds a new verifying key for an address.
     /// The key is validated before storage and assigned the next available index.
-    /// 
+    ///
     /// # Arguments
     /// * `ctx` - The execution context
     /// * `address` - The address to associate the key with
@@ -75,7 +75,7 @@ pub trait AuthKeeperI {
     ) -> Result<(), InterLiquidSdkError>;
 
     /// Deletes a verifying key for an address.
-    /// 
+    ///
     /// # Arguments
     /// * `ctx` - The execution context
     /// * `address` - The address associated with the key
@@ -100,7 +100,7 @@ pub struct AuthKeeper {
 
 impl AuthKeeper {
     /// Creates a new AuthKeeper instance.
-    /// 
+    ///
     /// # Arguments
     /// * `crypto_keeper` - The crypto keeper for verifying key operations
     pub fn new(crypto_keeper: Arc<dyn CryptoKeeperI>) -> Self {

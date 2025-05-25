@@ -8,7 +8,7 @@ use crate::{
 
 /// Interface for bank module keeper functionality.
 /// Defines the core banking operations for managing account balances and token transfers.
-pub trait BankKeeperI: Send {
+pub trait BankKeeperI: Send + Sync {
     /// Retrieves the balance of a specific denomination for an address.
     ///
     /// # Arguments
