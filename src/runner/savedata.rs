@@ -1,6 +1,9 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::state::{AccumulatedLogs, StateLog};
+use crate::{
+    state::{AccumulatedLogs, StateLog},
+    types::Timestamp,
+};
 
 /// Represents a snapshot of state changes after executing a transaction.
 /// Contains both the individual state logs and accumulated logs for verification.
@@ -12,7 +15,7 @@ pub struct TxExecutionSnapshot {
 
 impl TxExecutionSnapshot {
     /// Creates a new TxExecutionSnapshot instance.
-    /// 
+    ///
     /// # Arguments
     /// * `logs` - List of individual state changes made by the transaction
     /// * `accum_logs` - Accumulated state logs for merkle proof generation
@@ -28,7 +31,7 @@ impl TxExecutionSnapshot {
 pub struct SaveData {
     pub chain_id: String,
     pub block_height: u64,
-    pub block_time_unix_secs: u64,
+    pub block_time: Timestamp,
     pub state_sparse_tree_root: [u8; 32],
     pub keys_patricia_trie_root: [u8; 32],
     pub tx_snapshots: Vec<TxExecutionSnapshot>,
@@ -36,7 +39,7 @@ pub struct SaveData {
 
 impl SaveData {
     /// Creates a new SaveData instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
@@ -47,7 +50,7 @@ impl SaveData {
     pub fn new(
         chain_id: String,
         block_height: u64,
-        block_time_unix_secs: u64,
+        block_time: Timestamp,
         state_sparse_tree_root: [u8; 32],
         keys_patricia_trie_root: [u8; 32],
         tx_snapshots: Vec<TxExecutionSnapshot>,
@@ -55,7 +58,7 @@ impl SaveData {
         Self {
             chain_id,
             block_height,
-            block_time_unix_secs,
+            block_time,
             state_sparse_tree_root,
             keys_patricia_trie_root,
             tx_snapshots,
