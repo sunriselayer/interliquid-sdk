@@ -1,6 +1,6 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::zkp::WitnessTx;
+use crate::{types::Timestamp, zkp::WitnessTx};
 
 /// Represents all possible message types that can be sent between components in the runner system.
 /// These messages coordinate the transaction processing and proof generation pipeline.
@@ -27,7 +27,7 @@ pub struct MessageTxReceived {
 
 impl MessageTxReceived {
     /// Creates a new MessageTxReceived instance.
-    /// 
+    ///
     /// # Arguments
     /// * `tx` - The serialized transaction data
     pub fn new(tx: Vec<u8>) -> Self {
@@ -41,31 +41,31 @@ impl MessageTxReceived {
 pub struct MessageTxProofReady {
     pub chain_id: String,
     pub block_height: u64,
-    pub block_time_unix_secs: u64,
+    pub block_time: Timestamp,
     pub tx_index: usize,
     pub witness: WitnessTx,
 }
 
 impl MessageTxProofReady {
     /// Creates a new MessageTxProofReady instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block containing the transaction
-    /// * `block_time_unix_secs` - The Unix timestamp of the block
+    /// * `block_time` - The Unix timestamp of the block
     /// * `tx_index` - The index of the transaction within the block
     /// * `witness` - The witness data needed for proving
     pub fn new(
         chain_id: String,
         block_height: u64,
-        block_time_unix_secs: u64,
+        block_time: Timestamp,
         tx_index: usize,
         witness: WitnessTx,
     ) -> Self {
         Self {
             chain_id,
             block_height,
-            block_time_unix_secs,
+            block_time,
             tx_index,
             witness,
         }
@@ -92,7 +92,7 @@ pub struct MessageCommitStateProofReady {
 
 impl MessageCommitStateProofReady {
     /// Creates a new MessageCommitStateProofReady instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
@@ -117,7 +117,7 @@ pub struct MessageCommitKeysProofReady {
 
 impl MessageCommitKeysProofReady {
     /// Creates a new MessageCommitKeysProofReady instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
@@ -140,7 +140,7 @@ pub struct MessageBlockCommitted {
 
 impl MessageBlockCommitted {
     /// Creates a new MessageBlockCommitted instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the committed block
@@ -164,7 +164,7 @@ pub struct MessageTxProved {
 
 impl MessageTxProved {
     /// Creates a new MessageTxProved instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block containing the transaction
@@ -192,7 +192,7 @@ pub struct MessageTxProofAggregated {
 
 impl MessageTxProofAggregated {
     /// Creates a new MessageTxProofAggregated instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
@@ -223,7 +223,7 @@ pub struct MessageCommitStateProved {
 
 impl MessageCommitStateProved {
     /// Creates a new MessageCommitStateProved instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
@@ -247,7 +247,7 @@ pub struct MessageCommitKeysProved {
 
 impl MessageCommitKeysProved {
     /// Creates a new MessageCommitKeysProved instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
@@ -272,7 +272,7 @@ pub struct MessageBlockProved {
 
 impl MessageBlockProved {
     /// Creates a new MessageBlockProved instance.
-    /// 
+    ///
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block

@@ -30,7 +30,7 @@ pub struct SequencerState<TX: Tx, S: StateManager> {
 
 impl<TX: Tx, S: StateManager> SequencerState<TX, S> {
     /// Creates a new SequencerState instance.
-    /// 
+    ///
     /// # Arguments
     /// * `app` - The application instance containing business logic
     /// * `savedata` - Persistent storage for blockchain data
@@ -60,7 +60,7 @@ impl<TX: Tx, S: StateManager> Clone for SequencerState<TX, S> {
 
 /// The Sequencer component responsible for processing transactions.
 /// It executes transactions, updates state, and prepares witness data for proof generation.
-/// 
+///
 /// # Type Parameters
 /// * `TX` - Transaction type that implements the Tx trait
 /// * `S` - State manager type that implements the StateManager trait
@@ -72,7 +72,7 @@ pub struct Sequencer<TX: Tx, S: StateManager> {
 
 impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
     /// Creates a new Sequencer instance.
-    /// 
+    ///
     /// # Arguments
     /// * `state` - The sequencer state containing app, storage, and state manager
     /// * `sender` - Channel sender for broadcasting messages to other components
@@ -90,9 +90,9 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
     }
 
     /// Runs the sequencer's main event loop.
-    /// 
+    ///
     /// Listens for incoming messages and processes transactions when received.
-    /// 
+    ///
     /// # Returns
     /// * `Ok(())` - If the sequencer runs successfully
     /// * `Err(InterLiquidSdkError)` - If an error occurs during processing
@@ -112,17 +112,17 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
     }
 
     /// Handles a received transaction by executing it and generating witness data.
-    /// 
+    ///
     /// This method:
     /// 1. Executes the transaction against the current state
     /// 2. Collects state changes and logs
     /// 3. Generates witness data for proof generation
     /// 4. Updates the savedata with the execution snapshot
     /// 5. Sends a message that the transaction is ready for proving
-    /// 
+    ///
     /// # Arguments
     /// * `tx` - The serialized transaction data to process
-    /// 
+    ///
     /// # Returns
     /// * `Ok(())` - If the transaction is processed successfully
     /// * `Err(InterLiquidSdkError)` - If an error occurs during execution
@@ -149,7 +149,7 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
         let env = Environment::new(
             savedata.chain_id.clone(),
             savedata.block_height,
-            savedata.block_time_unix_secs,
+            savedata.block_time,
         );
 
         let mut ctx = SdkContext::new(env, &mut transactional);
@@ -179,7 +179,7 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
             .send(RunnerMessage::TxProofReady(MessageTxProofReady::new(
                 savedata.chain_id.clone(),
                 savedata.block_height,
-                savedata.block_time_unix_secs,
+                savedata.block_time,
                 savedata.tx_snapshots.len() - 1,
                 witness,
             )))

@@ -111,7 +111,7 @@ async fn main() -> Result<(), InterLiquidSdkError> {
     let savedata = SaveData {
         chain_id: "test-chain".to_string(),
         block_height: 1,
-        block_time_unix_secs: 0,
+        block_time: 0,
         state_sparse_tree_root: [0; 32],
         keys_patricia_trie_root: [0; 32],
         tx_snapshots: vec![],

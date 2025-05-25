@@ -138,3 +138,11 @@ where
         buf
     }
 }
+
+impl KeyDeclaration for Vec<u8> {
+    type KeyReference<'a> = &'a [u8];
+
+    fn to_key_bytes<'a>(key: Self::KeyReference<'a>) -> Vec<u8> {
+        key.to_vec()
+    }
+}

@@ -5,8 +5,10 @@ mod environment;
 mod error;
 mod token;
 mod tokens;
+mod timestamp;
 mod uint;
 
+pub use timestamp::*;
 pub use address::*;
 pub use any::*;
 pub use decimal::*;
