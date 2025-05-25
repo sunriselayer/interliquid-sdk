@@ -23,7 +23,7 @@ impl Environment {
     /// * `chain_id` - The unique identifier of the blockchain
     /// * `block_height` - The current block height
     /// * `block_time` - The timestamp of the block in seconds since Unix epoch
-    pub fn new(chain_id: String, block_height: u64, block_time: u64) -> Self {
+    pub fn new(chain_id: String, block_height: u64, block_time: Timestamp) -> Self {
         Self {
             chain_id,
             block_height,
