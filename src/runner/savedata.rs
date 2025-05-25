@@ -43,7 +43,7 @@ impl SaveData {
     /// # Arguments
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
-    /// * `block_time_unix_secs` - The Unix timestamp when the block was created
+    /// * `block_time` - The Unix timestamp when the block was created
     /// * `state_sparse_tree_root` - The 32-byte root hash of the state sparse merkle tree
     /// * `keys_patricia_trie_root` - The 32-byte root hash of the keys patricia trie
     /// * `tx_snapshots` - List of transaction execution snapshots in the block

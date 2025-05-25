@@ -37,7 +37,7 @@ impl MsgRegistry {
     /// # Type Parameters
     /// - `T`: The message type that must implement both `Msg` and `NamedSerializableType`
     pub fn register<T: Msg + NamedSerializableType>(&mut self) {
-        let name = T::type_name();
+        let name = T::TYPE_NAME;
 
         self.unpack.insert(
             name,

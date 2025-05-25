@@ -24,9 +24,7 @@ pub struct MsgCreateAccount {
 }
 
 impl NamedSerializableType for MsgCreateAccount {
-    fn type_name() -> &'static str {
-        "Auth/MsgCreateAccount"
-    }
+    const TYPE_NAME: &'static str = "Auth/MsgCreateAccount";
 }
 
 impl Msg for MsgCreateAccount {

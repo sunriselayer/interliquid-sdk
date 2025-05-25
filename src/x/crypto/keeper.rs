@@ -74,7 +74,7 @@ impl CryptoKeeper {
     pub fn register_verifying_key<T: VerifyingKey + NamedSerializableType>(
         &mut self,
     ) -> Result<(), InterLiquidSdkError> {
-        let name = T::type_name();
+        let name = T::TYPE_NAME;
 
         if self.unpack.contains_key(name) {
             return Err(InterLiquidSdkError::AlreadyExists(anyhow!(

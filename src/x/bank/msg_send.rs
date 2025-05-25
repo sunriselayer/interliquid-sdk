@@ -26,9 +26,7 @@ impl NamedSerializableType for MsgSend {
     ///
     /// # Returns
     /// The canonical type name "Bank/MsgSend"
-    fn type_name() -> &'static str {
-        "Bank/MsgSend"
-    }
+    const TYPE_NAME: &'static str = "Bank/MsgSend";
 }
 
 impl Msg for MsgSend {

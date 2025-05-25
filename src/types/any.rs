@@ -31,7 +31,7 @@ impl SerializableAny {
 pub trait NamedSerializableType: Any + BorshSerialize + BorshDeserialize {
     /// Returns the static name of the type.
     /// This name is used to identify the type during deserialization.
-    fn type_name() -> &'static str;
+    const TYPE_NAME: &'static str;
 
     /// Packs the current instance into a SerializableAny.
     ///
@@ -44,7 +44,7 @@ pub trait NamedSerializableType: Any + BorshSerialize + BorshDeserialize {
         let mut buf = vec![];
         self.serialize(&mut buf)?;
 
-        let any = SerializableAny::new(Self::type_name().to_owned(), buf);
+        let any = SerializableAny::new(Self::TYPE_NAME.to_owned(), buf);
 
         Ok(any)
     }

@@ -44,7 +44,7 @@ impl MsgHandlerRegistry {
         &mut self,
         handler: Box<dyn Fn(&mut dyn Context, &T) -> Result<(), InterLiquidSdkError> + Send + Sync>,
     ) {
-        let name = T::type_name();
+        let name = T::TYPE_NAME;
 
         self.handlers.insert(
             name,

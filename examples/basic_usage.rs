@@ -138,7 +138,7 @@ async fn main() -> Result<(), InterLiquidSdkError> {
         };
         let mut msg_bytes = Vec::new();
         msg.serialize(&mut msg_bytes).unwrap();
-        let msg_any = SerializableAny::new(MsgSend::type_name().to_owned(), msg_bytes);
+        let msg_any = SerializableAny::new(MsgSend::TYPE_NAME.to_owned(), msg_bytes);
 
         // Wrap the message in a SimpleTx
         let tx = StdTx {

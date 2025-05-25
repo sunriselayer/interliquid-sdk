@@ -63,7 +63,5 @@ impl NamedSerializableType for VerifyingKeyP256 {
     /// # Returns
     /// 
     /// Returns "verifying_key_p256" as the type identifier.
-    fn type_name() -> &'static str {
-        "verifying_key_p256"
-    }
+    const TYPE_NAME: &'static str = "verifying_key_p256";
 }

@@ -20,9 +20,7 @@ pub struct MsgAddKey {
 }
 
 impl NamedSerializableType for MsgAddKey {
-    fn type_name() -> &'static str {
-        "Auth/MsgAddKey"
-    }
+    const TYPE_NAME: &'static str = "Auth/MsgAddKey";
 }
 
 impl Msg for MsgAddKey {

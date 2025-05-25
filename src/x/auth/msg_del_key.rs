@@ -20,9 +20,7 @@ pub struct MsgDelKey {
 }
 
 impl NamedSerializableType for MsgDelKey {
-    fn type_name() -> &'static str {
-        "Auth/MsgDelKey"
-    }
+    const TYPE_NAME: &'static str = "Auth/MsgDelKey";
 }
 
 impl Msg for MsgDelKey {
