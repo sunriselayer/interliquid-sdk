@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
+/// Join multiple key parts into one key
 pub fn join_keys<'a, P: IntoIterator<Item = &'a [u8]>>(parts: P) -> Vec<u8> {
     parts.into_iter().fold(Vec::new(), |mut acc, p| {
         acc.extend_from_slice(p);
@@ -7,6 +8,8 @@ pub fn join_keys<'a, P: IntoIterator<Item = &'a [u8]>>(parts: P) -> Vec<u8> {
     })
 }
 
+// This trait is for types which is used for declarations of keys of state.
+// `KeyReference`: The type for using as references.
 pub trait KeyDeclaration: BorshSerialize + BorshDeserialize + Clone + Send + Sync {
     type KeyReference<'a>: BorshSerialize + Clone + Copy + Send + 'a;
 
@@ -69,6 +72,7 @@ impl KeyDeclaration for String {
     }
 }
 
+// Tuple implementation
 impl<T1, T2> KeyDeclaration for (T1, T2)
 where
     T1: KeyDeclaration,
@@ -85,6 +89,7 @@ where
     }
 }
 
+// Triple implementation
 impl<T1, T2, T3> KeyDeclaration for (T1, T2, T3)
 where
     T1: KeyDeclaration,

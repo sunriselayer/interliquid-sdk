@@ -7,6 +7,7 @@ use crate::{
 
 use super::Msg;
 
+/// The registry for the handlers of Tx's Msg executions.
 pub struct MsgHandlerRegistry {
     handlers: BTreeMap<
         &'static str,

@@ -6,6 +6,7 @@ use crate::types::{InterLiquidSdkError, NamedSerializableType, SerializableAny};
 
 use super::Msg;
 
+// The registry for unpacking `SerializableAny` of Tx's Msg types.
 pub struct MsgRegistry {
     unpack: BTreeMap<
         &'static str,

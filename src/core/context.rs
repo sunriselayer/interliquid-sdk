@@ -1,5 +1,6 @@
 use crate::{state::TracableStateManager, types::Environment};
 
+/// Context bundles the info for tx executions.
 pub trait Context: Send + Sync {
     fn env(&self) -> &Environment;
     fn state_manager(&self) -> &dyn TracableStateManager;

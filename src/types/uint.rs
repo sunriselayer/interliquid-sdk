@@ -1,3 +1,5 @@
+use core::clone::Clone;
+
 use crate::crypto_bigint::prelude::*;
 use crate::crypto_bigint::{Encoding, U256 as U256Lib};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -50,6 +52,22 @@ impl U256 {
             return Err(InterLiquidSdkError::DivisionByZero);
         }
         Ok(U256(option.unwrap()))
+    }
+
+    pub fn powi(&self, exponent: u8) -> Result<U256, InterLiquidSdkError> {
+        if exponent == 0 {
+            return Ok(1.into());
+        } else if exponent == 1 {
+            return Ok(self.clone());
+        } else {
+            let mut val = self.checked_mul(self)?;
+
+            for _ in 2..exponent {
+                val = val.checked_mul(self)?;
+            }
+
+            return val;
+        }
     }
 }
 

@@ -8,6 +8,7 @@ use crate::types::InterLiquidSdkError;
 
 use super::{Context, Module, MsgHandlerRegistry, MsgRegistry};
 
+/// App defines the deterministic state machine which can be executed in zkVMs.
 pub struct App<TX: Tx> {
     tx_ante_handlers: Vec<Box<dyn TxAnteHandler<TX>>>,
     tx_post_handlers: Vec<Box<dyn TxPostHandler<TX>>>,

@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use super::{key::join_keys, Value};
 use crate::{state::TracableStateManager, types::InterLiquidSdkError};
 
+/// `Item` stores one value for the designated key in the state.
 pub struct Item<V: Value> {
     key: Vec<u8>,
     phantom: PhantomData<V>,
