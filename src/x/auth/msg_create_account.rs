@@ -11,10 +11,15 @@ use crate::{
 
 use super::{types::Account, AuthKeeper, AuthKeeperI};
 
+/// Message to create a new account on the blockchain.
+/// The account address is deterministically derived from the creator's address and a seed.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct MsgCreateAccount {
+    /// The address creating the new account.
     pub creator: Address,
+    /// Seed data used to deterministically generate the new account address.
     pub address_seed: Vec<u8>,
+    /// The initial verifying key for the new account.
     pub verifying_key: SerializableAny,
 }
 
@@ -31,6 +36,15 @@ impl Msg for MsgCreateAccount {
 }
 
 impl AuthKeeper {
+    /// Handles the MsgCreateAccount message by creating a new account.
+    /// The account address is derived by hashing the creator address and seed.
+    /// 
+    /// # Arguments
+    /// * `ctx` - The execution context
+    /// * `msg` - The message containing account creation parameters
+    /// 
+    /// # Errors
+    /// Returns an error if an account already exists at the calculated address.
     pub fn msg_create_account(
         &self,
         ctx: &mut dyn Context,

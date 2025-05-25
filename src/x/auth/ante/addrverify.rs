@@ -8,15 +8,27 @@ use crate::{
     x::auth::ante::StdTx,
 };
 
+/// An ante handler that verifies all message signers have corresponding auth info in the transaction.
+/// This ensures that every address that needs to sign a message is properly authenticated.
 pub struct AddrVerifyAnteHandler {}
 
 impl AddrVerifyAnteHandler {
+    /// Creates a new AddrVerifyAnteHandler instance.
     pub fn new() -> Self {
         Self {}
     }
 }
 
 impl TxAnteHandler<StdTx> for AddrVerifyAnteHandler {
+    /// Verifies that all message signers have auth info in the transaction.
+    /// 
+    /// # Arguments
+    /// * `_ctx` - The execution context (unused)
+    /// * `msg_registry` - Registry to unpack message types
+    /// * `tx` - The transaction to verify
+    /// 
+    /// # Errors
+    /// Returns an error if any signer address is missing from the auth info.
     fn handle(
         &self,
         _ctx: &mut dyn Context,

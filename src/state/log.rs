@@ -7,6 +7,8 @@ use crate::types::InterLiquidSdkError;
 
 use super::bytes_prefix_range;
 
+/// Represents different types of state operations that can be logged.
+/// Used to track state changes and access patterns during transaction execution.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum StateLog {
     Read(StateLogRead),
@@ -14,19 +16,32 @@ pub enum StateLog {
     Diff(StateLogDiff),
 }
 
+/// Represents a read operation on the state.
+/// Tracks which keys were read and whether they were found.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct StateLogRead {
+    /// The key that was read from the state
     pub key: Vec<u8>,
+    /// Whether the key existed in the state
     pub found: bool,
 }
 
+/// Represents an iteration operation over the state.
+/// Tracks which keys were accessed during iteration with a specific prefix.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct StateLogIter {
+    /// The prefix used to filter keys during iteration
     pub key_prefix: Vec<u8>,
+    /// Set of all keys that were accessed during the iteration
     pub keys: BTreeSet<Vec<u8>>,
 }
 
 impl StateLogIter {
+    /// Creates a new iterator log with the given key prefix.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `key_prefix` - The prefix to filter keys during iteration
     pub fn new(key_prefix: Vec<u8>) -> Self {
         Self {
             key_prefix,
@@ -35,26 +50,40 @@ impl StateLogIter {
     }
 }
 
+/// Represents a state modification (write or delete) operation.
+/// Contains the key and the difference between before and after values.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct StateLogDiff {
+    /// The key that was modified
     pub key: Vec<u8>,
+    /// The difference between the old and new values
     pub diff: ValueDiff,
 }
 
+/// Represents the difference between state values before and after a modification.
+/// Used to track state changes for rollback and verification purposes.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct ValueDiff {
+    /// The value before the modification (None if key didn't exist)
     pub before: Option<Vec<u8>>,
+    /// The value after the modification (None if key was deleted)
     pub after: Option<Vec<u8>>,
 }
 
+/// Accumulates and manages state logs from multiple operations.
+/// Maintains separate collections for reads, iterations, and modifications.
 #[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize)]
 pub struct AccumulatedLogs {
+    /// Map of keys to whether they were found during read operations
     pub read: BTreeMap<Vec<u8>, bool>,
+    /// Map of key prefixes to sets of keys accessed during iteration
     pub iter: BTreeMap<Vec<u8>, BTreeSet<Vec<u8>>>,
+    /// Map of keys to their value differences (modifications)
     pub diff: BTreeMap<Vec<u8>, ValueDiff>,
 }
 
 impl AccumulatedLogs {
+    /// Creates a new empty AccumulatedLogs instance.
     pub fn new() -> Self {
         Self {
             read: BTreeMap::new(),
@@ -63,6 +92,17 @@ impl AccumulatedLogs {
         }
     }
 
+    /// Applies a sequence of state logs to the accumulated state.
+    /// Validates consistency between reads and modifications.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `logs` - Iterator of state logs to apply
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` if all logs were applied successfully
+    /// * `Err` if inconsistencies are detected (e.g., reading from a deleted key)
     pub fn apply_logs(
         &mut self,
         logs: impl Iterator<Item = StateLog>,
@@ -125,14 +165,20 @@ impl AccumulatedLogs {
         Ok(())
     }
 
+    /// Returns a reference to the accumulated read operations.
+    /// Maps keys to whether they were found during the read.
     pub fn read(&self) -> &BTreeMap<Vec<u8>, bool> {
         &self.read
     }
 
+    /// Returns a reference to the accumulated iteration operations.
+    /// Maps key prefixes to sets of keys accessed during iteration.
     pub fn iter(&self) -> &BTreeMap<Vec<u8>, BTreeSet<Vec<u8>>> {
         &self.iter
     }
 
+    /// Returns a reference to the accumulated state modifications.
+    /// Maps keys to their value differences (before and after).
     pub fn diff(&self) -> &BTreeMap<Vec<u8>, ValueDiff> {
         &self.diff
     }

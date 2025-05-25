@@ -14,12 +14,19 @@ use crate::{
     },
 };
 
+/// An ante handler that verifies transaction signatures.
+/// It validates signatures against the stored verifying keys and updates account nonces.
 pub struct SigVerifyAnteHandler {
     auth_keeper: Arc<AuthKeeper>,
     crypto_keeper: Arc<CryptoKeeper>,
 }
 
 impl SigVerifyAnteHandler {
+    /// Creates a new SigVerifyAnteHandler instance.
+    /// 
+    /// # Arguments
+    /// * `auth_keeper` - Keeper for account and key management
+    /// * `crypto_keeper` - Keeper for cryptographic operations
     pub fn new(auth_keeper: Arc<AuthKeeper>, crypto_keeper: Arc<CryptoKeeper>) -> Self {
         Self {
             auth_keeper,
@@ -29,6 +36,19 @@ impl SigVerifyAnteHandler {
 }
 
 impl TxAnteHandler<StdTx> for SigVerifyAnteHandler {
+    /// Verifies all signatures in the transaction and updates account nonces.
+    /// 
+    /// # Arguments
+    /// * `ctx` - The execution context
+    /// * `_msg_registry` - Message registry (unused)
+    /// * `tx` - The transaction to verify
+    /// 
+    /// # Errors
+    /// Returns an error if:
+    /// - An account is not found
+    /// - Nonce mismatch
+    /// - Verifying key not found
+    /// - Signature verification fails
     fn handle(
         &self,
         ctx: &mut dyn Context,

@@ -18,6 +18,12 @@ pub struct App<TX: Tx> {
 }
 
 impl<TX: Tx> App<TX> {
+    /// Creates a new App instance with the provided modules and transaction handlers.
+    ///
+    /// # Arguments
+    /// * `modules` - Vector of modules to register with the application
+    /// * `tx_ante_handlers` - Handlers executed before transaction processing
+    /// * `tx_post_handlers` - Handlers executed after transaction processing
     pub fn new(
         modules: Vec<Arc<dyn Module>>,
         tx_ante_handlers: Vec<Box<dyn TxAnteHandler<TX>>>,
@@ -39,6 +45,15 @@ impl<TX: Tx> App<TX> {
         }
     }
 
+    /// Executes a transaction by running ante handlers, processing messages, and running post handlers.
+    ///
+    /// # Arguments
+    /// * `ctx` - The execution context
+    /// * `tx` - Raw transaction bytes to execute
+    ///
+    /// # Returns
+    /// * `Ok(())` if the transaction executes successfully
+    /// * `Err(InterLiquidSdkError)` if any handler or message processing fails
     pub fn execute_tx(&self, ctx: &mut dyn Context, tx: &[u8]) -> Result<(), InterLiquidSdkError> {
         let tx = TX::try_from_slice(tx)?;
 

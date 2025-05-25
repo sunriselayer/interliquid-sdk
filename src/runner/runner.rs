@@ -15,6 +15,12 @@ use super::{
     ProverInstance, ProverOrchestrator,
 };
 
+/// Main runner that orchestrates the server, sequencer, and prover components.
+/// This monolithic architecture runs all components in a single process.
+/// 
+/// # Type Parameters
+/// * `TX` - Transaction type that implements the Tx trait
+/// * `S` - State manager type that implements the StateManager trait
 pub struct MonolithicRunner<TX: Tx, S: StateManager> {
     pub(super) server: Server<S>,
     pub(super) sequencer: Sequencer<TX, S>,
@@ -22,6 +28,16 @@ pub struct MonolithicRunner<TX: Tx, S: StateManager> {
 }
 
 impl<TX: Tx, S: StateManager> MonolithicRunner<TX, S> {
+    /// Creates a new MonolithicRunner instance.
+    /// 
+    /// # Arguments
+    /// * `app` - The application instance containing business logic
+    /// * `state_manager` - The state manager for handling blockchain state
+    /// * `savedata` - Persistent storage for blockchain data
+    /// * `prover_instances` - List of prover instances for generating proofs
+    /// 
+    /// # Returns
+    /// A new MonolithicRunner instance with all components initialized
     pub fn new(
         app: App<TX>,
         state_manager: S,
@@ -47,6 +63,14 @@ impl<TX: Tx, S: StateManager> MonolithicRunner<TX, S> {
         }
     }
 
+    /// Runs all components concurrently.
+    /// 
+    /// This method starts the server, sequencer, and prover orchestrator
+    /// and runs them concurrently using tokio::try_join.
+    /// 
+    /// # Returns
+    /// * `Ok(())` - If all components run successfully
+    /// * `Err(InterLiquidSdkError)` - If any component encounters an error
     pub async fn run(&mut self) -> Result<(), InterLiquidSdkError> {
         tokio::try_join!(self.server.run(), self.sequencer.run(), self.prover.run())?;
 

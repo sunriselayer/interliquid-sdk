@@ -12,6 +12,8 @@ use crate::{
 
 use super::ProverInstance;
 
+/// Local SP1 prover implementation that generates proofs using the SP1 proving system.
+/// This prover runs locally and uses ELF (Executable and Linkable Format) files for different proof types.
 pub struct ProverLocal {
     elf_tx: &'static [u8],
     elf_tx_agg: &'static [u8],
@@ -21,6 +23,14 @@ pub struct ProverLocal {
 }
 
 impl ProverLocal {
+    /// Creates a new ProverLocal instance with the specified ELF files.
+    /// 
+    /// # Arguments
+    /// * `elf_tx` - ELF file for single transaction proofs
+    /// * `elf_tx_agg` - ELF file for aggregated transaction proofs
+    /// * `elf_commit_state` - ELF file for state commitment proofs
+    /// * `elf_commit_keys` - ELF file for keys commitment proofs
+    /// * `elf_block` - ELF file for block proofs
     pub fn new(
         elf_tx: &'static [u8],
         elf_tx_agg: &'static [u8],
@@ -37,6 +47,19 @@ impl ProverLocal {
         }
     }
 
+    /// Generic proof generation method used internally by all proof types.
+    /// 
+    /// # Type Parameters
+    /// * `W` - Witness type that can be serialized with Borsh
+    /// * `PI` - Public input type that can be deserialized from Borsh
+    /// 
+    /// # Arguments
+    /// * `elf` - The ELF file containing the proof circuit
+    /// * `witness` - The witness data to prove
+    /// 
+    /// # Returns
+    /// * `Ok((proof, public_input))` - The generated proof bytes and deserialized public inputs
+    /// * `Err(InterLiquidSdkError)` - If proof generation fails
     fn prove<W: BorshSerialize, PI: BorshDeserialize>(
         &self,
         elf: &'static [u8],
@@ -60,6 +83,7 @@ impl ProverLocal {
 }
 
 impl ProverInstance for ProverLocal {
+    /// Generates a proof for a single transaction using the SP1 proving system.
     fn prove_tx(
         &self,
         witness: WitnessTx,
@@ -67,6 +91,7 @@ impl ProverInstance for ProverLocal {
         self.prove::<WitnessTx, PublicInputTx>(self.elf_tx, witness)
     }
 
+    /// Generates an aggregated proof for multiple transactions using the SP1 proving system.
     fn prove_aggregated_tx(
         &self,
         witness: WitnessTxAgg,
@@ -74,6 +99,7 @@ impl ProverInstance for ProverLocal {
         self.prove::<WitnessTxAgg, PublicInputTxAgg>(self.elf_tx_agg, witness)
     }
 
+    /// Generates a proof for state commitment using the SP1 proving system.
     fn prove_commit_state(
         &self,
         witness: WitnessCommitState,
@@ -81,6 +107,7 @@ impl ProverInstance for ProverLocal {
         self.prove::<WitnessCommitState, PublicInputCommitState>(self.elf_commit_state, witness)
     }
 
+    /// Generates a proof for keys commitment using the SP1 proving system.
     fn prove_commit_keys(
         &self,
         witness: WitnessCommitKeys,
@@ -88,6 +115,7 @@ impl ProverInstance for ProverLocal {
         self.prove::<WitnessCommitKeys, PublicInputCommitKeys>(self.elf_commit_keys, witness)
     }
 
+    /// Generates a proof for an entire block using the SP1 proving system.
     fn prove_block(
         &self,
         witness: WitnessBlock,

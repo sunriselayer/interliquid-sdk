@@ -20,6 +20,8 @@ use crate::{
     zkp::WitnessTx,
 };
 
+/// Internal state container for the Sequencer.
+/// Holds references to the application logic, persistent storage, and state manager.
 pub struct SequencerState<TX: Tx, S: StateManager> {
     app: Arc<App<TX>>,
     savedata: Arc<Mutex<SaveData>>,
@@ -27,6 +29,12 @@ pub struct SequencerState<TX: Tx, S: StateManager> {
 }
 
 impl<TX: Tx, S: StateManager> SequencerState<TX, S> {
+    /// Creates a new SequencerState instance.
+    /// 
+    /// # Arguments
+    /// * `app` - The application instance containing business logic
+    /// * `savedata` - Persistent storage for blockchain data
+    /// * `state_manager` - The state manager for handling blockchain state
     pub fn new(
         app: Arc<App<TX>>,
         savedata: Arc<Mutex<SaveData>>,
@@ -50,6 +58,12 @@ impl<TX: Tx, S: StateManager> Clone for SequencerState<TX, S> {
     }
 }
 
+/// The Sequencer component responsible for processing transactions.
+/// It executes transactions, updates state, and prepares witness data for proof generation.
+/// 
+/// # Type Parameters
+/// * `TX` - Transaction type that implements the Tx trait
+/// * `S` - State manager type that implements the StateManager trait
 pub struct Sequencer<TX: Tx, S: StateManager> {
     state: SequencerState<TX, S>,
     sender: Sender<RunnerMessage>,
@@ -57,6 +71,12 @@ pub struct Sequencer<TX: Tx, S: StateManager> {
 }
 
 impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
+    /// Creates a new Sequencer instance.
+    /// 
+    /// # Arguments
+    /// * `state` - The sequencer state containing app, storage, and state manager
+    /// * `sender` - Channel sender for broadcasting messages to other components
+    /// * `receiver` - Channel receiver for receiving messages from other components
     pub fn new(
         state: SequencerState<TX, S>,
         sender: Sender<RunnerMessage>,
@@ -69,6 +89,13 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
         }
     }
 
+    /// Runs the sequencer's main event loop.
+    /// 
+    /// Listens for incoming messages and processes transactions when received.
+    /// 
+    /// # Returns
+    /// * `Ok(())` - If the sequencer runs successfully
+    /// * `Err(InterLiquidSdkError)` - If an error occurs during processing
     pub async fn run(&mut self) -> Result<(), InterLiquidSdkError> {
         while let Ok(msg) = self.receiver.recv().await {
             match msg {
@@ -84,6 +111,21 @@ impl<TX: Tx, S: StateManager> Sequencer<TX, S> {
         Ok(())
     }
 
+    /// Handles a received transaction by executing it and generating witness data.
+    /// 
+    /// This method:
+    /// 1. Executes the transaction against the current state
+    /// 2. Collects state changes and logs
+    /// 3. Generates witness data for proof generation
+    /// 4. Updates the savedata with the execution snapshot
+    /// 5. Sends a message that the transaction is ready for proving
+    /// 
+    /// # Arguments
+    /// * `tx` - The serialized transaction data to process
+    /// 
+    /// # Returns
+    /// * `Ok(())` - If the transaction is processed successfully
+    /// * `Err(InterLiquidSdkError)` - If an error occurs during execution
     async fn handle_tx_received(&self, tx: Vec<u8>) -> Result<(), InterLiquidSdkError> {
         let app = self.state.app.clone();
 

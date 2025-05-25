@@ -2,6 +2,8 @@ use thiserror::Error;
 
 use crate::trie::NibblePatriciaTrieError;
 
+/// The main error type for the InterLiquid SDK.
+/// This enum encompasses all possible errors that can occur within the SDK.
 #[derive(Debug, Error)]
 pub enum InterLiquidSdkError {
     // Core
