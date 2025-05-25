@@ -1,5 +1,7 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
+use super::Timestamp;
+
 /// Represents the blockchain environment context for transaction execution.
 /// This struct contains information about the current chain state and block.
 ///
@@ -10,8 +12,8 @@ pub struct Environment {
     pub chain_id: String,
     /// The current block height (block number)
     pub block_height: u64,
-    /// The timestamp of the current block in seconds since Unix epoch
-    pub block_time: u64,
+    /// The timestamp of the current block
+    pub block_time: Timestamp,
 }
 
 impl Environment {
@@ -37,7 +39,7 @@ mod tests {
     #[test]
     fn test_new_environment() {
         let env = Environment::new("testnet-1".to_string(), 12345, 1640000000);
-        
+
         assert_eq!(env.chain_id, "testnet-1");
         assert_eq!(env.block_height, 12345);
         assert_eq!(env.block_time, 1640000000);
@@ -47,7 +49,7 @@ mod tests {
     fn test_environment_clone() {
         let env1 = Environment::new("mainnet".to_string(), 1000, 1234567890);
         let env2 = env1.clone();
-        
+
         assert_eq!(env1, env2);
         assert_eq!(env2.chain_id, "mainnet");
         assert_eq!(env2.block_height, 1000);
@@ -58,7 +60,7 @@ mod tests {
     fn test_environment_debug() {
         let env = Environment::new("test".to_string(), 1, 1);
         let debug_str = format!("{:?}", env);
-        
+
         assert!(debug_str.contains("Environment"));
         assert!(debug_str.contains("test"));
         assert!(debug_str.contains("1"));
@@ -71,7 +73,7 @@ mod tests {
         let env3 = Environment::new("chain2".to_string(), 100, 1000);
         let env4 = Environment::new("chain1".to_string(), 101, 1000);
         let env5 = Environment::new("chain1".to_string(), 100, 1001);
-        
+
         assert_eq!(env1, env2);
         assert_ne!(env1, env3); // Different chain_id
         assert_ne!(env1, env4); // Different block_height
@@ -85,7 +87,7 @@ mod tests {
         assert_eq!(env1.chain_id, "");
         assert_eq!(env1.block_height, 0);
         assert_eq!(env1.block_time, 0);
-        
+
         // Test with max values
         let env2 = Environment::new("max".to_string(), u64::MAX, u64::MAX);
         assert_eq!(env2.block_height, u64::MAX);
@@ -95,11 +97,11 @@ mod tests {
     #[test]
     fn test_environment_serialization() {
         let env = Environment::new("test-chain".to_string(), 42, 1234567890);
-        
+
         // Test Borsh serialization roundtrip
         let serialized = borsh::to_vec(&env).unwrap();
         let deserialized: Environment = borsh::from_slice(&serialized).unwrap();
-        
+
         assert_eq!(env, deserialized);
     }
 }

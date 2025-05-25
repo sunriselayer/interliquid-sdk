@@ -1,4 +1,7 @@
-use crate::sha2::{Digest, Sha256};
+use crate::{
+    sha2::{Digest, Sha256},
+    types::Timestamp,
+};
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 /// `Header` is the struct for block headers.
@@ -6,7 +9,7 @@ use borsh_derive::{BorshDeserialize, BorshSerialize};
 pub struct Header {
     pub chain_id: u64,
     pub height: u64,
-    pub time: u64,
+    pub time: Timestamp,
 
     pub header_hash_prev: [u8; 32],
 
