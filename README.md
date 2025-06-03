@@ -16,8 +16,8 @@ InterLiquid SDK is a powerful software development kit for building ZK Sovereign
 
 The SDK's core innovation is the Twin Radix Trees architecture, which combines:
 
-1. **4-bit-Radix State Patricia Trie**
-2. **4-bit-Radix Keys Patricia Trie**
+1. **4-bit-Radix State Patricia Trie** - for state inclusion proof
+2. **4-bit-Radix Keys Patricia Trie** - for key indexing to enable key prefix based iteration
 
 ### Proof Generation
 
