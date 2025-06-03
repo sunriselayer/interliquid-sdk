@@ -4,7 +4,7 @@ use std::time::Duration;
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
 /// Unix seconds
-#[derive(Clone, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct Timestamp(u64);
 
 impl Timestamp {

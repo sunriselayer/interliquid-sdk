@@ -137,7 +137,7 @@ mod tests {
     use super::*;
     use crate::state::RelatedState;
     use std::collections::BTreeMap;
-    use borsh::{BorshSerialize, BorshDeserialize};
+    use borsh::BorshSerialize;
     use borsh_derive::{BorshSerialize as BorshSerializeDerive, BorshDeserialize as BorshDeserializeDerive};
 
     // Test key type
