@@ -1,6 +1,12 @@
 use borsh_derive::{BorshDeserialize, BorshSerialize};
 
-use crate::{types::Timestamp, zkp::WitnessTx};
+use crate::{
+    types::Timestamp, 
+    zkp::{
+        WitnessTx, WitnessTxAgg, WitnessCommitState, WitnessCommitKeys,
+        PublicInputTx, PublicInputTxAgg, PublicInputCommitState, PublicInputCommitKeys
+    }
+};
 
 /// Represents all possible message types that can be sent between components in the runner system.
 /// These messages coordinate the transaction processing and proof generation pipeline.
@@ -73,21 +79,23 @@ impl MessageTxProofReady {
 }
 
 /// Message indicating that transaction proofs are ready to be aggregated.
-/// Contains the range of transaction indices to aggregate.
+/// Contains the range of transaction indices to aggregate and witness data.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct MessageTxProofAggregationReady {
     pub chain_id: String,
     pub block_height: u64,
     pub tx_index: (usize, usize),
+    pub witness: WitnessTxAgg,
 }
 
 /// Message indicating that the state commitment is ready to be proved.
-/// Contains the state root hash that needs to be proven.
+/// Contains the state root hash and witness data needed for proof generation.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct MessageCommitStateProofReady {
     pub chain_id: String,
     pub block_height: u64,
     pub state_root: [u8; 32],
+    pub witness: WitnessCommitState,
 }
 
 impl MessageCommitStateProofReady {
@@ -97,22 +105,25 @@ impl MessageCommitStateProofReady {
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
     /// * `state_root` - The 32-byte state root hash
-    pub fn new(chain_id: String, block_height: u64, state_root: [u8; 32]) -> Self {
+    /// * `witness` - The witness data for state commitment proof
+    pub fn new(chain_id: String, block_height: u64, state_root: [u8; 32], witness: WitnessCommitState) -> Self {
         Self {
             chain_id,
             block_height,
             state_root,
+            witness,
         }
     }
 }
 
 /// Message indicating that the keys commitment is ready to be proved.
-/// Contains the keys root hash that needs to be proven.
+/// Contains the keys root hash and witness data needed for proof generation.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct MessageCommitKeysProofReady {
     pub chain_id: String,
     pub block_height: u64,
     pub keys_root: [u8; 32],
+    pub witness: WitnessCommitKeys,
 }
 
 impl MessageCommitKeysProofReady {
@@ -122,11 +133,13 @@ impl MessageCommitKeysProofReady {
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
     /// * `keys_root` - The 32-byte keys root hash
-    pub fn new(chain_id: String, block_height: u64, keys_root: [u8; 32]) -> Self {
+    /// * `witness` - The witness data for keys commitment proof
+    pub fn new(chain_id: String, block_height: u64, keys_root: [u8; 32], witness: WitnessCommitKeys) -> Self {
         Self {
             chain_id,
             block_height,
             keys_root,
+            witness,
         }
     }
 }
@@ -153,13 +166,14 @@ impl MessageBlockCommitted {
 }
 
 /// Message indicating that a transaction proof has been generated.
-/// Contains the proof data for the transaction.
+/// Contains the proof data and public inputs for the transaction.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct MessageTxProved {
     pub chain_id: String,
     pub block_height: u64,
     pub tx_index: usize,
     pub proof: Vec<u8>,
+    pub public_input: PublicInputTx,
 }
 
 impl MessageTxProved {
@@ -170,24 +184,27 @@ impl MessageTxProved {
     /// * `block_height` - The height of the block containing the transaction
     /// * `tx_index` - The index of the transaction within the block
     /// * `proof` - The generated proof data
-    pub fn new(chain_id: String, block_height: u64, tx_index: usize, proof: Vec<u8>) -> Self {
+    /// * `public_input` - The public inputs from the proof
+    pub fn new(chain_id: String, block_height: u64, tx_index: usize, proof: Vec<u8>, public_input: PublicInputTx) -> Self {
         Self {
             chain_id,
             block_height,
             tx_index,
             proof,
+            public_input,
         }
     }
 }
 
 /// Message indicating that transaction proofs have been aggregated.
-/// Contains the aggregated proof for a range of transactions.
+/// Contains the aggregated proof and public inputs for a range of transactions.
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct MessageTxProofAggregated {
     pub chain_id: String,
     pub block_height: u64,
     pub tx_index: (usize, usize),
     pub proof: Vec<u8>,
+    pub public_input: PublicInputTxAgg,
 }
 
 impl MessageTxProofAggregated {
@@ -198,17 +215,20 @@ impl MessageTxProofAggregated {
     /// * `block_height` - The height of the block
     /// * `tx_index` - Tuple representing the range of transaction indices (start, end)
     /// * `proof` - The aggregated proof data
+    /// * `public_input` - The public inputs from the aggregated proof
     pub fn new(
         chain_id: String,
         block_height: u64,
         tx_index: (usize, usize),
         proof: Vec<u8>,
+        public_input: PublicInputTxAgg,
     ) -> Self {
         Self {
             chain_id,
             block_height,
             tx_index,
             proof,
+            public_input,
         }
     }
 }
@@ -219,6 +239,8 @@ pub struct MessageCommitStateProved {
     pub chain_id: String,
     pub block_height: u64,
     pub state_root: [u8; 32],
+    pub proof: Vec<u8>,
+    pub public_input: PublicInputCommitState,
 }
 
 impl MessageCommitStateProved {
@@ -228,11 +250,15 @@ impl MessageCommitStateProved {
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
     /// * `state_root` - The 32-byte state root hash that was proved
-    pub fn new(chain_id: String, block_height: u64, state_root: [u8; 32]) -> Self {
+    /// * `proof` - The generated proof data
+    /// * `public_input` - The public inputs from the proof
+    pub fn new(chain_id: String, block_height: u64, state_root: [u8; 32], proof: Vec<u8>, public_input: PublicInputCommitState) -> Self {
         Self {
             chain_id,
             block_height,
             state_root,
+            proof,
+            public_input,
         }
     }
 }
@@ -243,6 +269,8 @@ pub struct MessageCommitKeysProved {
     pub chain_id: String,
     pub block_height: u64,
     pub keys_root: [u8; 32],
+    pub proof: Vec<u8>,
+    pub public_input: PublicInputCommitKeys,
 }
 
 impl MessageCommitKeysProved {
@@ -252,11 +280,15 @@ impl MessageCommitKeysProved {
     /// * `chain_id` - The identifier of the blockchain
     /// * `block_height` - The height of the block
     /// * `keys_root` - The 32-byte keys root hash that was proved
-    pub fn new(chain_id: String, block_height: u64, keys_root: [u8; 32]) -> Self {
+    /// * `proof` - The generated proof data
+    /// * `public_input` - The public inputs from the proof
+    pub fn new(chain_id: String, block_height: u64, keys_root: [u8; 32], proof: Vec<u8>, public_input: PublicInputCommitKeys) -> Self {
         Self {
             chain_id,
             block_height,
             keys_root,
+            proof,
+            public_input,
         }
     }
 }

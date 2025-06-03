@@ -91,8 +91,8 @@ impl ProverInstance for ProverLocal {
         self.prove::<WitnessTx, PublicInputTx>(self.elf_tx, witness)
     }
 
-    /// Generates an aggregated proof for multiple transactions using the SP1 proving system.
-    fn prove_aggregated_tx(
+    /// Generates an aggregated proof for multiple transactions.
+    fn prove_tx_agg(
         &self,
         witness: WitnessTxAgg,
     ) -> Result<(Vec<u8>, PublicInputTxAgg), InterLiquidSdkError> {

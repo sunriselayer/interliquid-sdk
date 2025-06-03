@@ -24,12 +24,12 @@ pub trait ProverInstance {
     /// Generates an aggregated proof for multiple transactions.
     /// 
     /// # Arguments
-    /// * `witness` - The witness data containing aggregated transaction information
+    /// * `witness` - The witness data containing aggregated transaction information and proofs
     /// 
     /// # Returns
     /// * `Ok((proof, public_input))` - The generated aggregated proof and public inputs
     /// * `Err(InterLiquidSdkError)` - If proof generation fails
-    fn prove_aggregated_tx(
+    fn prove_tx_agg(
         &self,
         witness: WitnessTxAgg,
     ) -> Result<(Vec<u8>, PublicInputTxAgg), InterLiquidSdkError>;
