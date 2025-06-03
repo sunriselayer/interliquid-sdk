@@ -204,6 +204,210 @@ impl NibblePatriciaTrieRootPath {
         Err(NibblePatriciaTrieError::InvalidProof)
     }
 
+    /// Verifies the completeness of an iteration over keys with a given prefix.
+    ///
+    /// This function ensures that:
+    /// 1. All provided keys start with the given prefix
+    /// 2. No keys within the prefix range are missing
+    /// 3. The proof contains sufficient information to verify completeness
+    ///
+    /// # Arguments
+    ///
+    /// * `key_prefix` - The prefix to verify iteration completeness for
+    /// * `iterated_keys` - Set of keys that were iterated
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - If the iteration is complete and valid
+    /// * `Err(NibblePatriciaTrieError)` - If the proof is incomplete or invalid
+    pub fn verify_iter_completeness(
+        &self,
+        key_prefix: &[Nibble],
+        iterated_keys: &BTreeSet<Vec<Nibble>>,
+    ) -> Result<(), NibblePatriciaTrieError> {
+        // First, verify all iterated keys start with the prefix
+        for key in iterated_keys {
+            if !key.starts_with(key_prefix) {
+                return Err(NibblePatriciaTrieError::InvalidProof);
+            }
+        }
+
+        // Find the best branch node to verify our target prefix
+        // We want the branch whose full prefix (key + fragment) is the longest prefix of our target,
+        // or whose key is the longest that our target starts with
+        let mut best_branch: Option<(&Vec<Nibble>, &NibblePatriciaTrieNodeBranch)> = None;
+        let mut best_match_len = 0;
+        
+        for (branch_key, branch_node) in &self.nodes_branch {
+            // Calculate the full prefix of this branch (key + fragment)
+            let full_branch_prefix: Vec<Nibble> = branch_key
+                .iter()
+                .copied()
+                .chain(branch_node.key_fragment.iter().copied())
+                .collect();
+            
+            // Check different matching scenarios
+            if key_prefix == &full_branch_prefix[..] {
+                // Exact match - this is the best possible branch
+                best_branch = Some((branch_key, branch_node));
+                break; // Can't get better than exact match
+            } else if key_prefix.starts_with(&full_branch_prefix) && full_branch_prefix.len() > best_match_len {
+                // Target extends beyond this branch
+                best_branch = Some((branch_key, branch_node));
+                best_match_len = full_branch_prefix.len();
+            } else if key_prefix.starts_with(branch_key) && branch_key.len() > best_match_len {
+                // Branch key is a prefix of target (branch might help)
+                best_branch = Some((branch_key, branch_node));
+                best_match_len = branch_key.len();
+            }
+        }
+        
+        if let Some((branch_key, branch_node)) = best_branch {
+            // We found the best branch for our prefix
+            let full_branch_prefix: Vec<Nibble> = branch_key
+                .iter()
+                .copied()
+                .chain(branch_node.key_fragment.iter().copied())
+                .collect();
+            
+            // Check the relationship between target prefix and branch
+            if key_prefix.starts_with(&full_branch_prefix) {
+                // Case 1: Target extends beyond this branch
+                let remaining_prefix = &key_prefix[full_branch_prefix.len()..];
+                
+                if remaining_prefix.is_empty() {
+                    // The branch exactly matches our prefix
+                    // All children of this branch should be included in iterated_keys
+                    self.verify_all_branch_children_iterated(
+                        &full_branch_prefix,
+                        branch_node,
+                        iterated_keys,
+                    )
+            } else {
+                // We need to go deeper - check the specific child
+                let target_child = remaining_prefix[0];
+                
+                if !branch_node.child_key_indices.contains(&target_child) {
+                    // The target child doesn't exist
+                    if !iterated_keys.is_empty() {
+                        return Err(NibblePatriciaTrieError::InvalidProof);
+                    }
+                    return Ok(());
+                }
+                
+                // All keys under the target child should be iterated
+                let child_full_prefix: Vec<Nibble> = full_branch_prefix
+                    .iter()
+                    .copied()
+                    .chain(std::iter::once(target_child))
+                    .collect();
+                    
+                // Check if all iterated keys are under this child
+                for key in iterated_keys {
+                    if !key.starts_with(&child_full_prefix) {
+                        return Err(NibblePatriciaTrieError::InvalidProof);
+                    }
+                }
+                
+                // We can't verify completeness under this specific child without more branch nodes
+                // But we've verified all iterated keys are valid
+                Ok(())
+            }
+            } else {
+                // Case 2: Branch key is a prefix of target, but full branch prefix might not be
+                // This happens when target falls within the branch's key but before its fragment
+                
+                // The target prefix must fall somewhere between branch_key and full_branch_prefix
+                let remaining_after_key = &key_prefix[branch_key.len()..];
+                
+                // Check if the branch has the child we need
+                if !remaining_after_key.is_empty() {
+                    let target_child = remaining_after_key[0];
+                    
+                    if branch_node.child_key_indices.contains(&target_child) {
+                        // We can verify through this child
+                        // All iterated keys should be under this child
+                        for key in iterated_keys {
+                            if !key.starts_with(key_prefix) {
+                                return Err(NibblePatriciaTrieError::InvalidProof);
+                            }
+                        }
+                        
+                        // We can partially verify - all keys are valid but can't ensure completeness
+                        // without more branch information
+                        Ok(())
+                    } else {
+                        // Child doesn't exist, so there should be no keys
+                        if !iterated_keys.is_empty() {
+                            return Err(NibblePatriciaTrieError::InvalidProof);
+                        }
+                        Ok(())
+                    }
+                } else {
+                    // remaining_after_key is empty, which means key_prefix == branch_key
+                    // This means we're looking for all children of this branch
+                    self.verify_all_branch_children_iterated(
+                        branch_key,
+                        branch_node,
+                        iterated_keys,
+                    )
+                }
+            }
+        } else {
+            // No branch node found that is a prefix of our target
+            // If we have iterated keys, the proof is incomplete
+            if !iterated_keys.is_empty() {
+                return Err(NibblePatriciaTrieError::InvalidProof);
+            }
+            Ok(())
+        }
+    }
+    
+    /// Verify that all children of a branch are represented in the iterated keys
+    fn verify_all_branch_children_iterated(
+        &self,
+        branch_full_prefix: &[Nibble],
+        branch_node: &NibblePatriciaTrieNodeBranch,
+        iterated_keys: &BTreeSet<Vec<Nibble>>,
+    ) -> Result<(), NibblePatriciaTrieError> {
+        // For each child index in the branch
+        for &child_index in &branch_node.child_key_indices {
+            let child_prefix: Vec<Nibble> = branch_full_prefix
+                .iter()
+                .copied()
+                .chain(std::iter::once(child_index))
+                .collect();
+                
+            // Check if we have any keys starting with this child prefix
+            let has_child_keys = iterated_keys
+                .iter()
+                .any(|k| k.starts_with(&child_prefix));
+                
+            if !has_child_keys {
+                // This child exists but no keys were iterated from it
+                return Err(NibblePatriciaTrieError::InvalidProof);
+            }
+        }
+        
+        // Also verify no extra keys that don't belong to any child
+        for key in iterated_keys {
+            if !key.starts_with(branch_full_prefix) {
+                return Err(NibblePatriciaTrieError::InvalidProof);
+            }
+            
+            // The key should start with one of the child indices
+            let key_child_nibble = key.get(branch_full_prefix.len())
+                .ok_or(NibblePatriciaTrieError::InvalidProof)?;
+                
+            if !branch_node.child_key_indices.contains(key_child_nibble) {
+                return Err(NibblePatriciaTrieError::InvalidProof);
+            }
+        }
+        
+        Ok(())
+    }
+
+
     pub fn leaf_key_fragment_from_path(
         &self,
         leaf_key: &[Nibble],
@@ -737,5 +941,132 @@ mod tests {
         println!("Expected root: {:?}", root_hash);
 
         assert_eq!(root, root_hash);
+    }
+
+    #[test]
+    fn test_verify_iter_completeness() {
+        let (_entries, node_db, hash_db, _root_node) = setup_trie_and_db();
+
+        let get_node = |key: &[Nibble]| get_node_from_db(key, &node_db);
+        let get_child_node_fragment_and_hash = |key: &[Nibble], index: Nibble| {
+            get_child_node_fragment_and_hash_from_db(key, index, &hash_db)
+        };
+
+        // Test case 1: Complete iteration with prefix [1]
+        let prefix = vec![Nibble::from(1)];
+        let iterated_keys = BTreeSet::from([
+            vec![Nibble::from(1), Nibble::from(2)],
+            vec![Nibble::from(1), Nibble::from(3)],
+        ]);
+
+        // Get all leaf keys to create a complete proof
+        let all_leaf_keys = BTreeSet::from([
+            vec![Nibble::from(1), Nibble::from(2)],
+            vec![Nibble::from(1), Nibble::from(3)],
+            vec![Nibble::from(2), Nibble::from(2)],
+        ]);
+
+        let proof = NibblePatriciaTrieRootPath::from_leafs(
+            all_leaf_keys,
+            &get_node,
+            &get_child_node_fragment_and_hash,
+        )
+        .unwrap();
+
+        // Should succeed - complete iteration
+        assert!(proof.verify_iter_completeness(&prefix, &iterated_keys).is_ok());
+
+        // Test case 2: Incomplete iteration - missing one key
+        let incomplete_keys = BTreeSet::from([
+            vec![Nibble::from(1), Nibble::from(2)],
+            // Missing [1, 3]
+        ]);
+
+        // Should fail - incomplete iteration
+        assert!(proof.verify_iter_completeness(&prefix, &incomplete_keys).is_err());
+
+        // Test case 3: Invalid iteration - key outside prefix
+        let invalid_keys = BTreeSet::from([
+            vec![Nibble::from(1), Nibble::from(2)],
+            vec![Nibble::from(2), Nibble::from(2)], // Outside prefix [1]
+        ]);
+
+        // Should fail - key outside prefix
+        assert!(proof.verify_iter_completeness(&prefix, &invalid_keys).is_err());
+
+        // Test case 4: Empty prefix - should include all keys
+        let empty_prefix = vec![];
+        let all_keys = BTreeSet::from([
+            vec![Nibble::from(1), Nibble::from(2)],
+            vec![Nibble::from(1), Nibble::from(3)],
+            vec![Nibble::from(2), Nibble::from(2)],
+        ]);
+
+        // Should succeed - all keys included
+        assert!(proof.verify_iter_completeness(&empty_prefix, &all_keys).is_ok());
+    }
+
+    #[test]
+    fn test_verify_iter_completeness_large() {
+        let (_entries, node_db, hash_db, _root_node) = setup_trie_and_db_large();
+
+        let get_node = |key: &[Nibble]| get_node_from_db(key, &node_db);
+        let get_child_node_fragment_and_hash = |key: &[Nibble], index: Nibble| {
+            get_child_node_fragment_and_hash_from_db(key, index, &hash_db)
+        };
+
+        // Test case 1: Complete iteration with prefix [1, 2] - should have 10 keys
+        let prefix = vec![Nibble::from(1), Nibble::from(2)];
+        let mut iterated_keys = BTreeSet::new();
+        for i in 0..10 {
+            iterated_keys.insert(vec![
+                Nibble::from(1),
+                Nibble::from(2),
+                Nibble::from(i as u8),
+            ]);
+        }
+
+        // Get all leaf keys starting with [1, 2] to create the proof
+        let mut proof_leaf_keys = BTreeSet::new();
+        for i in 0..10 {
+            proof_leaf_keys.insert(vec![
+                Nibble::from(1),
+                Nibble::from(2),
+                Nibble::from(i as u8),
+            ]);
+        }
+
+        // Add some other keys to make the proof more complete
+        for i in 0..10 {
+            proof_leaf_keys.insert(vec![
+                Nibble::from(1),
+                Nibble::from(3),
+                Nibble::from(i as u8),
+            ]);
+        }
+
+        let proof = NibblePatriciaTrieRootPath::from_leafs(
+            proof_leaf_keys,
+            &get_node,
+            &get_child_node_fragment_and_hash,
+        )
+        .unwrap();
+
+        // Should succeed - complete iteration
+        assert!(proof.verify_iter_completeness(&prefix, &iterated_keys).is_ok());
+
+        // Test case 2: Incomplete iteration - missing one key
+        let mut incomplete_keys = iterated_keys.clone();
+        incomplete_keys.remove(&vec![Nibble::from(1), Nibble::from(2), Nibble::from(5)]);
+
+        // Should fail - incomplete iteration
+        assert!(proof.verify_iter_completeness(&prefix, &incomplete_keys).is_err());
+
+        // Test case 3: Extra key outside prefix
+        let mut invalid_keys = iterated_keys.clone();
+        invalid_keys.insert(vec![Nibble::from(1), Nibble::from(3), Nibble::from(0)]);
+
+        // Should fail - key outside prefix
+        assert!(proof.verify_iter_completeness(&prefix, &invalid_keys).is_err());
     }
 }

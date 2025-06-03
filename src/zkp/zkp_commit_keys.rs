@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     sha2::{Digest, Sha256},
-    trie::{nibbles_from_bytes, NibblePatriciaTrieError, NibblePatriciaTrieRootPath},
+    trie::{nibbles_from_bytes, Nibble, NibblePatriciaTrieError, NibblePatriciaTrieRootPath},
 };
 use anyhow::anyhow;
 use borsh::BorshSerialize;
@@ -65,6 +65,19 @@ pub fn circuit_commit_keys(
     witness
         .accum_logs_final
         .serialize(&mut accum_logs_bytes_final)?;
+
+    // Verify completeness for all iteration logs
+    for (key_prefix, keys) in witness.accum_logs_final.iter() {
+        let key_prefix_nibbles = nibbles_from_bytes(key_prefix);
+        let iterated_keys_nibbles: BTreeSet<Vec<Nibble>> = keys
+            .iter()
+            .map(|k| nibbles_from_bytes(k))
+            .collect();
+        
+        witness
+            .keys_commit_path
+            .verify_iter_completeness(&key_prefix_nibbles, &iterated_keys_nibbles)?;
+    }
 
     let nodes_for_inclusion_proof_prev = witness
         .state_for_access
