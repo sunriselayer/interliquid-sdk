@@ -64,4 +64,4 @@ sequenceDiagram
    - Once verified, block is finalized
    - Client receives confirmation
 
-This parallel processing approach significantly improves performance while maintaining security through zero-knowledge proofs. 
+This parallel processing approach significantly improves performance while maintaining security through zero-knowledge proofs.
